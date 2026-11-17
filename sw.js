@@ -1,6 +1,6 @@
 // Minimaler Service Worker: App-Hülle offline verfügbar, sonst immer Netz zuerst.
 // Bei Änderungen an der Hülle CACHE-Version erhöhen.
-const CACHE = 'marvin-shell-v1';
+const CACHE = 'marvin-shell-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
@@ -20,7 +20,7 @@ self.addEventListener('fetch', (e) => {
     // Nur eigene GET-Requests anfassen (Backend und Gemini laufen direkt)
     if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
     e.respondWith(
-        fetch(e.request)
+        fetch(e.request, { cache: 'no-cache' }) // HTTP-Cache von GitHub Pages umgehen
             .then(res => {
                 const copy = res.clone();
                 caches.open(CACHE).then(c => c.put(e.request, copy));

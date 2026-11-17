@@ -1,5 +1,7 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZym0k4jDLnXL7NDCYuzWAH6gKkWw1m7mcVfP7cASEcXv0tl0/exec';
-const GEMINI_MODEL = 'gemini-3.8-flash';
+// "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
+// Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
+const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -188,26 +190,38 @@ function buildSchema() {
 }
 
 async function parseWithGemini(text) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': getSetting('geminiKey') },
-        body: JSON.stringify({
-            systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
-            contents: [{ role: 'user', parts: [{ text }] }],
-            generationConfig: {
-                responseMimeType: 'application/json',
-                responseSchema: buildSchema(),
-                temperature: 0.4,
-            },
-        }),
+    const body = JSON.stringify({
+        systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
+        contents: [{ role: 'user', parts: [{ text }] }],
+        generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: buildSchema(),
+            temperature: 0.4,
+        },
     });
 
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error?.message || `Gemini HTTP ${response.status}`);
-    const raw = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!raw) throw new Error('Gemini hat geschwiegen');
-    return JSON.parse(raw);
+    let lastError;
+    for (const model of GEMINI_MODELS) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': getSetting('geminiKey') },
+            body,
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            lastError = new Error(result.error?.message || `Gemini HTTP ${response.status}`);
+            // Modell nicht (mehr) verfügbar -> nächstes probieren; andere Fehler (Key, Quota) sofort melden
+            if (response.status === 404 || /not (found|available)|no longer available/i.test(lastError.message)) continue;
+            throw lastError;
+        }
+
+        const raw = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!raw) throw new Error('Gemini hat geschwiegen');
+        return JSON.parse(raw);
+    }
+    throw lastError;
 }
 
 // ---------- Ablauf: Text -> Task ----------
@@ -273,10 +287,11 @@ function switchTab(status) {
     renderTasks();
 }
 
-// "2026-11-20" als lokales Datum lesen (new Date() würde UTC annehmen)
+// "2026-11-20" als lokales Datum lesen (new Date() würde UTC annehmen).
+// Vom Sheet kommen Datumszellen als UTC-Zeitstempel ("2026-11-19T23:00:00.000Z" = 20.11. in Wien) – die normal parsen.
 function formatDate(value) {
     if (!value) return '';
-    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value));
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value)); // nur reines Datum; ISO mit Uhrzeit normal parsen
     const d = m ? new Date(+m[1], m[2] - 1, +m[3]) : new Date(value);
     return isNaN(d.getTime()) ? '' : d.toLocaleDateString('de-AT');
 }
