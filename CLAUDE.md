@@ -96,6 +96,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   UI-Rendering (Dark Mode, Tabs, Glas-Duplo-Karten).
 *   Anbindung ans Backend: `fetch`-Call zieht erfolgreich die Live-Daten aus dem Google Sheet und rendert sie nach Status gefiltert.
 *   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
+*   Backend-Auth per Token ist live (Script Property gesetzt, neue Version deployt, Mac eingerichtet).
 *   Marvin-Button öffnet die Einstellungen, wenn kein Gemini-Key gesetzt ist; sonst Placeholder-`alert()`.
 
 **Was ist halb fertig / offen:**
