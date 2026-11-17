@@ -1,5 +1,5 @@
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZym0k4jDLnXL7NDCYuzWAH6gKkWw1m7mcVfP7cASEcXv0tl0/exec';
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
