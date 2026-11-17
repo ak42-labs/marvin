@@ -2,14 +2,18 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
     <title>Marvin</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header>
+        <div class="header-row">
+            <button id="inbox-badge" class="pill" hidden>Puffer: <span id="inbox-count">0</span></button>
+            <button id="settings-btn" class="icon-btn" aria-label="Einstellungen">⚙︎</button>
+        </div>
         <div class="segment-control">
-            <button class="tab" data-target="Puffer">Puffer</button>
             <button class="tab" data-target="Gedächtnis">Gedächtnis</button>
             <button class="tab active" data-target="Zu tun">Zu tun</button>
             <button class="tab" data-target="Pausiert">Pausiert</button>
@@ -26,6 +30,23 @@
             <span class="icon">🎙️</span> Marvin
         </button>
     </footer>
+
+    <dialog id="settings">
+        <form method="dialog">
+            <h2>Einstellungen</h2>
+            <label>Gemini API-Key
+                <input type="password" id="gemini-key" autocomplete="off">
+            </label>
+            <label>Backend-Token
+                <input type="password" id="backend-token" autocomplete="off">
+            </label>
+            <p class="hint">Bleibt nur in diesem Browser (localStorage).</p>
+            <div class="dialog-actions">
+                <button value="cancel" class="pill">Abbrechen</button>
+                <button value="save" id="settings-save" class="pill accent">Speichern</button>
+            </div>
+        </form>
+    </dialog>
 
     <script src="app.js"></script>
 </body>

@@ -15,6 +15,11 @@ Entwicklung einer maßgeschneiderten, minimalistischen, Mobile-First PWA (Progre
 *   **Soll:** Google Calendar Integration (Lesen/Schreiben).
 *   **Später:** [OFFEN] (Weitere Ausbaustufen noch nicht im Detail definiert).
 
+**Nutzung & Plattformen:**
+*   Single-User (nur Armin). Primär Chrome auf Android, sekundär Browser am Mac.
+*   Eingangskanäle: Sprache in der PWA, Google Home (im Vorbeigehen).
+*   iOS ist **nicht** im Scope.
+
 **Bewusst ausgeschlossene Dinge (Non-Goals):**
 *   Keine verschachtelten Menüs oder komplexe Navigationsstrukturen.
 *   Keine klassischen Formulare zur Aufgabeneingabe (Eingabe primär über Sprache/KI).
@@ -39,9 +44,10 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 3. ARCHITEKTUR (IST-STAND)
 **Dateien im Repo (`ak42-labs/marvin`):**
-*   `index.html`: Das radikal reduzierte UI (Header, Tab-Navigation, Task-Liste, Settings-Modal, Marvin-Sprachbutton).
+*   `index.html`: Das radikal reduzierte UI (Header mit Puffer-Badge + Settings-Button, Tabs Gedächtnis/Zu tun/Pausiert, Task-Liste, Settings-`<dialog>`, Marvin-Sprachbutton).
 *   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
-*   `app.js`: Frontend-Logik. Beinhaltet Tab-Switching, den Fetch-Call zum Backend, das Rendering der Tasks und die `localStorage`-Logik für den Gemini-Key.
+*   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`).
+*   `apps-script/`: Backend-Code. Aktuell nur README – `Code.gs` muss noch aus dem Editor gespiegelt werden.
 
 **Datenfluss:**
 1. User spricht -> PWA (Web Speech API) [Noch zu implementieren]
@@ -65,6 +71,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `Tasks`: Haupttabelle für alle Aufgaben.
 *   `Config`: [OFFEN - Struktur wurde besprochen, aber exaktes Schema liegt im Sheet, nicht im aktuellen Chat-Kontext].
 *   **Status-Modell (5 feste Werte):** `Puffer` (Inbox), `Gedächtnis` (Ideen/Backlog), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Erledigt` (Done).
+*   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
 
 **Beispielzeilen (Tabellenblatt "Tasks"):**
 *   *Row 1:* ID: `[UUID]`, Title: "Balkonkraftwerk Kabel verlegen", Status: "Zu tun", Category: "PV & Klima", DueDate: "2026-11-20", Source: "PWA", Created_At: `[Timestamp]`, Updated_At: `[Timestamp]`
@@ -86,16 +93,19 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Repository-Struktur, GitHub Pages Live-Hosting (HTTPS).
 *   UI-Rendering (Dark Mode, Tabs, Glas-Duplo-Karten).
 *   Anbindung ans Backend: `fetch`-Call zieht erfolgreich die Live-Daten aus dem Google Sheet und rendert sie nach Status gefiltert.
-*   Security: Ein Einstellungs-Modal in der UI speichert den Gemini-API-Key sicher lokal im `localStorage` des Browsers.
+*   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
+*   Marvin-Button öffnet die Einstellungen, wenn kein Gemini-Key gesetzt ist; sonst Placeholder-`alert()`.
 
-**Was ist halb fertig:**
-*   Der Marvin-Sprachbutton ist im UI verankert, prüft auf das Vorhandensein des API-Keys, löst aber aktuell nur einen Placeholder-`alert()` aus.
+**Was ist halb fertig / offen:**
+*   Backend-Token wird gesendet, aber vom Apps Script noch **nicht geprüft** (siehe `apps-script/README.md`). Muss vor `addTask` erledigt sein, da die Web-App-URL öffentlich ist.
+*   Noch keine echte PWA (kein Manifest, kein Service Worker).
 
 **Bekannte Bugs/Probleme (Gelöst):**
 *   Anfängliche CORS-Fehler durch lokale Ausführung (`file://`) und fehlende Freigabe der Sheets-API. Behoben durch HTTPS-Hosting auf Pages und korrektes "Anyone"-Deployment im Apps Script.
 
 **Getroffene Entscheidungen + Begründung:**
-*   **Sicherheit:** Keine direkten Schreibzugriffe von KIs auf das Code-Repo (Trennung von AI-Designer und AI-Architekt via Copy/Paste bzw. lokaler ZIP).
+*   **Arbeitsweise:** Produkt-/Usability-Diskussion findet außerhalb statt; Claude Code arbeitet am Repo (Architektur, Umsetzung), committet auf Feature-Branches, `main` nur nach Freigabe. Ergebnisse der Produktdiskussion landen als Entscheidung in dieser Datei.
+*   **Backend-Auth:** Shared Token (Script Property `MARVIN_TOKEN`), da Web-App öffentlich erreichbar sein muss.
 *   **Infrastruktur:** Public Repo auf GitHub genutzt, um kostenloses GitHub Pages Hosting zu ermöglichen (da Secrets rein clientseitig im LocalStorage leben, ist der Public-Status unkritisch).
 
 **Verworfene Ansätze + Warum:**

@@ -17,6 +17,7 @@ body {
     display: flex; 
     flex-direction: column;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden; /* Verhindert Bouncing auf Mobile */
 }
 
@@ -90,7 +91,7 @@ main {
 
 footer {
     padding: 16px;
-    padding-bottom: 32px; /* iOS/Android Safe Area Offset */
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 16px)); /* Safe Area (Android-Gestenleiste) */
     flex-shrink: 0;
 }
 
@@ -123,3 +124,63 @@ footer {
     margin-top: 40px; 
     font-size: 16px;
 }
+
+/* ---------- Header-Leiste & Puffer-Badge ---------- */
+.header-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pill, .icon-btn {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-main);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pill.accent { background: var(--accent); border-color: var(--accent-border); }
+.icon-btn { padding: 8px 12px; font-size: 18px; color: var(--text-muted); }
+#inbox-badge { margin-right: auto; }
+
+/* ---------- Settings-Dialog ---------- */
+dialog {
+    background: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: var(--text-main);
+    border: 1px solid var(--glass-border);
+    border-radius: 28px;
+    padding: 24px;
+    width: min(420px, calc(100vw - 32px));
+    box-sizing: border-box;
+}
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+dialog h2 { margin: 0 0 16px; font-size: 20px; }
+
+dialog label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+}
+
+dialog input {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    color: var(--text-main);
+    font-size: 16px;
+}
+
+.hint { font-size: 12px; color: var(--text-muted); margin: 0 0 16px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
