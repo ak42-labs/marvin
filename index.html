@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Marvin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="segment-control">
+            <button class="tab" data-target="Puffer">Puffer</button>
+            <button class="tab" data-target="Gedächtnis">Gedächtnis</button>
+            <button class="tab active" data-target="Zu tun">Zu tun</button>
+            <button class="tab" data-target="Pausiert">Pausiert</button>
+        </div>
+    </header>
+
+    <main id="content">
+        <div id="loading">Marvin holt die Daten...</div>
+        <div id="task-list"></div>
+    </main>
+
+    <footer>
+        <button id="marvin-btn">
+            <span class="icon">🎙️</span> Marvin
+        </button>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
