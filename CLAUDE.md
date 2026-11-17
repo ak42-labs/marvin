@@ -98,7 +98,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Anbindung ans Backend: `fetch`-Call zieht erfolgreich die Live-Daten aus dem Google Sheet und rendert sie nach Status gefiltert.
 *   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
 *   Backend-Auth per Token ist live (Script Property gesetzt, neue Version deployt, Mac eingerichtet).
-*   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. (Mit gemockten APIs getestet; Live-Test mit echtem Gemini-Key steht aus.)
+*   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. Live getestet am 17.11.2026 (Android/Mac), funktioniert. Toast bleibt 15 s, Antippen schließt.
 *   PWA installierbar (Manifest, Icons, Service Worker).
 
 **Was ist halb fertig / offen:**
@@ -119,8 +119,15 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 ---
 
 ## 7. NÄCHSTE SCHRITTE
-Kandidaten für v0.3 (Priorisierung durch Armin):
-1.  **Task-Status ändern:** `updateTask` im Backend; Wischen (rechts = Erledigt, links = Pausiert) in der UI. Damit auch Undo möglich.
-2.  **Puffer-Abarbeitung:** Beim App-Start Puffer-Einträge durch Gemini klassifizieren und per `updateTask` einsortieren; Unklares bleibt als Rückfrage im Badge.
-3.  **Google Home Ingestion:** Zeitgesteuertes Apps Script holt Google Tasks in den Puffer.
-4.  **System-Prompt verfeinern** anhand echter Nutzung (Marvins Ton, Kategorie-Treffsicherheit).
+Erkenntnisse aus dem ersten Live-Test (17.11.2026):
+*   Spracherkennung verhört Eigennamen (z.B. Verein "Vaget" -> "Baguette"). Falsche Einträge lassen sich aktuell nicht korrigieren.
+*   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
+
+Backlog v0.3 (Reihenfolge Vorschlag, Priorisierung durch Armin):
+1.  **Task bearbeiten + Status ändern:** `updateTask` im Backend. Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Status als große Buttons). Optional später Wischen (rechts = Erledigt, links = Pausiert).
+2.  **Korrektur per Sprache:** Im Bearbeiten-Modus Marvin-Button = "ändere das zu …" (Gemini bekommt bestehenden Task + Anweisung).
+3.  **Eigenes Vokabular:** Neuer `Config`-Typ `Begriff` (z.B. "Vaget – Verein"). Liste geht in den Gemini-Prompt, damit Verhörer korrigiert werden.
+4.  **Löschen/Undo** (`deleteTask`), z.B. "Rückgängig" im Toast direkt nach dem Anlegen.
+5.  **Puffer-Abarbeitung:** Beim App-Start Puffer-Einträge durch Gemini klassifizieren und einsortieren; Unklares bleibt als Rückfrage im Badge.
+6.  **Google Home Ingestion:** Zeitgesteuertes Apps Script holt Google Tasks in den Puffer.
+7.  **System-Prompt verfeinern** anhand echter Nutzung (Marvins Ton, Kategorie-Treffsicherheit).

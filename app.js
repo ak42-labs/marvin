@@ -272,7 +272,8 @@ function showToast(message) {
     toast.textContent = message;
     toast.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.hidden = true; }, 5000);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 15000);
+    toast.onclick = () => { toast.hidden = true; }; // Antippen schließt
 }
 
 function initTabs() {
