@@ -46,11 +46,12 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 **Dateien im Repo (`ak42-labs/marvin`):**
 *   `index.html`: Das radikal reduzierte UI (Header mit Puffer-Badge + Settings-Button, Tabs Gedächtnis/Zu tun/Pausiert, Task-Liste, Settings-`<dialog>`, Marvin-Sprachbutton).
 *   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
-*   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`).
+*   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODEL`, `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
+*   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
 **Datenfluss:**
-1. User spricht -> PWA (Web Speech API) [Noch zu implementieren]
+1. User tippt Marvin-Button und spricht -> PWA (Web Speech API, endet bei Stille). Ohne Speech API: Texteingabe per `prompt()`.
 2. PWA -> Sendet Text + `localStorage` API-Key an Gemini API.
 3. Gemini API -> Retourniert JSON (Task-Details).
 4. PWA -> Sendet HTTP POST (`fetch`) an Google Apps Script (Web-App URL).
@@ -97,10 +98,12 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Anbindung ans Backend: `fetch`-Call zieht erfolgreich die Live-Daten aus dem Google Sheet und rendert sie nach Status gefiltert.
 *   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
 *   Backend-Auth per Token ist live (Script Property gesetzt, neue Version deployt, Mac eingerichtet).
-*   Marvin-Button öffnet die Einstellungen, wenn kein Gemini-Key gesetzt ist; sonst Placeholder-`alert()`.
+*   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. (Mit gemockten APIs getestet; Live-Test mit echtem Gemini-Key steht aus.)
+*   PWA installierbar (Manifest, Icons, Service Worker).
 
 **Was ist halb fertig / offen:**
-*   Noch keine echte PWA (kein Manifest, kein Service Worker).
+*   Kein Undo/Löschen (Backend hat keine `deleteTask`/`updateTask`-Aktion).
+*   Puffer wird noch nicht automatisch von der KI abgearbeitet.
 
 **Bekannte Bugs/Probleme (Gelöst):**
 *   Anfängliche CORS-Fehler durch lokale Ausführung (`file://`) und fehlende Freigabe der Sheets-API. Behoben durch HTTPS-Hosting auf Pages und korrektes "Anyone"-Deployment im Apps Script.
@@ -116,8 +119,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 ---
 
 ## 7. NÄCHSTE SCHRITTE
-Laut Projektplanung stehen nun folgende Implementierungen im Frontend (`app.js`) an:
-1.  **Web Speech API:** Anbindung des nativen Browser-Mikrofons an den Marvin-Button zur Text-Transkription.
-2.  **Gemini API Integration:** Bau des Fetch-Calls an die Gemini API (Nutzung des Keys aus dem `localStorage`).
-3.  **Function Calling / System Prompt:** Konfiguration des System-Prompts, damit Gemini aus der Transkription ein striktes JSON-Objekt (Passend zum `Tasks`-Schema) sowie den "Marvin-Kommentar" generiert.
-4.  **Backend-Write:** Den generierten JSON-Task via POST-Call (`action: 'addTask'`) an das Apps Script senden, um die Datenbank zu aktualisieren.
+Kandidaten für v0.3 (Priorisierung durch Armin):
+1.  **Task-Status ändern:** `updateTask` im Backend; Wischen (rechts = Erledigt, links = Pausiert) in der UI. Damit auch Undo möglich.
+2.  **Puffer-Abarbeitung:** Beim App-Start Puffer-Einträge durch Gemini klassifizieren und per `updateTask` einsortieren; Unklares bleibt als Rückfrage im Badge.
+3.  **Google Home Ingestion:** Zeitgesteuertes Apps Script holt Google Tasks in den Puffer.
+4.  **System-Prompt verfeinern** anhand echter Nutzung (Marvins Ton, Kategorie-Treffsicherheit).
