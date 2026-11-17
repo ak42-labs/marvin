@@ -47,7 +47,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `index.html`: Das radikal reduzierte UI (Header mit Puffer-Badge + Settings-Button, Tabs Gedächtnis/Zu tun/Pausiert, Task-Liste, Settings-`<dialog>`, Marvin-Sprachbutton).
 *   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`).
-*   `apps-script/`: Backend-Code. Aktuell nur README – `Code.gs` muss noch aus dem Editor gespiegelt werden.
+*   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
 **Datenfluss:**
 1. User spricht -> PWA (Web Speech API) [Noch zu implementieren]
@@ -69,7 +69,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 **Tabellenblätter & Datenmodell:**
 *   `Tasks`: Haupttabelle für alle Aufgaben.
-*   `Config`: [OFFEN - Struktur wurde besprochen, aber exaktes Schema liegt im Sheet, nicht im aktuellen Chat-Kontext].
+*   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At.
+*   `Config`: Spalte A = Typ (`Status` / `Category`), Spalte B = Wert. Wird über `getConfig` gelesen.
 *   **Status-Modell (5 feste Werte):** `Puffer` (Inbox), `Gedächtnis` (Ideen/Backlog), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Erledigt` (Done).
 *   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
 
@@ -81,8 +82,9 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 ---
 
 ## 5. APPS SCRIPT
-*   **Vollständiger aktueller Code:** [OFFEN - Der serverseitige `.gs` Code liegt in Google Drive und wurde im Chat nicht im Volltext ausgegeben. Er beinhaltet grundlegende CRUD-Operationen.]
-*   **Endpunkte:** `doPost(e)` akzeptiert JSON-Payload (z.B. `{ action: 'getTasks' }`) und retourniert als Text/JSON: `{status: 'success', data: [...]}`.
+*   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version deployen).
+*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks`, `addTask`, `addEvent`, `getConfig`. Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
+*   **Auth:** Jede Anfrage braucht `token` == Script Property `MARVIN_TOKEN`.
 *   **Deployment-Einstellungen:** Web-App, Ausführen als: "Ich (armin...)", Zugriff: "Jeder".
 *   **Externe APIs/Schlüssel:** Google Sheets API (als Dienst im Script aktiviert, um CORS zu vermeiden).
 
@@ -97,14 +99,13 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Marvin-Button öffnet die Einstellungen, wenn kein Gemini-Key gesetzt ist; sonst Placeholder-`alert()`.
 
 **Was ist halb fertig / offen:**
-*   Backend-Token wird gesendet, aber vom Apps Script noch **nicht geprüft** (siehe `apps-script/README.md`). Muss vor `addTask` erledigt sein, da die Web-App-URL öffentlich ist.
 *   Noch keine echte PWA (kein Manifest, kein Service Worker).
 
 **Bekannte Bugs/Probleme (Gelöst):**
 *   Anfängliche CORS-Fehler durch lokale Ausführung (`file://`) und fehlende Freigabe der Sheets-API. Behoben durch HTTPS-Hosting auf Pages und korrektes "Anyone"-Deployment im Apps Script.
 
 **Getroffene Entscheidungen + Begründung:**
-*   **Arbeitsweise:** Produkt-/Usability-Diskussion findet außerhalb statt; Claude Code arbeitet am Repo (Architektur, Umsetzung), committet auf Feature-Branches, `main` nur nach Freigabe. Ergebnisse der Produktdiskussion landen als Entscheidung in dieser Datei.
+*   **Arbeitsweise:** Produkt-/Usability-Diskussion findet außerhalb statt; Claude Code arbeitet am Repo (Architektur, Umsetzung), committet direkt auf `main` (Single-Dev-Projekt; Pages deployt automatisch). Größere/riskante Umbauten auf einem Branch mit Rückfrage. Ergebnisse der Produktdiskussion landen als Entscheidung in dieser Datei.
 *   **Backend-Auth:** Shared Token (Script Property `MARVIN_TOKEN`), da Web-App öffentlich erreichbar sein muss.
 *   **Infrastruktur:** Public Repo auf GitHub genutzt, um kostenloses GitHub Pages Hosting zu ermöglichen (da Secrets rein clientseitig im LocalStorage leben, ist der Public-Status unkritisch).
 

@@ -4,6 +4,7 @@ const SHEET_CONFIG = 'Config';
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
+    checkToken_(payload.token);
     const action = payload.action;
     let data = null;
 
@@ -25,6 +26,14 @@ function doPost(e) {
   } catch (error) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: error.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+// Token liegt in: Projekteinstellungen > Skripteigenschaften > MARVIN_TOKEN
+function checkToken_(token) {
+  const expected = PropertiesService.getScriptProperties().getProperty('MARVIN_TOKEN');
+  if (!expected || token !== expected) {
+    throw new Error('unauthorized');
   }
 }
 
