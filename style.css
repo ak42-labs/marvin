@@ -261,7 +261,7 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
     font-weight: 600;
 }
 .status-buttons button.active { background: var(--accent); border-color: var(--accent-border); }
-.status-buttons button[data-status="Erledigt"] { background: rgba(80, 200, 120, 0.18); border-color: rgba(80, 200, 120, 0.45); }
+.status-buttons button[data-status="Erledigt"].active { background: rgba(80, 200, 120, 0.3); border-color: rgba(80, 200, 120, 0.7); }
 
 .pill.danger { color: #ff7b7b; border-color: rgba(255, 100, 100, 0.35); background: transparent; }
 .dialog-actions .spacer { flex: 1; }
@@ -278,3 +278,6 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
     padding: 8px 16px;
 }
 .done-link[hidden] { display: none; }
+
+dialog label.check { flex-direction: row; align-items: center; gap: 10px; color: var(--text-main); }
+dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: #6496ff; }

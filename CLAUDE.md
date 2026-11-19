@@ -106,6 +106,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 **Was ist halb fertig / offen:**
 *   v0.3 nur mit simulierten APIs getestet; Live-Test + Backend-Deploy (inkl. Dienst „Google Tasks API“) ausstehend.
 *   Kein Undo direkt nach dem Anlegen (Löschen über Bearbeiten).
+*   v0.3.2: Gemini-Überlastung (429/503) -> automatisch erneut versuchen / anderes Modell. Optionale Sprachausgabe (Einstellungen: „Marvin spricht“, Browser-TTS, tief + langsam).
 *   Erledigt: kein Tab, sondern dezenter Link „✓ Erledigt (n)“ am Listenende (letzte 50, neueste zuerst).
 *   Backend-Version prüfen: Web-App-URL im Browser öffnen -> „Marvin Backend <BACKEND_VERSION> aktiv“.
 

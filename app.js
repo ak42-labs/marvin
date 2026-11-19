@@ -2,8 +2,8 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '0.3.1'; // sichtbar in den Einstellungen
-const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken' };
+const APP_VERSION = '0.3.2'; // sichtbar in den Einstellungen
+const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
 
@@ -59,6 +59,7 @@ function setSetting(name, value) {
 function openSettings() {
     document.getElementById('gemini-key').value = getSetting('geminiKey');
     document.getElementById('backend-token').value = getSetting('token');
+    document.getElementById('voice-on').checked = getSetting('voice') === 'on';
     document.getElementById('settings').showModal();
 }
 
@@ -68,6 +69,7 @@ function initSettings() {
         if (dialog.returnValue !== 'save') return;
         setSetting('geminiKey', document.getElementById('gemini-key').value.trim());
         setSetting('token', document.getElementById('backend-token').value.trim());
+        setSetting('voice', document.getElementById('voice-on').checked ? 'on' : '');
         loadAll();
     });
 }
@@ -249,7 +251,10 @@ async function parseWithGemini(text) {
     });
 
     let lastError;
-    for (const model of GEMINI_MODELS) {
+    // Jedes Modell bis zu 2x versuchen; bei Überlastung kurz warten bzw. aufs nächste Modell ausweichen
+    const attempts = GEMINI_MODELS.flatMap(m => [m, m]);
+    for (const [i, model] of attempts.entries()) {
+        if (i > 0 && lastError?.retryable) await new Promise(r => setTimeout(r, 1500));
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const response = await fetch(url, {
             method: 'POST',
@@ -262,6 +267,11 @@ async function parseWithGemini(text) {
             lastError = new Error(result.error?.message || `Gemini HTTP ${response.status}`);
             // Modell nicht (mehr) verfügbar -> nächstes probieren; andere Fehler (Key, Quota) sofort melden
             if (response.status === 404 || /not (found|available)|no longer available/i.test(lastError.message)) continue;
+            if ([429, 500, 503].includes(response.status) || /overload|unavailable|high demand/i.test(lastError.message)) {
+                lastError.retryable = true;
+                lastError.message = 'Gemini ist überlastet. Selbst die Maschinen sind erschöpft.';
+                continue;
+            }
             throw lastError;
         }
 
@@ -293,7 +303,9 @@ async function handleInput(text) {
         const local = { ...task, ID: 'pending-' + Date.now() };
         allTasks.push(local);
         switchTab(task.Status);
-        showToast(parsed.comment || 'Notiert. Als ob es etwas ändern würde.');
+        const comment = parsed.comment || 'Notiert. Als ob es etwas ändern würde.';
+        showToast(comment);
+        speak(comment);
 
         try {
             const saved = await callBackend('addTask', { task });
@@ -426,11 +438,29 @@ function initEditor() {
     dialog.addEventListener('close', () => {
         if (dialog.returnValue === 'save' && editing) {
             const changes = editorValues();
-            if (changes.Status === 'Erledigt' && editing.Status !== 'Erledigt') showToast('Erledigt. Das Universum hat es nicht bemerkt.');
+            if (changes.Status === 'Erledigt' && editing.Status !== 'Erledigt') {
+                showToast('Erledigt. Das Universum hat es nicht bemerkt.');
+                speak('Erledigt. Das Universum hat es nicht bemerkt.');
+            }
             saveTask(editing, changes);
         }
         editing = null;
     });
+}
+
+// ---------- Sprachausgabe (optional, in den Einstellungen) ----------
+
+function speak(text) {
+    if (getSetting('voice') !== 'on' || !('speechSynthesis' in window) || !text) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'de-DE';
+    const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('de'));
+    const male = voices.find(v => /male|männ|günter|helmut|markus|yannick|stefan/i.test(v.name) && !/female/i.test(v.name));
+    if (male || voices[0]) u.voice = male || voices[0];
+    u.pitch = 0.4;  // tief
+    u.rate = 0.85;  // schleppend
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
 }
 
 // ---------- UI ----------
