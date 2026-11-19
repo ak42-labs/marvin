@@ -1,0 +1,26 @@
+<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 512 512" width="512" height="512">
+<defs>
+<radialGradient id="marvinGlow" cx="50%" cy="100%" r="75%">
+<stop offset="0%" stop-color="#4A2B12"/>
+<stop offset="65%" stop-color="#171412"/>
+<stop offset="100%" stop-color="#0E0D0C"/>
+</radialGradient>
+</defs>
+<rect width="512" height="512" fill="url(#marvinGlow)"/>
+<rect x="64" y="64" width="384" height="384" rx="88" 
+fill="none" 
+stroke="#D4843E" 
+stroke-width="10" 
+stroke-opacity="0.85"/>
+<circle cx="378" cy="148" r="14" fill="#FFFFFF"/>
+<path d="M 106 286 Q 164 242 222 262" 
+fill="none" 
+stroke="#E59A54" 
+stroke-width="34" 
+stroke-linecap="round"/>
+<path d="M 290 262 Q 348 242 406 286" 
+fill="none" 
+stroke="#E59A54" 
+stroke-width="34" 
+stroke-linecap="round"/>
+</svg>
