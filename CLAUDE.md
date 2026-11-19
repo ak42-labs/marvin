@@ -48,7 +48,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
-*   `docs/ux-briefing.md`: Übergabe für die UX-Diskussion außerhalb (Screens, Texte, offene Fragen) – bei UI-Änderungen mitpflegen.
+*   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
 **Datenfluss:**
@@ -136,5 +136,5 @@ Backlog (Priorisierung durch Armin):
 2.  **Korrektur per Sprache** im Bearbeiten-Modus (Gemini bekommt bestehenden Task + Anweisung) – evtl. unnötig, da Tastatur-Spracheingabe reicht.
 3.  **Undo** im Toast direkt nach dem Anlegen.
 4.  **System-Prompt verfeinern** anhand echter Nutzung.
-5.  **Look & Feel** überarbeiten.
+5.  **Look & Feel v1 umsetzen** nach `docs/ux-v1.md` (freigegeben 19.11.2026). Inkl. Sheet-Spalte `Status_Since` und Config `Frist`.
 6.  Google Calendar (`addEvent` existiert bereits im Backend, ungenutzt).
