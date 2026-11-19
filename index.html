@@ -22,6 +22,7 @@
         <div id="inbox-badge" class="inbox-note" hidden>Marvin sortiert <span id="inbox-count">0</span> Einträge aus dem Puffer…</div>
         <div id="loading">Marvin holt die Daten...</div>
         <div id="task-list"></div>
+        <pre id="debug-log" hidden></pre>
     </main>
 
     <footer>
@@ -65,6 +66,7 @@
                 <input type="password" id="backend-token" autocomplete="off">
             </label>
             <label class="check"><input type="checkbox" id="voice-on"> Marvin spricht (Kommentare vorlesen)</label>
+            <label class="check"><input type="checkbox" id="debug-on"> Debug-Modus (Protokoll unter der Liste)</label>
             <p class="hint">Bleibt nur in diesem Browser (localStorage). Wieder öffnen: Marvin-Button lange drücken. <span id="app-version"></span></p>
             <div class="dialog-actions">
                 <button value="cancel" class="pill">Abbrechen</button>

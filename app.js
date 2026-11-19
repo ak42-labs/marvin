@@ -2,8 +2,8 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '0.3.4'; // sichtbar in den Einstellungen
-const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice' };
+const APP_VERSION = '0.4.0'; // sichtbar in den Einstellungen
+const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
 
@@ -30,6 +30,32 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.serviceWorker?.getRegistration().then(r => r?.update()).catch(() => {});
     });
 });
+
+// ---------- Debug-Modus (Einstellungen) ----------
+// Zeigt unten in der Liste ein Protokoll aller Backend-/Gemini-Antworten und den Google-Tasks-Import.
+
+const debugEntries = [];
+function debugLog(label, detail) {
+    const time = new Date().toLocaleTimeString('de-AT');
+    debugEntries.unshift(`${time}  ${label}\n${typeof detail === 'string' ? detail : JSON.stringify(detail, null, 1)}`);
+    debugEntries.length = Math.min(debugEntries.length, 30);
+    renderDebug();
+}
+
+function renderDebug() {
+    const el = document.getElementById('debug-log');
+    if (!el) return;
+    el.hidden = getSetting('debug') !== 'on';
+    el.textContent = `Debug · App ${APP_VERSION}\n\n` + debugEntries.join('\n\n');
+}
+
+// Probleme beim Google-Tasks-Import auch ohne Debug-Modus melden
+function reportImport(rep) {
+    if (rep.error) showToast('Google-Import: ' + rep.error);
+    else if (rep.lists?.length && rep.skippedLists?.length === rep.lists.length) {
+        showToast(`Google-Import: Alle Listen (${rep.lists.join(', ')}) durch „Importliste“ im Config-Blatt ausgeschlossen.`);
+    }
+}
 
 // ---------- Updates ----------
 
@@ -60,6 +86,7 @@ function openSettings() {
     document.getElementById('gemini-key').value = getSetting('geminiKey');
     document.getElementById('backend-token').value = getSetting('token');
     document.getElementById('voice-on').checked = getSetting('voice') === 'on';
+    document.getElementById('debug-on').checked = getSetting('debug') === 'on';
     document.getElementById('settings').showModal();
 }
 
@@ -70,6 +97,8 @@ function initSettings() {
         setSetting('geminiKey', document.getElementById('gemini-key').value.trim());
         setSetting('token', document.getElementById('backend-token').value.trim());
         setSetting('voice', document.getElementById('voice-on').checked ? 'on' : '');
+        setSetting('debug', document.getElementById('debug-on').checked ? 'on' : '');
+        renderDebug();
         loadAll();
     });
 }
@@ -84,6 +113,10 @@ async function callBackend(action, payload = {}) {
         body: JSON.stringify({ action, token: getSetting('token'), ...payload }),
     });
     const result = await response.json();
+    debugLog(`Backend ${action}`, result.status === 'success'
+        ? { info: result.info, data: Array.isArray(result.data) ? `${result.data.length} Einträge` : result.data }
+        : result.message);
+    if (result.info?.import) reportImport(result.info.import);
     if (result.status !== 'success') {
         const msg = result.message || 'Backend-Fehler';
         if (/Unbekannte Aktion/.test(msg)) throw new Error('Backend ist veraltet – neue Version in Apps Script bereitstellen.');
@@ -262,6 +295,7 @@ async function parseWithGemini(text) {
             body,
         });
         const result = await response.json();
+        debugLog(`Gemini ${model} HTTP ${response.status}`, response.ok ? result.candidates?.[0]?.content?.parts?.[0]?.text : result.error?.message);
 
         if (!response.ok) {
             lastError = new Error(result.error?.message || `Gemini HTTP ${response.status}`);

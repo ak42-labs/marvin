@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.5'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.6'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -8,9 +8,10 @@ function doPost(e) {
     checkToken_(payload.token);
     const action = payload.action;
     let data = null;
+    let info = { backend: BACKEND_VERSION };
 
     if (action === 'getTasks') {
-      importGoogleTasks_(); // Google Home / Google Tasks -> Puffer (still, falls nicht eingerichtet)
+      info.import = importGoogleTasks_(); // Google Home / Google Tasks -> Puffer; Bericht für Debug-Modus
       data = getTasks();
     } else if (action === 'updateTask') {
       data = updateTask(payload.id, payload.changes);
@@ -26,7 +27,7 @@ function doPost(e) {
       throw new Error("Unbekannte Aktion: " + action);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: data }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: data, info: info }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (error) {
@@ -155,16 +156,22 @@ function deleteTask(id) {
 // Zusätzlich merkt sich das Script die IDs, damit nichts doppelt importiert wird.
 
 function importGoogleTasks_() {
-  if (typeof Tasks === 'undefined') return; // Dienst nicht aktiviert
+  const report = { imported: [], skippedLists: [], lists: [] };
+  if (typeof Tasks === 'undefined') {
+    report.error = 'Dienst „Google Tasks API“ ist im Apps-Script-Editor nicht hinzugefügt.';
+    return report;
+  }
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(10000)) return;
+  if (!lock.tryLock(10000)) { report.error = 'Import läuft gerade parallel.'; return report; }
   try {
     const props = PropertiesService.getScriptProperties();
     let seen = JSON.parse(props.getProperty('IMPORTED_TASK_IDS') || '[]');
     const allowed = getConfigValues_('Importliste');
     const lists = Tasks.Tasklists.list().items || [];
+    report.filter = allowed;
     lists.forEach(list => {
-      if (allowed.length && allowed.indexOf(list.title) < 0) return;
+      report.lists.push(list.title);
+      if (allowed.length && allowed.indexOf(list.title) < 0) { report.skippedLists.push(list.title); return; }
       let pageToken;
       do {
         const res = Tasks.Tasks.list(list.id, { showCompleted: false, showHidden: false, maxResults: 100, pageToken: pageToken });
@@ -180,6 +187,7 @@ function importGoogleTasks_() {
             Source: 'Google Home',
           });
           seen.push(t.id);
+          report.imported.push(title);
           Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);
         });
         pageToken = res.nextPageToken;
@@ -188,9 +196,11 @@ function importGoogleTasks_() {
     props.setProperty('IMPORTED_TASK_IDS', JSON.stringify(seen.slice(-300))); // Größe begrenzen
   } catch (err) {
     console.error('Google-Tasks-Import fehlgeschlagen: ' + err);
+    report.error = String(err);
   } finally {
     lock.releaseLock();
   }
+  return report;
 }
 
 function getConfigValues_(type) {

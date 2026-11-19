@@ -109,6 +109,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Google Home: Einkaufsliste landet in Google Keep (keine API für private Konten) -> bleibt bewusst dort. Für Marvin: „Hey Google, erinnere mich …“ -> Google Tasks -> Import (Backend 0.5: nach Import in Google Tasks abgehakt, kein Doppelimport). Sprach-Weg für Einkäufe zu Marvin/Bring: offen, siehe Backlog.
 *   v0.3.2: Gemini-Überlastung (429/503) -> automatisch erneut versuchen / anderes Modell. Optionale Sprachausgabe (Einstellungen: „Marvin spricht“, Browser-TTS, tief + langsam).
 *   Erledigt: kein Tab, sondern dezenter Link „✓ Erledigt (n)“ am Listenende (letzte 50, neueste zuerst).
+*   Debug-Modus (Einstellungen): Protokoll aller Backend-/Gemini-Antworten unter der Liste; Backend liefert `info` (Version, Import-Bericht). Import-Fehler erscheinen auch ohne Debug als Toast.
 *   Backend-Version prüfen: Web-App-URL im Browser öffnen -> „Marvin Backend <BACKEND_VERSION> aktiv“.
 
 **Bekannte Bugs/Probleme (Gelöst):**

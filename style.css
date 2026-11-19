@@ -282,3 +282,15 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
 
 dialog label.check { flex-direction: row; align-items: center; gap: 10px; color: var(--text-main); }
 dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: #6496ff; }
+
+#debug-log {
+    font-size: 11px;
+    color: #9fc0ff;
+    background: rgba(100, 150, 255, 0.06);
+    border: 1px dashed rgba(100, 150, 255, 0.3);
+    border-radius: 16px;
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0 0 16px;
+}
