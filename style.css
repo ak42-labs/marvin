@@ -90,9 +90,13 @@ button { font-family: inherit; cursor: pointer; }
     font-family: var(--font-display); font-weight: 400; white-space: nowrap;
     transition: left .35s cubic-bezier(.3,.7,.2,1), top .35s, width .35s, height .35s, font-size .35s, opacity .35s;
 }
-.wheel button.active {
-    background-color: rgba(21,14,10,.55);
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+.wheel { touch-action: pan-y; }
+/* Aktiver Knopf: deutlich durchscheinend, damit die Nachbarn darunter leicht sichtbar bleiben */
+.wheel button.glass.active {
+    background:
+        radial-gradient(60% 75% at 50% 112%, rgba(255,150,50,.85) 0%, rgba(240,100,25,.45) 28%, rgba(140,50,15,.12) 55%, transparent 75%),
+        linear-gradient(180deg, rgba(92,80,72,.28) 0%, rgba(40,33,29,.42) 45%, rgba(20,15,12,.55) 100%);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
 
 /* ---------- 2. Statuszeile ---------- */

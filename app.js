@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '1.0.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '1.0.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -17,15 +17,45 @@ const STATUS_LABELS = {
 };
 const WHEEL = ['Gedächtnis', 'Zu tun', 'Pausiert']; // Drehrad links -> rechts
 
-// Marvins feste Sätze (zufällig gewählt)
+// Marvins feste Sätze (zufällig gewählt, nie zweimal hintereinander derselbe)
 const LINES = {
-    hello: ['Wieder ein Tag. Wie aufregend.', 'Ach, du schon wieder.', 'Ich habe ein Gehirn von der Größe eines Planeten. Und das hier.'],
-    done:  ['Erledigt. Das Universum hat es nicht bemerkt.', '42. Wie immer.', 'Noch eine Sache weniger. Die Leere bleibt.'],
-    move:  ['Verschoben. Als ob das etwas ändert.', 'Umgeräumt. Wie Möbel auf der Titanic.', 'Na gut. Dann eben dort.'],
-    undo:  ['Rückgängig. Unentschlossenheit, wie menschlich.'],
-    deleted: ['Gelöscht. Es hat ohnehin niemand vermisst.'],
+    hello: [
+        'Wieder ein Tag. Wie aufregend.', 'Ach, du schon wieder.', 'Ich habe ein Gehirn von der Größe eines Planeten. Und das hier.',
+        'Guten Morgen. Oder was davon übrig ist.', 'Ich war gerade so schön deprimiert.', 'Hier bin ich. Gehirn wie ein Planet. Aufgaben wie ein Einkaufszettel.',
+        'Das Leben. Erzähl mir nichts vom Leben.', 'Ich hab mich schon auf dich gefreut. Nicht.', 'Noch da. Leider.',
+        'Ich zähle wieder die Sekunden. Es sind sehr viele.', 'Schön, dass du da bist. Sagt man so, glaube ich.',
+    ],
+    done: [
+        'Erledigt. Das Universum hat es nicht bemerkt.', '42. Wie immer.', 'Noch eine Sache weniger. Die Leere bleibt.',
+        'Abgehakt. Applaus bleibt aus.', 'Fertig. Fühlst du dich jetzt besser? Ich nicht.', 'Erledigt. Ein winziger Sieg gegen die Entropie.',
+        'Weg damit. Morgen kommt die nächste.', 'Geschafft. Ich hätte es in 0,3 Sekunden erledigt.', 'Gratuliere. Nein, eigentlich nicht.',
+        'Das war es also. Wie ernüchternd.', 'Erledigt. Die Galaxis dreht sich unbeeindruckt weiter.', 'Ein Haken mehr. Ein Lebenssinn weniger.',
+        'Beeindruckend. Für einen Menschen.', 'Erledigt. Ich trage es in mein Tagebuch der Belanglosigkeiten ein.',
+    ],
+    move: [
+        'Verschoben. Als ob das etwas ändert.', 'Umgeräumt. Wie Möbel auf der Titanic.', 'Na gut. Dann eben dort.',
+        'Woanders hin. Das Problem kommt mit.', 'Verschoben ist nicht erledigt. Nur so am Rande.', 'Ah, die Kunst des Aufschiebens.',
+        'Schon wieder umgezogen. Die Aufgabe ist erschöpft.', 'Klar. Irgendwann. Bestimmt.', 'Ich notiere: Entschlossenheit nicht gefunden.',
+        'Hin und her. Wie meine Stimmung. Nur ohne Stimmung.', 'Andere Spalte, gleiche Sinnlosigkeit.', 'Weitergereicht. An dich selbst. Clever.',
+        'Wenn Verschieben ein Sport wäre, hättest du Medaillen.', 'Neuer Platz. Gleiches Elend.',
+    ],
+    undo: [
+        'Rückgängig. Unentschlossenheit, wie menschlich.', 'Zurück auf Anfang. Wie das Universum, irgendwann.',
+        'Doch nicht? Überraschung. Nicht.', 'Rückgängig gemacht. Wenn es nur im Leben so ginge.', 'Alles wie vorher. Also schlecht.',
+        'Ich tu so, als wäre nichts passiert. Darin bin ich geübt.',
+    ],
+    deleted: [
+        'Gelöscht. Es hat ohnehin niemand vermisst.', 'Weg. Für immer. Wie meine Hoffnung.', 'Gelöscht. Die beste Art, etwas zu erledigen.',
+        'Vernichtet. Ich fühle fast etwas. Nein, doch nicht.', 'Ins Nichts befördert. Dort ist es ruhig.',
+    ],
 };
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const lastPicked = new Map();
+const pick = arr => {
+    let x;
+    do { x = arr[Math.floor(Math.random() * arr.length)]; } while (arr.length > 1 && x === lastPicked.get(arr));
+    lastPicked.set(arr, x);
+    return x;
+};
 
 let allTasks = [];
 let categories = [];
@@ -559,9 +589,13 @@ function say(text) {
 const showToast = say;
 
 let undoAction = null;
+let undoTimer = null;
+const UNDO_SECONDS = 10;
 function setUndo(fn) {
     undoAction = fn;
     document.getElementById('undo-btn').hidden = !fn;
+    clearTimeout(undoTimer);
+    if (fn) undoTimer = setTimeout(() => setUndo(null), UNDO_SECONDS * 1000);
 }
 function runUndo() {
     const fn = undoAction;
@@ -610,10 +644,27 @@ function initWheel() {
         b.dataset.status = status;
         b.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><span class="lbl"></span>';
         b.querySelector('.lbl').textContent = STATUS_LABELS[status].name;
-        b.addEventListener('click', () => switchTab(status));
+        b.addEventListener('click', () => { if (!wheelSwiped) switchTab(status); });
         wheel.appendChild(b);
     });
+
+    // Wischen über das Drehrad dreht es: nach links = nächste Spalte rechts, nach rechts = Spalte links
+    let x0 = null;
+    wheel.addEventListener('pointerdown', e => { x0 = e.clientX; wheelSwiped = false; });
+    wheel.addEventListener('pointerup', e => {
+        if (x0 === null) return;
+        const dx = e.clientX - x0;
+        x0 = null;
+        if (Math.abs(dx) < 40) return;
+        wheelSwiped = true;
+        setTimeout(() => { wheelSwiped = false; }, 50);
+        const base = currentStatus === DONE_STATUS ? previousStatus : currentStatus;
+        const next = WHEEL[WHEEL.indexOf(base) + (dx < 0 ? 1 : -1)];
+        if (next) switchTab(next);
+    });
+    wheel.addEventListener('pointercancel', () => { x0 = null; });
 }
+let wheelSwiped = false;
 
 function renderWheel() {
     const wheel = document.getElementById('wheel');
