@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.3'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.4'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -151,13 +151,17 @@ function deleteTask(id) {
 // ---------- Google Tasks (Google Home) -> Puffer ----------
 // Voraussetzung: Im Editor unter "Dienste" die "Google Tasks API" hinzufügen.
 // Optional: In Config Zeilen mit Typ "Importliste" -> nur diese Listen werden importiert.
-// Importierte Einträge werden in Google Tasks als erledigt markiert (nicht gelöscht).
+// Einträge OHNE Termin werden nach dem Import in Google Tasks als erledigt markiert.
+// Einträge MIT Termin (z.B. "Hey Google, erinnere mich morgen an …") bleiben offen, damit die
+// Google-Erinnerung weiter klingelt; ihre IDs merkt sich das Script, damit sie nur einmal importiert werden.
 
 function importGoogleTasks_() {
   if (typeof Tasks === 'undefined') return; // Dienst nicht aktiviert
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return;
   try {
+    const props = PropertiesService.getScriptProperties();
+    let seen = JSON.parse(props.getProperty('IMPORTED_TASK_IDS') || '[]');
     const allowed = getConfigValues_('Importliste');
     const lists = Tasks.Tasklists.list().items || [];
     lists.forEach(list => {
@@ -167,7 +171,7 @@ function importGoogleTasks_() {
         const res = Tasks.Tasks.list(list.id, { showCompleted: false, showHidden: false, maxResults: 100, pageToken: pageToken });
         (res.items || []).forEach(t => {
           const title = (t.title || '').trim();
-          if (!title) return;
+          if (!title || seen.indexOf(t.id) >= 0) return;
           addTask({
             Title: title,
             Status: 'Puffer',
@@ -176,11 +180,16 @@ function importGoogleTasks_() {
             Notes: 'Liste: ' + list.title + (t.notes ? '\n' + t.notes : ''),
             Source: 'Google Home',
           });
-          Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);
+          if (t.due) {
+            seen.push(t.id); // offen lassen, Erinnerung bleibt aktiv
+          } else {
+            Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);
+          }
         });
         pageToken = res.nextPageToken;
       } while (pageToken);
     });
+    props.setProperty('IMPORTED_TASK_IDS', JSON.stringify(seen.slice(-300))); // Größe begrenzen
   } catch (err) {
     console.error('Google-Tasks-Import fehlgeschlagen: ' + err);
   } finally {

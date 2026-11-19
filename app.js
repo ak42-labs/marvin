@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '0.3.2'; // sichtbar in den Einstellungen
+const APP_VERSION = '0.3.3'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -458,7 +458,7 @@ function speak(text) {
     const male = voices.find(v => /male|männ|günter|helmut|markus|yannick|stefan/i.test(v.name) && !/female/i.test(v.name));
     if (male || voices[0]) u.voice = male || voices[0];
     u.pitch = 0.4;  // tief
-    u.rate = 0.85;  // schleppend
+    u.rate = 0.95;  // leicht schleppend
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
 }

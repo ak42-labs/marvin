@@ -1,6 +1,6 @@
 // Minimaler Service Worker: App-Hülle offline verfügbar, sonst immer Netz zuerst.
 // Bei Änderungen an der Hülle CACHE-Version erhöhen.
-const CACHE = 'marvin-shell-v6';
+const CACHE = 'marvin-shell-v7';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.json', 'icons/icon.svg', 'icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
