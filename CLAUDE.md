@@ -44,8 +44,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 3. ARCHITEKTUR (IST-STAND)
 **Dateien im Repo (`ak42-labs/marvin`):**
-*   `index.html`: Das radikal reduzierte UI (Tabs Gedächtnis/Zu tun/Pausiert, Puffer-Hinweis, Task-Liste, Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>`, Marvin-Sprachbutton). Einstellungen: Marvin-Button lange drücken (Mac: Rechtsklick); öffnen sich auch automatisch ohne Key bzw. per Tipp auf Ladefehler.
-*   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
+*   `index.html`: UX v1: Drehrad (Planetenhirn | Hyperraum | Anhalter), Statuszeile, Kartenliste, Link „42 · n“, Marvin-Zeile (Schreibmaschine + „rückgängig“), Marvin-Knopf mit Augen (doze/listen/think/speak). Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>` (Marvin-Knopf lange drücken / Rechtsklick).
+*   `style.css`: Amber-Glas (reines CSS + SVG-Körnung `#noise`), Fonts Michroma + Sora (Google Fonts).
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
@@ -71,8 +71,9 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 **Tabellenblätter & Datenmodell:**
 *   `Tasks`: Haupttabelle für alle Aufgaben.
-*   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At.
-*   `Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (Vokabular gegen Verhörer, geht in den Gemini-Prompt), `Importliste` (optional, welche Google-Tasks-Listen importiert werden).
+*   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (vom Backend automatisch angelegt; nur bei Statuswechsel gesetzt).
+*   `Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (Vokabular gegen Verhörer, geht in den Gemini-Prompt), `Importliste` (optional, welche Google-Tasks-Listen importiert werden), `Frist` (Tage im Hyperraum bis zur Glut; Standard 7).
+*   **Anzeigenamen** (nur UI, `STATUS_LABELS` in `app.js`): Gedächtnis = Planetenhirn, Zu tun = Hyperraum, Pausiert = Anhalter, Erledigt = 42.
 *   **Status-Modell (5 feste Werte):** `Puffer` (Inbox), `Gedächtnis` (Ideen/Backlog), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Erledigt` (Done).
 *   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
 
@@ -103,6 +104,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   PWA installierbar (Manifest, Icons, Service Worker). Neue App-Version lädt sich selbst (controllerchange -> reload). Beim Zurückholen der App (>30 s im Hintergrund) werden Daten + Puffer neu geladen. `APP_VERSION` in `app.js` steht im Einstellungsdialog – bei Releases erhöhen, ebenso `CACHE` in `sw.js`.
 
 *   v0.3 (19.11.2026): Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Notizen; Tastatur inkl. Tastatur-Spracheingabe). Status-Buttons wählen nur aus, „Speichern“ übernimmt. Löschen mit Rückfrage. Google Tasks (Google Home) -> Puffer -> Gemini sortiert beim App-Start ein. Eigenes Vokabular (`Begriff`) im Prompt.
+
+*   UX v1 (App 1.0.0, Backend 0.8, 19.11.2026): Amber-Glas, Drehrad, Dringlichkeit (Glut + Zahl), Gesten (Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42), Undo nach Anlegen/Verschieben/Erledigen, neues App-Icon.
 
 **Was ist halb fertig / offen:**
 *   v0.3 nur mit simulierten APIs getestet; Live-Test + Backend-Deploy (inkl. Dienst „Google Tasks API“) ausstehend.
@@ -136,5 +139,5 @@ Backlog (Priorisierung durch Armin):
 2.  **Korrektur per Sprache** im Bearbeiten-Modus (Gemini bekommt bestehenden Task + Anweisung) – evtl. unnötig, da Tastatur-Spracheingabe reicht.
 3.  **Undo** im Toast direkt nach dem Anlegen.
 4.  **System-Prompt verfeinern** anhand echter Nutzung.
-5.  **Look & Feel v1 umsetzen** nach `docs/ux-v1.md` (freigegeben 19.11.2026). Inkl. Sheet-Spalte `Status_Since` und Config `Frist`.
+5.  ~~Look & Feel v1~~ umgesetzt. Offen aus ux-v1 §8/§10: Bearbeiten-Dialog im neuen Look, situative Augen (B2/B3/D3), v3 „Neigungs-Glas“.
 6.  Google Calendar (`addEvent` existiert bereits im Backend, ungenutzt).

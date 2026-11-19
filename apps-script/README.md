@@ -14,8 +14,8 @@
 | `deleteTask`| `id`     | Löscht die Zeile |
 | `getConfig` | –        | `{statuses, categories, terms}` aus `Config` |
 
-Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At.
-`Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (eigenes Vokabular für die KI, z.B. `Vaget – Verein`), `Importliste` (optional: nur diese Google-Tasks-Listen importieren; ohne Eintrag = alle).
+Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (automatisch angelegt; nur bei Statuswechsel gesetzt). Spalten werden über die Kopfzeile adressiert.
+`Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (eigenes Vokabular für die KI, z.B. `Vaget – Verein`), `Frist` (Tage im Hyperraum bis zur Glut, Standard 7), `Importliste` (optional: nur diese Google-Tasks-Listen importieren; ohne Eintrag = alle).
 
 ## Google Tasks / Google Home
 
