@@ -2,6 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
+const APP_VERSION = '0.3.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -17,10 +18,30 @@ document.addEventListener('DOMContentLoaded', () => {
     initMarvinButton();
     initEditor();
     loadAll();
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+    document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
+    initServiceWorker();
+
+    // App wieder im Vordergrund (z.B. aus dem Hintergrund geholt): Daten + Puffer frisch laden,
+    // nach neuer App-Version schauen. Ersetzt den fehlenden Reload-Knopf der installierten PWA.
+    let hiddenAt = 0;
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { hiddenAt = Date.now(); return; }
+        if (Date.now() - hiddenAt > 30000 && !document.querySelector('dialog[open]')) loadAll();
+        navigator.serviceWorker?.getRegistration().then(r => r?.update()).catch(() => {});
+    });
 });
+
+// ---------- Updates ----------
+
+function initServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    const hadController = !!navigator.serviceWorker.controller;
+    // Neue Version aktiv -> einmal neu laden, damit sie sofort sichtbar ist
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController && !document.querySelector('dialog[open]')) location.reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+}
 
 // ---------- Settings ----------
 

@@ -99,7 +99,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
 *   Backend-Auth per Token ist live (Script Property gesetzt, neue Version deployt, Mac eingerichtet).
 *   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. Live getestet am 17.11.2026 (Android/Mac), funktioniert. Toast bleibt 15 s, Antippen schließt.
-*   PWA installierbar (Manifest, Icons, Service Worker).
+*   PWA installierbar (Manifest, Icons, Service Worker). Neue App-Version lädt sich selbst (controllerchange -> reload). Beim Zurückholen der App (>30 s im Hintergrund) werden Daten + Puffer neu geladen. `APP_VERSION` in `app.js` steht im Einstellungsdialog – bei Releases erhöhen, ebenso `CACHE` in `sw.js`.
 
 *   v0.3 (19.11.2026): Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Notizen; Tastatur inkl. Tastatur-Spracheingabe). Status-Buttons wählen nur aus, „Speichern“ übernimmt. Löschen mit Rückfrage. Google Tasks (Google Home) -> Puffer -> Gemini sortiert beim App-Start ein. Eigenes Vokabular (`Begriff`) im Prompt.
 
