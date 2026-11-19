@@ -247,7 +247,7 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
 
 .status-buttons {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr; /* wie die Tabs: Gedächtnis | Zu tun | Pausiert */
     gap: 8px;
     margin: 6px 0 16px;
 }
@@ -260,6 +260,7 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
     font-size: 15px;
     font-weight: 600;
 }
+.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; }
 .status-buttons button.active { background: var(--accent); border-color: var(--accent-border); }
 .status-buttons button[data-status="Erledigt"].active { background: rgba(80, 200, 120, 0.3); border-color: rgba(80, 200, 120, 0.7); }
 

@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.4'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.5'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -151,9 +151,8 @@ function deleteTask(id) {
 // ---------- Google Tasks (Google Home) -> Puffer ----------
 // Voraussetzung: Im Editor unter "Dienste" die "Google Tasks API" hinzufügen.
 // Optional: In Config Zeilen mit Typ "Importliste" -> nur diese Listen werden importiert.
-// Einträge OHNE Termin werden nach dem Import in Google Tasks als erledigt markiert.
-// Einträge MIT Termin (z.B. "Hey Google, erinnere mich morgen an …") bleiben offen, damit die
-// Google-Erinnerung weiter klingelt; ihre IDs merkt sich das Script, damit sie nur einmal importiert werden.
+// Importierte Einträge werden in Google Tasks als erledigt markiert – Marvin ist ab dann zuständig.
+// Zusätzlich merkt sich das Script die IDs, damit nichts doppelt importiert wird.
 
 function importGoogleTasks_() {
   if (typeof Tasks === 'undefined') return; // Dienst nicht aktiviert
@@ -180,11 +179,8 @@ function importGoogleTasks_() {
             Notes: 'Liste: ' + list.title + (t.notes ? '\n' + t.notes : ''),
             Source: 'Google Home',
           });
-          if (t.due) {
-            seen.push(t.id); // offen lassen, Erinnerung bleibt aktiv
-          } else {
-            Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);
-          }
+          seen.push(t.id);
+          Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);
         });
         pageToken = res.nextPageToken;
       } while (pageToken);
