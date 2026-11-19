@@ -61,7 +61,11 @@ async function callBackend(action, payload = {}) {
         body: JSON.stringify({ action, token: getSetting('token'), ...payload }),
     });
     const result = await response.json();
-    if (result.status !== 'success') throw new Error(result.message || 'Backend-Fehler');
+    if (result.status !== 'success') {
+        const msg = result.message || 'Backend-Fehler';
+        if (/Unbekannte Aktion/.test(msg)) throw new Error('Backend ist veraltet – neue Version in Apps Script bereitstellen.');
+        throw new Error(msg);
+    }
     return result.data;
 }
 
@@ -357,6 +361,7 @@ function editorValues() {
         Category: document.getElementById('edit-category').value,
         DueDate: document.getElementById('edit-due').value,
         Notes: document.getElementById('edit-notes').value,
+        Status: document.querySelector('.status-buttons button.active')?.dataset.status || editing.Status,
     };
 }
 
@@ -376,13 +381,9 @@ async function saveTask(task, changes) {
 function initEditor() {
     const dialog = document.getElementById('editor');
 
-    // Status-Button = Änderungen übernehmen + Status setzen + schließen
+    // Status-Buttons wählen nur aus; übernommen wird mit "Speichern"
     document.querySelectorAll('.status-buttons button').forEach(b => b.addEventListener('click', () => {
-        const task = editing;
-        const changes = { ...editorValues(), Status: b.dataset.status };
-        dialog.close('status');
-        saveTask(task, changes);
-        if (changes.Status === 'Erledigt') showToast('Erledigt. Das Universum hat es nicht bemerkt.');
+        document.querySelectorAll('.status-buttons button').forEach(x => x.classList.toggle('active', x === b));
     }));
 
     document.getElementById('edit-delete').addEventListener('click', async () => {
@@ -402,7 +403,11 @@ function initEditor() {
     });
 
     dialog.addEventListener('close', () => {
-        if (dialog.returnValue === 'save' && editing) saveTask(editing, editorValues());
+        if (dialog.returnValue === 'save' && editing) {
+            const changes = editorValues();
+            if (changes.Status === 'Erledigt' && editing.Status !== 'Erledigt') showToast('Erledigt. Das Universum hat es nicht bemerkt.');
+            saveTask(editing, changes);
+        }
         editing = null;
     });
 }
@@ -455,13 +460,19 @@ function renderTasks() {
     const container = document.getElementById('task-list');
     container.replaceChildren();
 
-    const filteredTasks = allTasks.filter(t => t.Status === currentStatus);
+    let filteredTasks = allTasks.filter(t => t.Status === currentStatus);
+    if (currentStatus === 'Erledigt') {
+        filteredTasks = filteredTasks
+            .sort((a, b) => String(b.Updated_At || '').localeCompare(String(a.Updated_At || '')))
+            .slice(0, 50);
+    }
 
     if (filteredTasks.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'empty-state';
         empty.textContent = 'Leer. Marvin ist fast beeindruckt.';
         container.appendChild(empty);
+        container.appendChild(doneLink());
         return;
     }
 
@@ -486,4 +497,22 @@ function renderTasks() {
         card.append(title, meta);
         container.appendChild(card);
     });
+    container.appendChild(doneLink());
+}
+
+// Dezenter Zugang zu erledigten Tasks am Listenende (kein eigener Tab)
+let previousStatus = 'Zu tun';
+function doneLink() {
+    const link = document.createElement('button');
+    link.className = 'done-link';
+    if (currentStatus === 'Erledigt') {
+        link.textContent = '← zurück';
+        link.onclick = () => switchTab(previousStatus);
+    } else {
+        const count = allTasks.filter(t => t.Status === 'Erledigt').length;
+        link.textContent = `✓ Erledigt (${count})`;
+        link.hidden = count === 0;
+        link.onclick = () => { previousStatus = currentStatus; switchTab('Erledigt'); };
+    }
+    return link;
 }

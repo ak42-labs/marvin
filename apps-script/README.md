@@ -24,9 +24,13 @@ Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Liste
 
 ## Deploy-Ablauf
 
+0. `BACKEND_VERSION` in `Code.gs` erhöhen (Claude macht das bei Änderungen).
+
 1. Code aus `Code.gs` in den Editor kopieren, speichern.
 2. *Bereitstellen > Bereitstellungen verwalten > Bearbeiten (Stift) > Version: Neue Version > Bereitstellen.*
    Die URL bleibt gleich. Ohne neue Version läuft der alte Code weiter.
+   **Nicht** „Neue Bereitstellung“ wählen – das erzeugt eine neue URL, die App spricht aber weiter mit der alten.
+3. Prüfen: Web-App-URL im Browser öffnen -> muss „Marvin Backend <Version> aktiv“ zeigen.
 
 ## Token einrichten (einmalig)
 

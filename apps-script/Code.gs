@@ -1,5 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
+const BACKEND_VERSION = '0.3'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -43,7 +44,7 @@ function checkToken_(token) {
 }
 
 function doGet(e) {
-  return ContentService.createTextOutput("Marvin Backend Beta aktiv. Nutze POST für Operationen.");
+  return ContentService.createTextOutput("Marvin Backend " + BACKEND_VERSION + " aktiv. Nutze POST für Operationen.");
 }
 
 function getTasks() {
