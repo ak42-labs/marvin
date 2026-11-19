@@ -142,4 +142,5 @@ Backlog (Priorisierung durch Armin):
 3.  **Undo** im Toast direkt nach dem Anlegen.
 4.  **System-Prompt verfeinern** anhand echter Nutzung.
 5.  ~~Look & Feel v1~~ umgesetzt. Offen aus ux-v1 §8/§10: Bearbeiten-Dialog im neuen Look, situative Augen (B2/B3/D3), v3 „Neigungs-Glas“.
-6.  **Google Calendar – nächster Schritt (geplant 20.11.2026):** Termine aus Armins Kalender in Marvin anzeigen (`addEvent` existiert bereits im Backend, ungenutzt).
+6.  **Google Calendar – nächster Schritt (geplant 20.11.2026):** Alle Termine der nächsten 7 Tage (Frist) aus Armins Kalender lesen und in Marvin anzeigen, mit derselben Zahlenlogik wie Tasks (`0` heute, `−1` morgen … `−7`). Backend: neue Aktion zum Lesen (CalendarApp), einmalige Berechtigung. Offen: eigene Karten im Hyperraum vs. eigener Bereich; Termine per Sprache anlegen (`addEvent` existiert, ungenutzt).
+7.  App-Icon (Amber + Augen) ist seit 1.0.0 im Repo; Android zeigt es erst nach Neuinstallation der PWA.
