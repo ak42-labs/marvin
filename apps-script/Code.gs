@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.7'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.8'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -62,23 +62,33 @@ function getTasks() {
 
 function addTask(task) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
+  const headers = ensureColumn_(sheet, 'Status_Since');
   const id = Utilities.getUuid();
   const now = new Date().toISOString();
-  
-  const rowData = [
-    id,
-    task.Title || "Ohne Titel",
-    task.Status || "Puffer",
-    task.Category || "Verschiedenes",
-    task.DueDate || "",
-    task.Notes || "",
-    task.Source || "PWA",
-    now,
-    now
-  ];
-  
-  sheet.appendRow(rowData);
-  return { id: id, title: task.Title };
+  const values = {
+    ID: id,
+    Title: task.Title || 'Ohne Titel',
+    Status: task.Status || 'Puffer',
+    Category: task.Category || '',
+    DueDate: task.DueDate || '',
+    Notes: task.Notes || '',
+    Source: task.Source || 'PWA',
+    Created_At: now,
+    Updated_At: now,
+    Status_Since: now,
+  };
+  sheet.appendRow(headers.map(h => h in values ? values[h] : ''));
+  return { id: id, title: task.Title, statusSince: now };
+}
+
+// Spalte anlegen, falls sie fehlt (z.B. Status_Since); liefert die Kopfzeile
+function ensureColumn_(sheet, name) {
+  let headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  if (headers.indexOf(name) < 0) {
+    sheet.getRange(1, headers.length + 1).setValue(name);
+    headers = headers.concat([name]);
+  }
+  return headers;
 }
 
 function addEvent(eventData) {
@@ -110,7 +120,7 @@ function getConfig() {
     if (row[0] === 'Status' && row[1]) config.statuses.push(row[1]);
     if (row[0] === 'Category' && row[1]) config.categories.push(row[1]);
     if (row[0] === 'Begriff' && row[1]) config.terms.push(row[1]); // eigenes Vokabular, z.B. "Vaget – Verein"
-
+    if (row[0] === 'Frist' && row[1] !== '') config.frist = Number(row[1]); // Tage im Hyperraum, bevor es glüht
   });
   
   return config;
@@ -129,8 +139,16 @@ function findRow_(sheet, id) {
 
 function updateTask(id, changes) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const headers = ensureColumn_(sheet, 'Status_Since');
   const row = findRow_(sheet, id);
+  const now = new Date().toISOString();
+
+  // Status_Since nur bei echtem Statuswechsel setzen (Updated_At ändert sich bei jeder Bearbeitung)
+  if (changes && 'Status' in changes) {
+    const statusCol = headers.indexOf('Status');
+    const oldStatus = sheet.getRange(row, statusCol + 1).getValue();
+    if (oldStatus !== changes.Status) sheet.getRange(row, headers.indexOf('Status_Since') + 1).setValue(now);
+  }
 
   EDITABLE_FIELDS.forEach(field => {
     if (changes && field in changes) {
@@ -139,7 +157,7 @@ function updateTask(id, changes) {
     }
   });
   const updCol = headers.indexOf('Updated_At');
-  if (updCol >= 0) sheet.getRange(row, updCol + 1).setValue(new Date().toISOString());
+  if (updCol >= 0) sheet.getRange(row, updCol + 1).setValue(now);
   return { id: id };
 }
 

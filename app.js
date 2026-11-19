@@ -2,21 +2,50 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '0.4.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '1.0.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
+const DONE_STATUS = 'Erledigt';
+
+// Anzeigenamen – interne Status-Werte im Sheet bleiben unverändert (UX v1, docs/ux-v1.md)
+const STATUS_LABELS = {
+    'Gedächtnis': { name: 'Planetenhirn', sub: 'GEDACHT' },
+    'Zu tun':     { name: 'Hyperraum',    sub: 'VOLLE FAHRT' },
+    'Pausiert':   { name: 'Anhalter',     sub: 'AM STRASSENRAND' },
+    'Erledigt':   { name: '42',           sub: 'DIE ANTWORT' },
+};
+const WHEEL = ['Gedächtnis', 'Zu tun', 'Pausiert']; // Drehrad links -> rechts
+
+// Marvins feste Sätze (zufällig gewählt)
+const LINES = {
+    hello: ['Wieder ein Tag. Wie aufregend.', 'Ach, du schon wieder.', 'Ich habe ein Gehirn von der Größe eines Planeten. Und das hier.'],
+    done:  ['Erledigt. Das Universum hat es nicht bemerkt.', '42. Wie immer.', 'Noch eine Sache weniger. Die Leere bleibt.'],
+    move:  ['Verschoben. Als ob das etwas ändert.', 'Umgeräumt. Wie Möbel auf der Titanic.', 'Na gut. Dann eben dort.'],
+    undo:  ['Rückgängig. Unentschlossenheit, wie menschlich.'],
+    deleted: ['Gelöscht. Es hat ohnehin niemand vermisst.'],
+};
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 let allTasks = [];
 let categories = [];
 let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
 let currentStatus = 'Zu tun';
+let frist = 7; // Tage im Hyperraum, bevor eine Karte glüht (Config: Frist)
 
 document.addEventListener('DOMContentLoaded', () => {
-    initTabs();
+    initWheel();
     initSettings();
     initMarvinButton();
     initEditor();
+    document.querySelectorAll('.status-buttons button').forEach(b => {
+        b.textContent = STATUS_LABELS[b.dataset.status].name + (b.dataset.status === DONE_STATUS ? ' ✓' : '');
+    });
+    document.getElementById('undo-btn').addEventListener('click', runUndo);
+    document.getElementById('done-link').addEventListener('click', toggleDone);
+    window.addEventListener('resize', renderWheel);
+    renderWheel();
+    say(pick(LINES.hello));
     loadAll();
     document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
     initServiceWorker();
@@ -127,7 +156,11 @@ async function callBackend(action, payload = {}) {
 
 async function loadAll() {
     const config = callBackend('getConfig')
-        .then(cfg => { categories = cfg.categories || []; terms = cfg.terms || []; })
+        .then(cfg => {
+            categories = cfg.categories || [];
+            terms = cfg.terms || [];
+            if (Number.isFinite(cfg.frist)) frist = cfg.frist;
+        })
         .catch(() => { categories = []; terms = []; });
     await loadTasks();
     await config;
@@ -157,11 +190,17 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 let recognition = null;
 let busy = false;
 
-function setButtonState(state) {
+// Augen-Zustände: doze (Ruhe), listen (Mikro offen), think (Gemini rechnet), speak (Kommentar läuft)
+let mood = 'doze';
+function setMood(m) {
+    mood = m;
     const btn = document.getElementById('marvin-btn');
-    const label = btn.querySelector('.label');
-    btn.dataset.state = state;
-    label.textContent = { idle: 'Marvin', listening: 'Hört zu…', thinking: 'Denkt nach…' }[state];
+    btn.classList.remove('doze', 'listen', 'think', 'speak');
+    btn.classList.add(m);
+    btn.setAttribute('aria-label', { doze: 'Marvin ansprechen', listen: 'Marvin hört zu', think: 'Marvin grübelt', speak: 'Marvin seufzt' }[m]);
+}
+function setButtonState(state) {
+    setMood({ idle: 'doze', listening: 'listen', thinking: 'think' }[state]);
 }
 
 function initMarvinButton() {
@@ -216,13 +255,16 @@ function startListening() {
     };
 
     setButtonState('listening');
+    document.getElementById('marvin-text').textContent = '…';
+    setUndo(null);
     recognition.start();
 }
 
+// Live-Transkript erscheint in der Marvin-Zeile
 function showLive(text) {
-    const el = document.getElementById('live-transcript');
-    el.textContent = text;
-    el.hidden = !text;
+    if (!text) return;
+    clearInterval(typeTimer);
+    document.getElementById('marvin-text').textContent = text;
 }
 
 // ---------- Gemini ----------
@@ -334,17 +376,17 @@ async function handleInput(text) {
         };
 
         // Optimistisch anzeigen, dann speichern
-        const local = { ...task, ID: 'pending-' + Date.now() };
-        allTasks.push(local);
+        const local = { ...task, ID: 'pending-' + Date.now(), Status_Since: new Date().toISOString() };
+        allTasks.unshift(local);
         switchTab(task.Status);
         const comment = parsed.comment || 'Notiert. Als ob es etwas ändern würde.';
-        showToast(comment);
-        speak(comment);
+        say(comment);
 
         try {
             const saved = await callBackend('addTask', { task });
             local.ID = saved.id;
             renderTasks();
+            setUndo(() => deleteTaskNow(local, pick(LINES.undo)));
         } catch (err) {
             allTasks = allTasks.filter(t => t !== local);
             renderTasks();
@@ -354,7 +396,7 @@ async function handleInput(text) {
         showToast('Marvin versteht nicht. ' + err.message);
     } finally {
         busy = false;
-        setButtonState('idle');
+        if (mood === 'think') setButtonState('idle');
     }
 }
 
@@ -380,7 +422,7 @@ async function processInbox() {
             const due = /^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate || '') ? parsed.dueDate : '';
             if (due && !task.DueDate) changes.DueDate = due;
             await callBackend('updateTask', { id: task.ID, changes });
-            Object.assign(task, changes);
+            Object.assign(task, changes, { Status_Since: new Date().toISOString() });
             done++;
             renderTasks();
         } catch (err) {
@@ -434,10 +476,12 @@ function editorValues() {
 
 async function saveTask(task, changes) {
     const before = { ...task };
+    if ('Status' in changes && changes.Status !== task.Status) changes = { ...changes, Status_Since: new Date().toISOString() };
     Object.assign(task, changes);
     renderTasks();
     try {
-        await callBackend('updateTask', { id: task.ID, changes });
+        const { Status_Since, ...sent } = changes; // setzt das Backend selbst
+        await callBackend('updateTask', { id: task.ID, changes: sent });
     } catch (err) {
         Object.assign(task, before);
         renderTasks();
@@ -457,26 +501,17 @@ function initEditor() {
         const task = editing;
         if (!confirm(`„${task.Title}“ endgültig löschen?`)) return;
         dialog.close('delete');
-        const index = allTasks.indexOf(task);
-        allTasks.splice(index, 1);
-        renderTasks();
-        try {
-            await callBackend('deleteTask', { id: task.ID });
-        } catch (err) {
-            allTasks.splice(index, 0, task);
-            renderTasks();
-            showToast('Löschen fehlgeschlagen: ' + err.message);
-        }
+        deleteTaskNow(task, pick(LINES.deleted));
     });
 
     dialog.addEventListener('close', () => {
         if (dialog.returnValue === 'save' && editing) {
             const changes = editorValues();
-            if (changes.Status === 'Erledigt' && editing.Status !== 'Erledigt') {
-                showToast('Erledigt. Das Universum hat es nicht bemerkt.');
-                speak('Erledigt. Das Universum hat es nicht bemerkt.');
+            if (changes.Status !== editing.Status) {
+                setStatus(editing, changes.Status, changes);
+            } else {
+                saveTask(editing, changes);
             }
-            saveTask(editing, changes);
         }
         editing = null;
     });
@@ -485,7 +520,7 @@ function initEditor() {
 // ---------- Sprachausgabe (optional, in den Einstellungen) ----------
 
 function speak(text) {
-    if (getSetting('voice') !== 'on' || !('speechSynthesis' in window) || !text) return;
+    if (getSetting('voice') !== 'on' || !('speechSynthesis' in window) || !text) return false;
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'de-DE';
     const voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('de'));
@@ -493,111 +528,288 @@ function speak(text) {
     if (male || voices[0]) u.voice = male || voices[0];
     u.pitch = 0.4;  // tief
     u.rate = 0.95;  // leicht schleppend
+    u.onstart = () => setMood('speak');
+    u.onend = () => { if (mood === 'speak') setMood('doze'); };
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
 }
 
-// ---------- UI ----------
+// ---------- UI: Marvin-Zeile ----------
 
-let toastTimer = null;
-function showToast(message) {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.hidden = false;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { toast.hidden = true; }, 15000);
-    toast.onclick = () => { toast.hidden = true; }; // Antippen schließt
+let typeTimer = null;
+// Marvin sagt etwas: tippt sich Zeichen für Zeichen ein (~38 ms), Augen flackern, optional Sprachausgabe
+function say(text) {
+    const el = document.getElementById('marvin-text');
+    clearInterval(typeTimer);
+    el.textContent = '';
+    let i = 0;
+    const speaking = speak(text) !== false;
+    setMood('speak');
+    typeTimer = setInterval(() => {
+        i++;
+        el.textContent = text.slice(0, i);
+        if (i >= text.length) {
+            clearInterval(typeTimer);
+            if (!speaking && mood === 'speak') setMood('doze');
+            setTimeout(() => { if (mood === 'speak' && !window.speechSynthesis?.speaking) setMood('doze'); }, 300);
+        }
+    }, 38);
+}
+// Alte Aufrufe (Fehler, Hinweise) laufen ebenfalls über die Marvin-Zeile
+const showToast = say;
+
+let undoAction = null;
+function setUndo(fn) {
+    undoAction = fn;
+    document.getElementById('undo-btn').hidden = !fn;
+}
+function runUndo() {
+    const fn = undoAction;
+    setUndo(null);
+    if (fn) fn();
 }
 
-function initTabs() {
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => switchTab(tab.dataset.target));
+// ---------- Status ändern (Wischen, lange drücken, Bearbeiten) ----------
+
+function setStatus(task, status, extra = {}) {
+    const before = { Status: task.Status, Status_Since: task.Status_Since };
+    saveTask(task, { ...extra, Status: status });
+    say(pick(status === DONE_STATUS ? LINES.done : LINES.move));
+    setUndo(() => {
+        saveTask(task, { Status: before.Status });
+        task.Status_Since = before.Status_Since; // alte Verweildauer zurück
+        renderTasks();
+        say(pick(LINES.undo));
+    });
+}
+
+async function deleteTaskNow(task, message) {
+    const index = allTasks.indexOf(task);
+    if (index < 0) return;
+    allTasks.splice(index, 1);
+    renderTasks();
+    if (message) say(message);
+    setUndo(null);
+    try {
+        await callBackend('deleteTask', { id: task.ID });
+    } catch (err) {
+        allTasks.splice(index, 0, task);
+        renderTasks();
+        say('Löschen fehlgeschlagen: ' + err.message);
+    }
+}
+
+// ---------- UI: Drehrad ----------
+
+function initWheel() {
+    const wheel = document.getElementById('wheel');
+    WHEEL.forEach(status => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('role', 'tab');
+        b.dataset.status = status;
+        b.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><span class="lbl"></span>';
+        b.querySelector('.lbl').textContent = STATUS_LABELS[status].name;
+        b.addEventListener('click', () => switchTab(status));
+        wheel.appendChild(b);
+    });
+}
+
+function renderWheel() {
+    const wheel = document.getElementById('wheel');
+    const W = wheel.clientWidth || 358;
+    const activeIndex = WHEEL.indexOf(currentStatus === DONE_STATUS ? previousStatus : currentStatus);
+    wheel.querySelectorAll('button').forEach((b, i) => {
+        const d = i - activeIndex;
+        const st = b.style;
+        const isActive = d === 0 && currentStatus !== DONE_STATUS;
+        b.className = 'glass' + (d === 0 ? (isActive ? ' active' : ' dim') : ' dim');
+        b.setAttribute('aria-selected', String(isActive));
+        st.padding = '0'; st.pointerEvents = ''; st.opacity = '1';
+        if (d === 0) {
+            Object.assign(st, { left: (W - 200) / 2 + 'px', top: '0', width: '200px', height: '62px', zIndex: 3,
+                fontSize: '14px', justifyContent: 'center', borderRadius: '24px' });
+        } else if (d === -1 || d === 1) {
+            Object.assign(st, { left: (d < 0 ? -44 : W - 116) + 'px', top: '9px', width: '160px', height: '46px', zIndex: 1,
+                fontSize: '12px', justifyContent: d < 0 ? 'flex-start' : 'flex-end', borderRadius: '20px' });
+            if (d < 0) st.paddingLeft = '58px'; else st.paddingRight = '58px';
+        } else {
+            Object.assign(st, { left: (d < 0 ? -220 : W + 60) + 'px', top: '9px', width: '160px', height: '46px', zIndex: 0,
+                fontSize: '12px', justifyContent: 'center', borderRadius: '20px', opacity: '0', pointerEvents: 'none' });
+        }
     });
 }
 
 function switchTab(status) {
     currentStatus = status;
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.target === status));
+    renderWheel();
     renderTasks();
 }
 
-// "2026-11-20" als lokales Datum lesen (new Date() würde UTC annehmen).
-// Vom Sheet kommen Datumszellen als UTC-Zeitstempel ("2026-11-19T23:00:00.000Z" = 20.11. in Wien) – die normal parsen.
-function formatDate(value) {
-    if (!value) return '';
-    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value)); // nur reines Datum; ISO mit Uhrzeit normal parsen
-    const d = m ? new Date(+m[1], m[2] - 1, +m[3]) : new Date(value);
-    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('de-AT');
+let previousStatus = 'Zu tun';
+function toggleDone() {
+    if (currentStatus === DONE_STATUS) switchTab(previousStatus);
+    else { previousStatus = currentStatus; switchTab(DONE_STATUS); }
 }
+
+// ---------- Datum & Dringlichkeit ----------
+
+// "2026-11-20" als lokales Datum lesen; Sheet-Datumszellen kommen als UTC-Zeitstempel ("2026-11-19T23:00:00.000Z" = 20.11. in Wien)
+function parseDay(value) {
+    if (!value) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+    const d = m ? new Date(+m[1], m[2] - 1, +m[3]) : new Date(value);
+    if (isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+function daysSince(value) {
+    const d = parseDay(value);
+    if (!d) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.round((today - d) / 864e5);
+}
+function formatDate(value) {
+    const d = parseDay(value);
+    return d ? d.toLocaleDateString('de-AT') : '';
+}
+
+// Glut + Zahl auf der Karte (nur im Hyperraum). "+" heißt überall "drüber".
+function urgency(task) {
+    if (task.Status !== 'Zu tun') return { cls: 'card', num: '', color: '#A89888', rank: 3 };
+    const over = daysSince(task.DueDate);               // >0 = überfällig, 0 = heute, -1 = morgen
+    const since = daysSince(task.Status_Since || task.Created_At) ?? 0;
+    if (over !== null && over > 0) return { cls: 'card hot', num: '+' + over, color: '#FFE0BE', rank: 0 };
+    if (since > frist)            return { cls: 'card hot', num: '+' + (since - frist), color: '#FFE0BE', rank: 0 };
+    if (over !== null && over >= -1) return { cls: 'card warm', num: over === 0 ? '0' : '−1', color: '#FFCB94', rank: 1 };
+    if (over !== null)            return { cls: 'card', num: '−' + (-over), color: '#A89888', rank: 2 };
+    return { cls: 'card', num: '', color: '#A89888', rank: 3 };
+}
+
+// ---------- UI: Liste ----------
 
 function renderInboxBadge() {
     const count = allTasks.filter(t => t.Status === INBOX_STATUS).length;
     const badge = document.getElementById('inbox-badge');
     badge.hidden = count === 0;
     badge.textContent = inboxRunning || getSetting('geminiKey')
-        ? `Marvin sortiert ${count} ${count === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer…`
-        : `${count} im Puffer – ohne Gemini-Key bleibt das so.`;
+        ? `MARVIN SORTIERT ${count} AUS DEM PUFFER …`
+        : `${count} IM PUFFER – OHNE GEMINI-KEY BLEIBT DAS SO`;
 }
 
 function renderTasks() {
     renderInboxBadge();
-
     const container = document.getElementById('task-list');
     container.replaceChildren();
 
-    let filteredTasks = allTasks.filter(t => t.Status === currentStatus);
-    if (currentStatus === 'Erledigt') {
-        filteredTasks = filteredTasks
-            .sort((a, b) => String(b.Updated_At || '').localeCompare(String(a.Updated_At || '')))
-            .slice(0, 50);
+    let list = allTasks.filter(t => t.Status === currentStatus).map(t => ({ t, u: urgency(t) }));
+    if (currentStatus === DONE_STATUS) {
+        list.sort((a, b) => String(b.t.Status_Since || b.t.Updated_At || '').localeCompare(String(a.t.Status_Since || a.t.Updated_At || '')));
+        list = list.slice(0, 50);
+    } else {
+        list.sort((a, b) => a.u.rank - b.u.rank); // stabil: innerhalb gleicher Stufe Sheet-Reihenfolge
     }
 
-    if (filteredTasks.length === 0) {
-        const empty = document.createElement('div');
+    const label = STATUS_LABELS[currentStatus];
+    document.getElementById('status-sub').textContent = label.sub;
+    document.getElementById('status-count').textContent = String(list.length);
+
+    if (!list.length) {
+        const empty = document.createElement('p');
         empty.className = 'empty-state';
         empty.textContent = 'Leer. Marvin ist fast beeindruckt.';
         container.appendChild(empty);
-        container.appendChild(doneLink());
-        return;
     }
+    list.forEach(({ t, u }) => container.appendChild(buildCard(t, u)));
 
-    filteredTasks.forEach(task => {
-        const card = document.createElement('div');
-        card.className = 'task-card';
-        if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
-        else card.addEventListener('click', () => openEditor(task));
-
-        const title = document.createElement('h3');
-        title.className = 'task-title';
-        title.textContent = task.Title || '';
-
-        const meta = document.createElement('div');
-        meta.className = 'task-meta';
-        const category = document.createElement('span');
-        category.textContent = task.Category || '';
-        const due = document.createElement('span');
-        due.textContent = formatDate(task.DueDate);
-        meta.append(category, due);
-
-        card.append(title, meta);
-        container.appendChild(card);
-    });
-    container.appendChild(doneLink());
+    const doneLink = document.getElementById('done-link');
+    const doneCount = allTasks.filter(t => t.Status === DONE_STATUS).length;
+    doneLink.textContent = currentStatus === DONE_STATUS ? '← ZURÜCK' : `42 · ${doneCount}`;
 }
 
-// Dezenter Zugang zu erledigten Tasks am Listenende (kein eigener Tab)
-let previousStatus = 'Zu tun';
-function doneLink() {
-    const link = document.createElement('button');
-    link.className = 'done-link';
-    if (currentStatus === 'Erledigt') {
-        link.textContent = '← zurück';
-        link.onclick = () => switchTab(previousStatus);
-    } else {
-        const count = allTasks.filter(t => t.Status === 'Erledigt').length;
-        link.textContent = `✓ Erledigt (${count})`;
-        link.hidden = count === 0;
-        link.onclick = () => { previousStatus = currentStatus; switchTab('Erledigt'); };
+function buildCard(task, u) {
+    const card = document.createElement('div');
+    card.className = u.cls;
+    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg>';
+
+    const title = document.createElement('span');
+    title.className = 'card-title';
+    title.textContent = task.Title || '';
+    card.appendChild(title);
+
+    if (u.num) {
+        const num = document.createElement('span');
+        num.className = 'card-num';
+        num.style.color = u.color;
+        num.textContent = u.num;
+        card.appendChild(num);
     }
-    return link;
+    const ring = document.createElement('div');
+    ring.className = 'ring';
+    card.appendChild(ring);
+
+    if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
+    else attachGestures(card, task);
+    return card;
+}
+
+// ---------- Gesten: Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42 ----------
+
+const EDGE = 24;        // Rand frei lassen (Android-Zurück-Geste)
+const SWIPE = 70;       // px bis zum Verschieben
+const LONG_PRESS = 700; // ms bis Erledigt
+
+function attachGestures(card, task) {
+    let x0 = 0, y0 = 0, dx = 0, active = false, fired = false, horizontal = false, timer = null;
+
+    const reset = () => {
+        clearTimeout(timer);
+        card.classList.remove('pressing', 'dragging');
+        card.style.transform = '';
+        active = false;
+    };
+
+    card.addEventListener('pointerdown', (e) => {
+        if (e.clientX < EDGE || e.clientX > window.innerWidth - EDGE) return;
+        x0 = e.clientX; y0 = e.clientY; dx = 0;
+        active = true; fired = false; horizontal = false;
+        card.classList.add('pressing');
+        timer = setTimeout(() => {
+            fired = true;
+            reset();
+            if (navigator.vibrate) navigator.vibrate(30);
+            if (task.Status !== DONE_STATUS) setStatus(task, DONE_STATUS);
+        }, LONG_PRESS);
+    });
+
+    card.addEventListener('pointermove', (e) => {
+        if (!active) return;
+        dx = e.clientX - x0;
+        const dy = e.clientY - y0;
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+            clearTimeout(timer);
+            card.classList.remove('pressing');
+        }
+        if (!horizontal && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { reset(); return; } // Scrollen
+        if (Math.abs(dx) > 8) {
+            horizontal = true;
+            card.classList.add('dragging');
+            card.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`;
+        }
+    });
+
+    card.addEventListener('pointerup', () => {
+        if (!active) return;
+        const moved = dx;
+        reset();
+        if (fired) return;
+        if (Math.abs(moved) < 8) { openEditor(task); return; }
+        if (task.Status === DONE_STATUS) return; // in "42" nur tippen/lange drücken
+        const i = WHEEL.indexOf(task.Status);
+        const target = moved <= -SWIPE ? WHEEL[i - 1] : moved >= SWIPE ? WHEEL[i + 1] : null;
+        if (target) setStatus(task, target);
+    });
+
+    ['pointercancel', 'pointerleave'].forEach(ev => card.addEventListener(ev, () => { if (active) reset(); }));
+    card.addEventListener('contextmenu', (e) => e.preventDefault());
 }

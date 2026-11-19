@@ -3,35 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#070504">
     <title>Marvin</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Michroma&family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <div class="segment-control">
-            <button class="tab" data-target="Gedächtnis">Gedächtnis</button>
-            <button class="tab active" data-target="Zu tun">Zu tun</button>
-            <button class="tab" data-target="Pausiert">Pausiert</button>
+    <!-- Körnung für das Amber-Glas (einmal im DOM) -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+    </svg>
+
+    <div id="app">
+        <!-- 1. Drehrad -->
+        <nav id="wheel" class="wheel" role="tablist" aria-label="Spalten"></nav>
+
+        <!-- 2. Statuszeile -->
+        <div class="status-line">
+            <span id="status-sub"></span>
+            <span id="status-count"></span>
         </div>
-    </header>
 
-    <main id="content">
-        <div id="inbox-badge" class="inbox-note" hidden>Marvin sortiert <span id="inbox-count">0</span> Einträge aus dem Puffer…</div>
-        <div id="loading">Marvin holt die Daten...</div>
-        <div id="task-list"></div>
-        <pre id="debug-log" hidden></pre>
-    </main>
+        <!-- 3. Kartenliste -->
+        <main id="content">
+            <div id="inbox-badge" class="inbox-note" hidden></div>
+            <div id="loading">Marvin holt die Daten...</div>
+            <div id="task-list"></div>
+            <button id="done-link" class="done-link" type="button"></button>
+            <pre id="debug-log" hidden></pre>
+        </main>
 
-    <footer>
-        <div id="toast" role="status" hidden></div>
-        <div id="live-transcript" hidden></div>
-        <button id="marvin-btn" data-state="idle">
-            <span class="icon">🎙️</span> <span class="label">Marvin</span>
+        <!-- 5. Marvin-Zeile -->
+        <div class="marvin-line" aria-live="polite">
+            <span class="marvin-text"><span id="marvin-text"></span><span class="cursor">▍</span></span>
+            <button id="undo-btn" type="button" hidden>rückgängig</button>
+        </div>
+
+        <!-- 6. Marvin-Knopf -->
+        <button id="marvin-btn" class="glass pill doze" aria-label="Marvin ansprechen">
+            <svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg>
+            <svg class="eyes" aria-hidden="true" width="170" height="64" viewBox="0 0 170 64">
+                <g class="eye">
+                    <path d="M24 40 Q47 22 70 40" stroke="#FFB25C" stroke-width="7" stroke-linecap="round" fill="none"/>
+                    <path d="M100 40 Q123 22 146 40" stroke="#FFB25C" stroke-width="7" stroke-linecap="round" fill="none"/>
+                </g>
+            </svg>
         </button>
-    </footer>
+    </div>
 
     <dialog id="editor" class="sheet">
         <form method="dialog" id="editor-form">
@@ -42,10 +64,10 @@
             </div>
             <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>
             <div class="status-buttons">
-                <button type="button" data-status="Gedächtnis">Gedächtnis</button>
-                <button type="button" data-status="Zu tun">Zu tun</button>
-                <button type="button" data-status="Pausiert">Pausiert</button>
-                <button type="button" data-status="Erledigt">Erledigt ✓</button>
+                <button type="button" data-status="Gedächtnis"></button>
+                <button type="button" data-status="Zu tun"></button>
+                <button type="button" data-status="Pausiert"></button>
+                <button type="button" data-status="Erledigt"></button>
             </div>
             <div class="dialog-actions">
                 <button type="button" id="edit-delete" class="pill danger">Löschen</button>
@@ -67,7 +89,7 @@
             </label>
             <label class="check"><input type="checkbox" id="voice-on"> Marvin spricht (Kommentare vorlesen)</label>
             <label class="check"><input type="checkbox" id="debug-on"> Debug-Modus (Protokoll unter der Liste)</label>
-            <p class="hint">Bleibt nur in diesem Browser (localStorage). Wieder öffnen: Marvin-Button lange drücken. <span id="app-version"></span></p>
+            <p class="hint">Bleibt nur in diesem Browser (localStorage). Wieder öffnen: Marvin-Knopf lange drücken. <span id="app-version"></span></p>
             <div class="dialog-actions">
                 <button value="cancel" class="pill">Abbrechen</button>
                 <button value="save" id="settings-save" class="pill accent">Speichern</button>
