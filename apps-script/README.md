@@ -7,13 +7,20 @@
 
 | action      | Payload  | Rückgabe |
 |-------------|----------|----------|
-| `getTasks`  | –        | Array aller Zeilen aus `Tasks` (Header = Keys) |
+| `getTasks`  | –        | Importiert zuerst Google Tasks in den Puffer, dann Array aller Zeilen aus `Tasks` |
 | `addTask`   | `task`   | `{id, title}` – ID und Timestamps setzt der Server |
 | `addEvent`  | `event`  | `{eventId, title}` – Termin im Standardkalender |
-| `getConfig` | –        | `{statuses: [], categories: []}` aus `Config` |
+| `updateTask`| `id`, `changes` | Ändert Title/Status/Category/DueDate/Notes, setzt Updated_At |
+| `deleteTask`| `id`     | Löscht die Zeile |
+| `getConfig` | –        | `{statuses, categories, terms}` aus `Config` |
 
 Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At.
-`Config`: Spalte A = Typ (`Status`/`Category`), Spalte B = Wert.
+`Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (eigenes Vokabular für die KI, z.B. `Vaget – Verein`), `Importliste` (optional: nur diese Google-Tasks-Listen importieren; ohne Eintrag = alle).
+
+## Google Tasks / Google Home
+
+Voraussetzung: Editor > *Dienste* (+) > **Google Tasks API** hinzufügen (Kennung `Tasks`).
+Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Listen als `Puffer` ins Sheet übernommen und in Google Tasks als erledigt markiert. Die App lässt sie danach von Gemini einsortieren.
 
 ## Deploy-Ablauf
 

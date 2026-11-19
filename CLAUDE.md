@@ -44,7 +44,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 3. ARCHITEKTUR (IST-STAND)
 **Dateien im Repo (`ak42-labs/marvin`):**
-*   `index.html`: Das radikal reduzierte UI (Header mit Puffer-Badge + Settings-Button, Tabs Gedächtnis/Zu tun/Pausiert, Task-Liste, Settings-`<dialog>`, Marvin-Sprachbutton).
+*   `index.html`: Das radikal reduzierte UI (Tabs Gedächtnis/Zu tun/Pausiert, Puffer-Hinweis, Task-Liste, Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>`, Marvin-Sprachbutton). Einstellungen: Marvin-Button lange drücken (Mac: Rechtsklick); öffnen sich auch automatisch ohne Key bzw. per Tipp auf Ladefehler.
 *   `style.css`: Umsetzung des "Glas-Duplo"-Designs (CSS Variables für Dark Mode, `backdrop-filter: blur` für Milchglas, extreme `border-radius` Werte für Blöcke).
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
@@ -71,7 +71,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 **Tabellenblätter & Datenmodell:**
 *   `Tasks`: Haupttabelle für alle Aufgaben.
 *   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At.
-*   `Config`: Spalte A = Typ (`Status` / `Category`), Spalte B = Wert. Wird über `getConfig` gelesen.
+*   `Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (Vokabular gegen Verhörer, geht in den Gemini-Prompt), `Importliste` (optional, welche Google-Tasks-Listen importiert werden).
 *   **Status-Modell (5 feste Werte):** `Puffer` (Inbox), `Gedächtnis` (Ideen/Backlog), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Erledigt` (Done).
 *   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
 
@@ -84,7 +84,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 5. APPS SCRIPT
 *   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version deployen).
-*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks`, `addTask`, `addEvent`, `getConfig`. Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
+*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks` (inkl. Google-Tasks-Import), `addTask`, `updateTask`, `deleteTask`, `addEvent`, `getConfig`. Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
 *   **Auth:** Jede Anfrage braucht `token` == Script Property `MARVIN_TOKEN`.
 *   **Deployment-Einstellungen:** Web-App, Ausführen als: "Ich (armin...)", Zugriff: "Jeder".
 *   **Externe APIs/Schlüssel:** Google Sheets API (als Dienst im Script aktiviert, um CORS zu vermeiden).
@@ -101,9 +101,12 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. Live getestet am 17.11.2026 (Android/Mac), funktioniert. Toast bleibt 15 s, Antippen schließt.
 *   PWA installierbar (Manifest, Icons, Service Worker).
 
+*   v0.3 (19.11.2026): Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Notizen; Tastatur inkl. Tastatur-Spracheingabe). Status-Buttons speichern + schließen sofort. Löschen mit Rückfrage. Google Tasks (Google Home) -> Puffer -> Gemini sortiert beim App-Start ein. Eigenes Vokabular (`Begriff`) im Prompt.
+
 **Was ist halb fertig / offen:**
-*   Kein Undo/Löschen (Backend hat keine `deleteTask`/`updateTask`-Aktion).
-*   Puffer wird noch nicht automatisch von der KI abgearbeitet.
+*   v0.3 nur mit simulierten APIs getestet; Live-Test + Backend-Deploy (inkl. Dienst „Google Tasks API“) ausstehend.
+*   Kein Undo direkt nach dem Anlegen (Löschen über Bearbeiten).
+*   Erledigte Tasks sind in der UI nicht mehr sichtbar (kein Tab).
 
 **Bekannte Bugs/Probleme (Gelöst):**
 *   Anfängliche CORS-Fehler durch lokale Ausführung (`file://`) und fehlende Freigabe der Sheets-API. Behoben durch HTTPS-Hosting auf Pages und korrektes "Anyone"-Deployment im Apps Script.
@@ -123,11 +126,10 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   Spracherkennung verhört Eigennamen (z.B. Verein "Vaget" -> "Baguette"). Falsche Einträge lassen sich aktuell nicht korrigieren.
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
-Backlog v0.3 (Reihenfolge Vorschlag, Priorisierung durch Armin):
-1.  **Task bearbeiten + Status ändern:** `updateTask` im Backend. Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Status als große Buttons). Optional später Wischen (rechts = Erledigt, links = Pausiert).
-2.  **Korrektur per Sprache:** Im Bearbeiten-Modus Marvin-Button = "ändere das zu …" (Gemini bekommt bestehenden Task + Anweisung).
-3.  **Eigenes Vokabular:** Neuer `Config`-Typ `Begriff` (z.B. "Vaget – Verein"). Liste geht in den Gemini-Prompt, damit Verhörer korrigiert werden.
-4.  **Löschen/Undo** (`deleteTask`), z.B. "Rückgängig" im Toast direkt nach dem Anlegen.
-5.  **Puffer-Abarbeitung:** Beim App-Start Puffer-Einträge durch Gemini klassifizieren und einsortieren; Unklares bleibt als Rückfrage im Badge.
-6.  **Google Home Ingestion:** Zeitgesteuertes Apps Script holt Google Tasks in den Puffer.
-7.  **System-Prompt verfeinern** anhand echter Nutzung (Marvins Ton, Kategorie-Treffsicherheit).
+Backlog (Priorisierung durch Armin):
+1.  **Live-Test v0.3** mit echten Google-Home-Listen; entscheiden, welche Listen importiert werden (`Importliste`) und ob Einkäufe eigene Behandlung brauchen (z.B. eigene Kategorie/Ansicht).
+2.  **Korrektur per Sprache** im Bearbeiten-Modus (Gemini bekommt bestehenden Task + Anweisung) – evtl. unnötig, da Tastatur-Spracheingabe reicht.
+3.  **Undo** im Toast direkt nach dem Anlegen.
+4.  **System-Prompt verfeinern** anhand echter Nutzung.
+5.  **Look & Feel** überarbeiten.
+6.  Google Calendar (`addEvent` existiert bereits im Backend, ungenutzt).

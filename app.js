@@ -8,12 +8,14 @@ const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
 
 let allTasks = [];
 let categories = [];
+let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
 let currentStatus = 'Zu tun';
 
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initSettings();
     initMarvinButton();
+    initEditor();
     loadAll();
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -41,7 +43,6 @@ function openSettings() {
 
 function initSettings() {
     const dialog = document.getElementById('settings');
-    document.getElementById('settings-btn').addEventListener('click', openSettings);
     dialog.addEventListener('close', () => {
         if (dialog.returnValue !== 'save') return;
         setSetting('geminiKey', document.getElementById('gemini-key').value.trim());
@@ -64,11 +65,13 @@ async function callBackend(action, payload = {}) {
     return result.data;
 }
 
-function loadAll() {
-    loadTasks();
-    callBackend('getConfig')
-        .then(cfg => { categories = cfg.categories || []; })
-        .catch(() => { categories = []; });
+async function loadAll() {
+    const config = callBackend('getConfig')
+        .then(cfg => { categories = cfg.categories || []; terms = cfg.terms || []; })
+        .catch(() => { categories = []; terms = []; });
+    await loadTasks();
+    await config;
+    processInbox();
 }
 
 async function loadTasks() {
@@ -83,7 +86,8 @@ async function loadTasks() {
     } catch (error) {
         loading.textContent = error instanceof TypeError
             ? 'Marvin ist offline (Netzwerkfehler).'
-            : 'Fehler beim Laden der Daten.';
+            : 'Fehler beim Laden der Daten. Antippen für Einstellungen.';
+        loading.onclick = openSettings;
     }
 }
 
@@ -101,7 +105,21 @@ function setButtonState(state) {
 }
 
 function initMarvinButton() {
-    document.getElementById('marvin-btn').addEventListener('click', () => {
+    const btn = document.getElementById('marvin-btn');
+
+    // Langes Drücken (Handy) bzw. Rechtsklick (Mac) öffnet die Einstellungen
+    let pressTimer = null;
+    let longPressed = false;
+    const openOnce = () => { if (!document.getElementById('settings').open) openSettings(); };
+    btn.addEventListener('pointerdown', () => {
+        longPressed = false;
+        pressTimer = setTimeout(() => { longPressed = true; openOnce(); }, 700);
+    });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, () => clearTimeout(pressTimer)));
+    btn.addEventListener('contextmenu', (e) => { e.preventDefault(); longPressed = true; openOnce(); });
+
+    btn.addEventListener('click', () => {
+        if (longPressed) { longPressed = false; return; }
         if (!getSetting('geminiKey')) { openSettings(); return; }
         if (recognition) { recognition.stop(); return; } // zweiter Tipp beendet Aufnahme
         if (busy) return;
@@ -166,6 +184,11 @@ function buildSystemPrompt() {
         categories.length
             ? `- category: genau eine aus der erlaubten Liste. Wähle die passendste.`
             : '- category: ein kurzes, sinnvolles Wort.',
+        '- Einkaufsartikel (z.B. aus einer Einkaufsliste, "Milch") als Aufgabe "<Artikel> kaufen" formulieren.',
+        ...(terms.length ? [
+            'Eigene Begriffe des Users (die Spracherkennung verhört sie oft, z.B. als ähnlich klingende Alltagswörter). Wenn ein Wort ähnlich klingt und der Kontext passt, ersetze es durch den richtigen Begriff:',
+            ...terms.map(t => `  * ${t}`),
+        ] : []),
         '- dueDate: nur wenn ein Zeitpunkt genannt wurde, sonst null.',
         '- notes: zusätzliche Details aus der Aussage, sonst leer.',
         '- comment: EIN kurzer, melancholisch-zynischer Satz von Marvin zur Aufgabe. Keine Höflichkeit, keine Fragen, keine Erklärungen.',
@@ -264,6 +287,126 @@ async function handleInput(text) {
     }
 }
 
+// ---------- Puffer: Rohe Einträge (z.B. Google Home) einsortieren ----------
+
+let inboxRunning = false;
+async function processInbox() {
+    if (inboxRunning || !getSetting('geminiKey')) return;
+    const inbox = allTasks.filter(t => t.Status === INBOX_STATUS);
+    if (!inbox.length) return;
+
+    inboxRunning = true;
+    let done = 0;
+    for (const task of inbox) {
+        try {
+            const context = [task.Title, task.Notes].filter(Boolean).join('\n');
+            const parsed = await parseWithGemini(context);
+            const changes = {
+                Title: parsed.title || task.Title,
+                Status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : 'Zu tun',
+                Category: parsed.category || task.Category,
+            };
+            const due = /^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate || '') ? parsed.dueDate : '';
+            if (due && !task.DueDate) changes.DueDate = due;
+            await callBackend('updateTask', { id: task.ID, changes });
+            Object.assign(task, changes);
+            done++;
+            renderTasks();
+        } catch (err) {
+            console.warn('Puffer-Eintrag nicht einsortiert', task, err);
+        }
+    }
+    inboxRunning = false;
+    renderTasks();
+    if (done) showToast(`${done} ${done === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer einsortiert. Niemand hat sich bedankt.`);
+}
+
+// ---------- Bearbeiten / Löschen ----------
+
+let editing = null;
+
+// Wert aus dem Sheet (Date-ISO oder "YYYY-MM-DD") -> "YYYY-MM-DD" für <input type="date">
+function toInputDate(value) {
+    if (!value) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return String(value);
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function openEditor(task) {
+    editing = task;
+    document.getElementById('edit-title').value = task.Title || '';
+    document.getElementById('edit-notes').value = task.Notes || '';
+    document.getElementById('edit-due').value = toInputDate(task.DueDate);
+
+    const select = document.getElementById('edit-category');
+    const options = [...new Set([...categories, task.Category].filter(Boolean))];
+    select.replaceChildren(...options.map(c => new Option(c, c, false, c === task.Category)));
+
+    document.querySelectorAll('.status-buttons button').forEach(b =>
+        b.classList.toggle('active', b.dataset.status === task.Status));
+
+    document.getElementById('editor').showModal();
+    document.getElementById('edit-title').focus();
+}
+
+function editorValues() {
+    return {
+        Title: document.getElementById('edit-title').value.trim() || editing.Title,
+        Category: document.getElementById('edit-category').value,
+        DueDate: document.getElementById('edit-due').value,
+        Notes: document.getElementById('edit-notes').value,
+    };
+}
+
+async function saveTask(task, changes) {
+    const before = { ...task };
+    Object.assign(task, changes);
+    renderTasks();
+    try {
+        await callBackend('updateTask', { id: task.ID, changes });
+    } catch (err) {
+        Object.assign(task, before);
+        renderTasks();
+        showToast('Speichern fehlgeschlagen: ' + err.message);
+    }
+}
+
+function initEditor() {
+    const dialog = document.getElementById('editor');
+
+    // Status-Button = Änderungen übernehmen + Status setzen + schließen
+    document.querySelectorAll('.status-buttons button').forEach(b => b.addEventListener('click', () => {
+        const task = editing;
+        const changes = { ...editorValues(), Status: b.dataset.status };
+        dialog.close('status');
+        saveTask(task, changes);
+        if (changes.Status === 'Erledigt') showToast('Erledigt. Das Universum hat es nicht bemerkt.');
+    }));
+
+    document.getElementById('edit-delete').addEventListener('click', async () => {
+        const task = editing;
+        if (!confirm(`„${task.Title}“ endgültig löschen?`)) return;
+        dialog.close('delete');
+        const index = allTasks.indexOf(task);
+        allTasks.splice(index, 1);
+        renderTasks();
+        try {
+            await callBackend('deleteTask', { id: task.ID });
+        } catch (err) {
+            allTasks.splice(index, 0, task);
+            renderTasks();
+            showToast('Löschen fehlgeschlagen: ' + err.message);
+        }
+    });
+
+    dialog.addEventListener('close', () => {
+        if (dialog.returnValue === 'save' && editing) saveTask(editing, editorValues());
+        editing = null;
+    });
+}
+
 // ---------- UI ----------
 
 let toastTimer = null;
@@ -299,8 +442,11 @@ function formatDate(value) {
 
 function renderInboxBadge() {
     const count = allTasks.filter(t => t.Status === INBOX_STATUS).length;
-    document.getElementById('inbox-count').textContent = count;
-    document.getElementById('inbox-badge').hidden = count === 0;
+    const badge = document.getElementById('inbox-badge');
+    badge.hidden = count === 0;
+    badge.textContent = inboxRunning || getSetting('geminiKey')
+        ? `Marvin sortiert ${count} ${count === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer…`
+        : `${count} im Puffer – ohne Gemini-Key bleibt das so.`;
 }
 
 function renderTasks() {
@@ -323,6 +469,7 @@ function renderTasks() {
         const card = document.createElement('div');
         card.className = 'task-card';
         if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
+        else card.addEventListener('click', () => openEditor(task));
 
         const title = document.createElement('h3');
         title.className = 'task-title';

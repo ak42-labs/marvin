@@ -11,10 +11,6 @@
 </head>
 <body>
     <header>
-        <div class="header-row">
-            <button id="inbox-badge" class="pill" hidden>Puffer: <span id="inbox-count">0</span></button>
-            <button id="settings-btn" class="icon-btn" aria-label="Einstellungen">⚙︎</button>
-        </div>
         <div class="segment-control">
             <button class="tab" data-target="Gedächtnis">Gedächtnis</button>
             <button class="tab active" data-target="Zu tun">Zu tun</button>
@@ -23,6 +19,7 @@
     </header>
 
     <main id="content">
+        <div id="inbox-badge" class="inbox-note" hidden>Marvin sortiert <span id="inbox-count">0</span> Einträge aus dem Puffer…</div>
         <div id="loading">Marvin holt die Daten...</div>
         <div id="task-list"></div>
     </main>
@@ -35,6 +32,29 @@
         </button>
     </footer>
 
+    <dialog id="editor" class="sheet">
+        <form method="dialog" id="editor-form">
+            <textarea id="edit-title" rows="2" placeholder="Titel"></textarea>
+            <div class="edit-row">
+                <select id="edit-category"></select>
+                <input type="date" id="edit-due">
+            </div>
+            <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>
+            <div class="status-buttons">
+                <button type="button" data-status="Zu tun">Zu tun</button>
+                <button type="button" data-status="Gedächtnis">Gedächtnis</button>
+                <button type="button" data-status="Pausiert">Pausiert</button>
+                <button type="button" data-status="Erledigt">Erledigt ✓</button>
+            </div>
+            <div class="dialog-actions">
+                <button type="button" id="edit-delete" class="pill danger">Löschen</button>
+                <span class="spacer"></span>
+                <button value="cancel" class="pill">Abbrechen</button>
+                <button value="save" class="pill accent">Speichern</button>
+            </div>
+        </form>
+    </dialog>
+
     <dialog id="settings">
         <form method="dialog">
             <h2>Einstellungen</h2>
@@ -44,7 +64,7 @@
             <label>Backend-Token
                 <input type="password" id="backend-token" autocomplete="off">
             </label>
-            <p class="hint">Bleibt nur in diesem Browser (localStorage).</p>
+            <p class="hint">Bleibt nur in diesem Browser (localStorage). Wieder öffnen: Marvin-Button lange drücken.</p>
             <div class="dialog-actions">
                 <button value="cancel" class="pill">Abbrechen</button>
                 <button value="save" id="settings-save" class="pill accent">Speichern</button>
