@@ -1,26 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<defs>
-<radialGradient id="marvinGlow" cx="50%" cy="100%" r="75%">
-<stop offset="0%" stop-color="#4A2B12"/>
-<stop offset="65%" stop-color="#171412"/>
-<stop offset="100%" stop-color="#0E0D0C"/>
-</radialGradient>
-</defs>
-<rect width="512" height="512" fill="url(#marvinGlow)"/>
-<rect x="64" y="64" width="384" height="384" rx="88" 
-fill="none" 
-stroke="#D4843E" 
-stroke-width="10" 
-stroke-opacity="0.85"/>
-<circle cx="378" cy="148" r="14" fill="#FFFFFF"/>
-<path d="M 106 286 Q 164 242 222 262" 
-fill="none" 
-stroke="#E59A54" 
-stroke-width="34" 
-stroke-linecap="round"/>
-<path d="M 290 262 Q 348 242 406 286" 
-fill="none" 
-stroke="#E59A54" 
-stroke-width="34" 
-stroke-linecap="round"/>
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="100%" r="60%">
+      <stop offset="0%" stop-color="#2E1A0C"/>
+      <stop offset="60%" stop-color="#110E0C"/>
+      <stop offset="100%" stop-color="#0B0A09"/>
+    </radialGradient>
+    <filter id="led" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g transform="translate(256 256) scale(1) translate(-256 -256)">
+    <path d="M 74 212 Q 140 160 196 180" fill="none" stroke="#E59A54" stroke-width="34" stroke-linecap="round"/>
+    <path d="M 316 180 Q 372 160 438 212" fill="none" stroke="#E59A54" stroke-width="34" stroke-linecap="round"/>
+  </g>
+  <circle cx="468" cy="43" r="16" fill="#FFFFFF" filter="url(#led)"/>
 </svg>

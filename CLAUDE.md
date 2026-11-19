@@ -143,4 +143,4 @@ Backlog (Priorisierung durch Armin):
 4.  **System-Prompt verfeinern** anhand echter Nutzung.
 5.  ~~Look & Feel v1~~ umgesetzt. Offen aus ux-v1 §8/§10: Bearbeiten-Dialog im neuen Look, situative Augen (B2/B3/D3), v3 „Neigungs-Glas“.
 6.  **Google Calendar – nächster Schritt (geplant 20.11.2026):** Alle Termine der nächsten 7 Tage (Frist) aus Armins Kalender lesen und in Marvin anzeigen, mit derselben Zahlenlogik wie Tasks (`0` heute, `−1` morgen … `−7`). Backend: neue Aktion zum Lesen (CalendarApp), einmalige Berechtigung. Offen: eigene Karten im Hyperraum vs. eigener Bereich; Termine per Sprache anlegen (`addEvent` existiert, ungenutzt).
-7.  App-Icon: seit 1.0.3 Armins Entwurf (`icons/icon_neu.svg` -> `icon.svg` + PNG 192/512). Android zeigt neue Icons erst nach Neuinstallation der PWA.
+7.  App-Icon (1.0.4): nach Armins Entwurf `icons/entwurf-armin.jpg` – Augen oberhalb der Mitte, weiße LED oben rechts, kein Rahmen. `icon.svg` = originalgetreu ("any"), `icon-maskable.svg` = für Android verkleinert, LED nach innen gerückt (sonst vom runden Zuschnitt abgeschnitten). Android zeigt neue Icons erst nach Neuinstallation der PWA.
