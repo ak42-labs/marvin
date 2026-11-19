@@ -19,7 +19,7 @@ Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At
 
 ## Google Tasks / Google Home
 
-Voraussetzung: Editor > *Dienste* (+) > **Google Tasks API** hinzufügen (Kennung `Tasks`).
+Voraussetzung: Editor > *Dienste* (+) > **Google Tasks API** hinzufügen (Kennung `Tasks`). Danach einmal im Editor `testGoogleTasks` ausführen und die Berechtigung erteilen (Web-Apps fragen nicht selbst nach). Die Funktion liest nur und zeigt Listen + offene Einträge im Ausführungsprotokoll.
 Antwort von `getTasks` enthält `info.import` (importierte Titel, Listen, Filter, Fehler) – sichtbar im Debug-Modus der App.
 Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Listen als `Puffer` ins Sheet übernommen. Danach werden sie in Google Tasks als erledigt markiert (Marvin ist zuständig); IDs in Script Property `IMPORTED_TASK_IDS` verhindern Doppelimporte.
 

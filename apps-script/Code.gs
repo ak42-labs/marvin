@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.6'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.7'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -209,4 +209,18 @@ function getConfigValues_(type) {
   return sheet.getDataRange().getValues().slice(1)
     .filter(row => row[0] === type && row[1])
     .map(row => String(row[1]));
+}
+
+// ---------- Test & Berechtigung (im Editor ausführen) ----------
+// Im Editor oben im Dropdown "testGoogleTasks" wählen -> "Ausführen".
+// Beim ersten Mal fragt Google nach der Berechtigung für Google Tasks -> erlauben.
+// Ändert nichts, liest nur und schreibt das Ergebnis ins Ausführungsprotokoll.
+function testGoogleTasks() {
+  const lists = Tasks.Tasklists.list().items || [];
+  const allowed = getConfigValues_('Importliste');
+  console.log('Backend ' + BACKEND_VERSION + ' | Importliste-Filter: ' + (allowed.length ? allowed.join(', ') : '(keiner, alle Listen)'));
+  lists.forEach(list => {
+    const open = (Tasks.Tasks.list(list.id, { showCompleted: false, maxResults: 100 }).items || []);
+    console.log('Liste "' + list.title + '": ' + open.length + ' offen -> ' + open.map(t => t.title).join(' | '));
+  });
 }
