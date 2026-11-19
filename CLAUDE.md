@@ -106,7 +106,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   v0.3 (19.11.2026): Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Notizen; Tastatur inkl. Tastatur-Spracheingabe). Status-Buttons wählen nur aus, „Speichern“ übernimmt. Löschen mit Rückfrage. Google Tasks (Google Home) -> Puffer -> Gemini sortiert beim App-Start ein. Eigenes Vokabular (`Begriff`) im Prompt.
 
 *   UX v1 (App 1.0.0, Backend 0.8, 19.11.2026): Amber-Glas, Drehrad, Dringlichkeit (Glut + Zahl), Gesten (Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42), Undo nach Anlegen/Verschieben/Erledigen, neues App-Icon.
-*   1.0.1: Drehrad per Wischen drehbar, aktiver Knopf durchscheinend, „rückgängig“ verschwindet nach 10 s, Marvin-Sätze stark erweitert (keine direkte Wiederholung). Offen: Soll Marvin bei jeder Aktion sprechen? Sprechtempo ggf. 0.9.
+*   1.0.1: Drehrad per Wischen drehbar, aktiver Knopf durchscheinend, „rückgängig“ verschwindet nach 10 s, Marvin-Sätze stark erweitert (keine direkte Wiederholung). Offen: Soll Marvin bei jeder Aktion sprechen? (Sprechtempo 0.95 passt.)
+*   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
 *   v0.3 nur mit simulierten APIs getestet; Live-Test + Backend-Deploy (inkl. Dienst „Google Tasks API“) ausstehend.
@@ -141,4 +142,4 @@ Backlog (Priorisierung durch Armin):
 3.  **Undo** im Toast direkt nach dem Anlegen.
 4.  **System-Prompt verfeinern** anhand echter Nutzung.
 5.  ~~Look & Feel v1~~ umgesetzt. Offen aus ux-v1 §8/§10: Bearbeiten-Dialog im neuen Look, situative Augen (B2/B3/D3), v3 „Neigungs-Glas“.
-6.  Google Calendar (`addEvent` existiert bereits im Backend, ungenutzt).
+6.  **Google Calendar – nächster Schritt (geplant 20.11.2026):** Termine aus Armins Kalender in Marvin anzeigen (`addEvent` existiert bereits im Backend, ungenutzt).
