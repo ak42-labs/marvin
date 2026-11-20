@@ -48,3 +48,7 @@ Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Liste
 ## Google Kalender
 
 Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar), ohne Geburtstage (Termin-Typ BIRTHDAY). Nach dem ersten Deploy einmal `testCalendar` im Editor ausführen und die Berechtigung erteilen; die Funktion liest nur.
+
+## Zeilen von Hand / von anderen KIs eintragen
+
+Erlaubt: Zeile mit **Title** füllen, **ID leer lassen**, Status `Puffer` (oder leer). Beim nächsten Laden vergibt das Backend ID + Zeitstempel, die App sortiert Puffer-Einträge per Gemini ein.

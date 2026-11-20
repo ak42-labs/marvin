@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.10'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.11'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -12,6 +12,7 @@ function doPost(e) {
 
     if (action === 'getTasks') {
       info.import = importGoogleTasks_(); // Google Home / Google Tasks -> Puffer; Bericht für Debug-Modus
+      info.fixed = fillMissingIds_();      // von Hand/anderen KIs eingetragene Zeilen bekommen ID & Status
       data = getTasks();
     } else if (action === 'updateTask') {
       data = updateTask(payload.id, payload.changes);
@@ -54,6 +55,32 @@ function checkToken_(token) {
 
 function doGet(e) {
   return ContentService.createTextOutput("Marvin Backend " + BACKEND_VERSION + " aktiv. Nutze POST für Operationen.");
+}
+
+// Zeilen ohne ID (z.B. direkt ins Sheet geschrieben) bekommen eine UUID; ohne Status -> Puffer (Marvin sortiert ein)
+function fillMissingIds_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
+  const last = sheet.getLastRow();
+  if (last < 2) return 0;
+  const headers = ensureColumn_(sheet, 'Status_Since');
+  const range = sheet.getRange(2, 1, last - 1, headers.length);
+  const rows = range.getValues();
+  const col = name => headers.indexOf(name);
+  const now = new Date().toISOString();
+  let fixed = 0;
+  rows.forEach(r => {
+    const hasContent = String(r[col('Title')] || '').trim() !== '';
+    if (!hasContent || String(r[col('ID')] || '').trim() !== '') return;
+    r[col('ID')] = Utilities.getUuid();
+    if (!String(r[col('Status')] || '').trim()) r[col('Status')] = 'Puffer';
+    if (!r[col('Source')]) r[col('Source')] = 'Sheet';
+    if (!r[col('Created_At')]) r[col('Created_At')] = now;
+    if (!r[col('Updated_At')]) r[col('Updated_At')] = now;
+    if (!r[col('Status_Since')]) r[col('Status_Since')] = now;
+    fixed++;
+  });
+  if (fixed) range.setValues(rows);
+  return fixed;
 }
 
 function getTasks() {

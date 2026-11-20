@@ -118,6 +118,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   v0.3.2: Gemini-Überlastung (429/503) -> automatisch erneut versuchen / anderes Modell. Optionale Sprachausgabe (Einstellungen: „Marvin spricht“, Browser-TTS, tief + langsam).
 *   Erledigt: kein Tab, sondern dezenter Link „✓ Erledigt (n)“ am Listenende (letzte 50, neueste zuerst).
 *   Debug-Modus (Einstellungen): Protokoll aller Backend-/Gemini-Antworten unter der Liste; Backend liefert `info` (Version, Import-Bericht). Import-Fehler erscheinen auch ohne Debug als Toast.
+*   Backend 0.11: Zeilen ohne ID (von Hand oder von anderen KIs ins Sheet geschrieben) bekommen beim Laden automatisch ID/Zeitstempel, ohne Status -> Puffer.
 *   Backend-Version prüfen: Web-App-URL im Browser öffnen -> „Marvin Backend <BACKEND_VERSION> aktiv“.
 
 **Bekannte Bugs/Probleme (Gelöst):**
