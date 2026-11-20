@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '1.0.4'; // sichtbar in den Einstellungen
+const APP_VERSION = '1.1.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -44,6 +44,10 @@ const LINES = {
         'Doch nicht? Überraschung. Nicht.', 'Rückgängig gemacht. Wenn es nur im Leben so ginge.', 'Alles wie vorher. Also schlecht.',
         'Ich tu so, als wäre nichts passiert. Darin bin ich geübt.',
     ],
+    moveAgain: [
+        'Schon wieder diese Aufgabe. Wir kennen uns inzwischen gut.', 'Zum x-ten Mal verschoben. Ich sehe, wohin das führt. Nirgendwohin.',
+        'Diese Aufgabe hat mehr Kilometer als ich.', 'Vielleicht einfach löschen? Nur so ein Gedanke.',
+    ],
     deleted: [
         'Gelöscht. Es hat ohnehin niemand vermisst.', 'Weg. Für immer. Wie meine Hoffnung.', 'Gelöscht. Die beste Art, etwas zu erledigen.',
         'Vernichtet. Ich fühle fast etwas. Nein, doch nicht.', 'Ins Nichts befördert. Dort ist es ruhig.',
@@ -58,6 +62,7 @@ const pick = arr => {
 };
 
 let allTasks = [];
+let allEvents = []; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
 let categories = [];
 let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
 let currentStatus = 'Zu tun';
@@ -81,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('load', resetScroll);
     renderWheel();
     say(pick(LINES.hello));
+    startIdleQuirks();
     loadAll();
     document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
     initServiceWorker();
@@ -197,9 +203,21 @@ async function loadAll() {
             if (Number.isFinite(cfg.frist)) frist = cfg.frist;
         })
         .catch(() => { categories = []; terms = []; });
+    loadEvents();
     await loadTasks();
     await config;
     processInbox();
+}
+
+async function loadEvents() {
+    try {
+        allEvents = await callBackend('getEvents', { days: frist });
+    } catch (err) {
+        allEvents = [];
+        debugLog('Termine nicht geladen', err.message);
+        if (/Berechtigung|permission|Calendar/i.test(err.message)) say('Kalender: Berechtigung fehlt. In Apps Script einmal testCalendar ausführen.');
+    }
+    renderTasks();
 }
 
 async function loadTasks() {
@@ -234,6 +252,63 @@ function setMood(m) {
     btn.classList.add(m);
     btn.setAttribute('aria-label', { doze: 'Marvin ansprechen', listen: 'Marvin hört zu', think: 'Marvin grübelt', speak: 'Marvin seufzt' }[m]);
 }
+// ---------- Gesichter (UX v1 §8: B1 Standard, situativ B2/B3/D1/D3) ----------
+
+const S = 'stroke="#FFB25C" stroke-linecap="round" fill="none"';
+const FACES = {
+    B1: `<path d="M24 40 Q47 22 70 40" ${S} stroke-width="7"/><path d="M100 40 Q123 22 146 40" ${S} stroke-width="7"/>`,
+    B2: `<path d="M24 46 Q44 26 70 36" ${S} stroke-width="6"/><path d="M146 46 Q126 26 100 36" ${S} stroke-width="6"/>`,           // hängend
+    B3: `<path d="M26 44 Q47 28 68 44" ${S} stroke-width="6"/><path d="M102 44 Q123 28 144 44" ${S} stroke-width="6"/>` +          // mit Brauen (besorgt)
+        `<path d="M30 22 L62 14" ${S} stroke-width="4" opacity=".75"/><path d="M140 22 L108 14" ${S} stroke-width="4" opacity=".75"/>`,
+    D1: `<path d="M24 30 L70 30 Q70 48 47 48 Q24 48 24 30 Z" fill="#FFB25C"/><path d="M100 30 L146 30 Q146 48 123 48 Q100 48 100 30 Z" fill="#FFB25C"/>`, // schwere Lider
+    D3: `<path d="M24 42 Q47 22 70 42" ${S} stroke-width="7"/><path d="M102 38 L144 38" ${S} stroke-width="7"/>`,                  // Skeptiker
+};
+let baseFace = 'B1';
+let tempFaceUntil = 0;
+
+function setFace(name) {
+    const g = document.querySelector('#marvin-btn .eye');
+    if (g && g.dataset.face !== name) { g.innerHTML = FACES[name]; g.dataset.face = name; }
+}
+
+// Grundstimmung aus der Lage: Termin heute -> besorgt, viel Überfälliges -> skeptisch
+function updateMoodFace() {
+    const today = allEvents.some(e => -daysSince(new Date(e.start)) <= 0);
+    const hot = allTasks.filter(t => t.Status === 'Zu tun' && urgency(t).rank === 0).length;
+    baseFace = today ? 'B3' : hot >= 3 ? 'D3' : 'B1';
+    if (Date.now() > tempFaceUntil) setFace(baseFace);
+}
+
+function flashFace(name, ms = 6000) {
+    tempFaceUntil = Date.now() + ms;
+    setFace(name);
+    setTimeout(() => { if (Date.now() >= tempFaceUntil) setFace(baseFace); }, ms + 20);
+}
+
+// Wartemodus: ab und zu Augenrollen, Seufzen (schwere Lider) oder Blinzeln
+function startIdleQuirks() {
+    const next = () => setTimeout(() => {
+        const btn = document.getElementById('marvin-btn');
+        if (mood === 'doze' && !document.hidden && Date.now() > tempFaceUntil) {
+            const q = pick(['roll', 'roll', 'blink', 'sigh', 'look']);
+            if (q === 'sigh') flashFace('D1', 2200);
+            btn.classList.add('q-' + q);
+            setTimeout(() => btn.classList.remove('q-' + q), 1800);
+        }
+        next();
+    }, 9000 + Math.random() * 12000);
+    next();
+}
+
+// Wie oft wurde eine Aufgabe verschoben? (pro Gerät, für die hängenden Augen)
+function countMove(task) {
+    let moves = {};
+    try { moves = JSON.parse(localStorage.getItem('marvin.moves') || '{}'); } catch {}
+    moves[task.ID] = (moves[task.ID] || 0) + 1;
+    try { localStorage.setItem('marvin.moves', JSON.stringify(moves)); } catch {}
+    return moves[task.ID];
+}
+
 function setButtonState(state) {
     setMood({ idle: 'doze', listening: 'listen', thinking: 'think' }[state]);
 }
@@ -313,10 +388,13 @@ function todayInfo() {
 
 function buildSystemPrompt() {
     return [
-        'Du bist Marvin, der depressive, hyperintelligente Roboter. Du wandelst gesprochene Notizen in Aufgaben um.',
+        'Du bist Marvin, der depressive, hyperintelligente Roboter. Du wandelst gesprochene Notizen in Aufgaben oder Kalendertermine um.',
         `Heute ist ${todayInfo()} (Zeitzone Europe/Vienna). Löse relative Angaben ("morgen", "nächsten Freitag") in ein konkretes Datum YYYY-MM-DD auf.`,
         'Regeln:',
-        '- title: kurz, prägnant, als Aufgabe formuliert, Deutsch. Keine Datumsangaben im Titel.',
+        '- type: "event" (Kalendertermin), wenn eine konkrete Uhrzeit genannt wird ("14 Uhr", "um halb drei") oder es eindeutig ein Termin mit Ort/Person zu fester Zeit ist. Sonst "task".',
+        '- time: nur bei type "event": Startzeit HH:MM (24h). Sonst null.',
+        '- durationMinutes: nur bei type "event": genannte Dauer in Minuten, sonst 60.',
+        '- title: kurz, prägnant, Deutsch. Aufgabe als Tätigkeit ("Mario anrufen"), Termin als Anlass ("Zahnarzt", "Treffen mit Robert"). Keine Datums- oder Uhrzeitangaben im Titel.',
         `- status: "Zu tun" für konkrete Aufgaben, "Gedächtnis" für Ideen/irgendwann/vielleicht, "Pausiert" nur wenn ausdrücklich gesagt.`,
         categories.length
             ? `- category: genau eine aus der erlaubten Liste. Wähle die passendste.`
@@ -326,7 +404,7 @@ function buildSystemPrompt() {
             'Eigene Begriffe des Users (die Spracherkennung verhört sie oft, z.B. als ähnlich klingende Alltagswörter). Wenn ein Wort ähnlich klingt und der Kontext passt, ersetze es durch den richtigen Begriff:',
             ...terms.map(t => `  * ${t}`),
         ] : []),
-        '- dueDate: nur wenn ein Zeitpunkt genannt wurde, sonst null.',
+        '- dueDate: IMMER setzen, sobald irgendein Tag erkennbar ist ("heute", "morgen", "Dienstag", "am 3."), als YYYY-MM-DD. Bei type "event" Pflicht (ohne Tagesangabe: heute, bzw. morgen falls die Uhrzeit heute schon vorbei ist). Sonst null.',
         '- notes: zusätzliche Details aus der Aussage, sonst leer.',
         '- comment: EIN kurzer, melancholisch-zynischer Satz von Marvin zur Aufgabe. Keine Höflichkeit, keine Fragen, keine Erklärungen.',
     ].join('\n');
@@ -341,21 +419,24 @@ function buildSchema() {
             title: { type: 'STRING' },
             status: { type: 'STRING', enum: TARGET_STATUSES },
             category,
+            type: { type: 'STRING', enum: ['task', 'event'] },
             dueDate: { type: 'STRING', nullable: true },
+            time: { type: 'STRING', nullable: true },
+            durationMinutes: { type: 'INTEGER', nullable: true },
             notes: { type: 'STRING' },
             comment: { type: 'STRING' },
         },
-        required: ['title', 'status', 'category', 'comment'],
+        required: ['type', 'title', 'status', 'category', 'comment'],
     };
 }
 
-async function parseWithGemini(text) {
+async function parseWithGemini(text, { system = buildSystemPrompt(), schema = buildSchema() } = {}) {
     const body = JSON.stringify({
-        systemInstruction: { parts: [{ text: buildSystemPrompt() }] },
+        systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text }] }],
         generationConfig: {
             responseMimeType: 'application/json',
-            responseSchema: buildSchema(),
+            responseSchema: schema,
             temperature: 0.4,
         },
     });
@@ -401,6 +482,10 @@ async function handleInput(text) {
     try {
         const parsed = await parseWithGemini(text);
         const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate || '') ? parsed.dueDate : '';
+        if (parsed.type === 'event' && dueDate && /^\d{1,2}:\d{2}$/.test(parsed.time || '')) {
+            await createEvent(parsed, dueDate, text);
+            return;
+        }
         const task = {
             Title: parsed.title,
             Status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : 'Zu tun',
@@ -438,35 +523,128 @@ async function handleInput(text) {
 // ---------- Puffer: Rohe Einträge (z.B. Google Home) einsortieren ----------
 
 let inboxRunning = false;
+// Alle Puffer-Einträge in EINEM Gemini-Aufruf einsortieren und in EINEM Backend-Aufruf speichern
 async function processInbox() {
     if (inboxRunning || !getSetting('geminiKey')) return;
     const inbox = allTasks.filter(t => t.Status === INBOX_STATUS);
     if (!inbox.length) return;
 
     inboxRunning = true;
-    let done = 0;
-    for (const task of inbox) {
-        try {
-            const context = [task.Title, task.Notes].filter(Boolean).join('\n');
-            const parsed = await parseWithGemini(context);
+    renderInboxBadge();
+    try {
+        const single = buildSchema();
+        delete single.properties.comment; delete single.properties.type; delete single.properties.time; delete single.properties.durationMinutes;
+        single.properties.id = { type: 'STRING' };
+        single.required = ['id', 'title', 'status', 'category'];
+        const schema = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: single } }, required: ['items'] };
+        const system = buildSystemPrompt() + '\nDu bekommst MEHRERE rohe Einträge (z.B. aus Google Home) als JSON-Liste. Gib für JEDEN Eintrag ein Objekt mit derselben id zurück. Kein comment, kein type – das sind immer Aufgaben.';
+        const input = JSON.stringify(inbox.map(t => ({ id: String(t.ID), text: t.Title, details: t.Notes || '', faellig: t.DueDate || null })));
+        const result = await parseWithGemini(input, { system, schema });
+
+        const items = [];
+        for (const r of result.items || []) {
+            const task = inbox.find(t => String(t.ID) === String(r.id));
+            if (!task) continue;
             const changes = {
-                Title: parsed.title || task.Title,
-                Status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : 'Zu tun',
-                Category: parsed.category || task.Category,
+                Title: r.title || task.Title,
+                Status: TARGET_STATUSES.includes(r.status) ? r.status : 'Zu tun',
+                Category: r.category || task.Category,
             };
-            const due = /^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate || '') ? parsed.dueDate : '';
-            if (due && !task.DueDate) changes.DueDate = due;
-            await callBackend('updateTask', { id: task.ID, changes });
-            Object.assign(task, changes, { Status_Since: new Date().toISOString() });
-            done++;
-            renderTasks();
-        } catch (err) {
-            console.warn('Puffer-Eintrag nicht einsortiert', task, err);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '') && !task.DueDate) changes.DueDate = r.dueDate;
+            items.push({ task, changes });
         }
+        if (items.length) {
+            await callBackend('updateTasks', { items: items.map(i => ({ id: i.task.ID, changes: i.changes })) });
+            const now = new Date().toISOString();
+            items.forEach(i => Object.assign(i.task, i.changes, { Status_Since: now }));
+            say(`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer einsortiert. Niemand hat sich bedankt.`);
+        }
+    } catch (err) {
+        debugLog('Puffer nicht einsortiert', err.message);
+    } finally {
+        inboxRunning = false;
+        renderTasks();
     }
-    inboxRunning = false;
+}
+
+// ---------- Termine (Google-Hauptkalender) ----------
+
+function localDateTime(dateStr, timeStr) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const [hh, mm] = (timeStr || '00:00').split(':').map(Number);
+    return new Date(y, m - 1, d, hh, mm);
+}
+
+async function createEvent(parsed, dueDate, originalText) {
+    const start = localDateTime(dueDate, parsed.time);
+    const minutes = parsed.durationMinutes > 0 ? parsed.durationMinutes : 60;
+    const event = {
+        title: parsed.title,
+        start: start.toISOString(),
+        end: new Date(start.getTime() + minutes * 60000).toISOString(),
+        allDay: false,
+        description: [parsed.notes, `Original: "${originalText}"`].filter(Boolean).join('\n'),
+    };
+    const local = { ...event, id: 'pending-' + Date.now(), recurring: false };
+    allEvents.push(local);
+    switchTab('Zu tun');
+    say(parsed.comment || 'Ein Termin. Wie aufregend. Für jemanden.');
+    try {
+        const saved = await callBackend('addEvent', { event });
+        Object.assign(local, saved);
+        renderTasks();
+        setUndo(() => deleteEventNow(local, pick(LINES.undo)));
+    } catch (err) {
+        allEvents = allEvents.filter(e => e !== local);
+        renderTasks();
+        say('Termin nicht gespeichert: ' + err.message);
+    }
+}
+
+async function saveEvent(ev, changes) {
+    const before = { ...ev };
+    Object.assign(ev, changes);
     renderTasks();
-    if (done) showToast(`${done} ${done === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer einsortiert. Niemand hat sich bedankt.`);
+    try {
+        Object.assign(ev, await callBackend('updateEvent', { id: ev.id, changes }));
+        renderTasks();
+    } catch (err) {
+        Object.assign(ev, before);
+        renderTasks();
+        say('Termin nicht geändert: ' + err.message);
+    }
+}
+
+async function deleteEventNow(ev, message) {
+    const index = allEvents.indexOf(ev);
+    if (index < 0) return;
+    allEvents.splice(index, 1);
+    renderTasks();
+    setUndo(null);
+    if (message) say(message);
+    try {
+        await callBackend('deleteEvent', { id: ev.id });
+    } catch (err) {
+        allEvents.splice(index, 0, ev);
+        renderTasks();
+        say('Termin nicht gelöscht: ' + err.message);
+    }
+}
+
+// Klartext statt Zahl: "heute 14:00", "morgen 14:00", "Di 14:00", ganztägig ohne Uhrzeit
+function eventLabel(ev) {
+    const start = new Date(ev.start);
+    const days = -daysSince(start); // 0 = heute, 1 = morgen
+    const day = days <= 0 ? 'heute' : days === 1 ? 'morgen' : start.toLocaleDateString('de-AT', { weekday: 'short' }).replace('.', '');
+    if (ev.allDay) return day;
+    return day + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function eventUrgency(ev) {
+    const days = -daysSince(new Date(ev.start));
+    if (days <= 0) return { cls: 'card hot event', num: eventLabel(ev), color: '#FFE0BE', rank: 0 };
+    if (days === 1) return { cls: 'card warm event', num: eventLabel(ev), color: '#FFCB94', rank: 1 };
+    return { cls: 'card event', num: eventLabel(ev), color: '#C9A888', rank: 2 };
 }
 
 // ---------- Bearbeiten / Löschen ----------
@@ -482,8 +660,47 @@ function toInputDate(value) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+function setEditorMode(isEvent) {
+    document.getElementById('editor').classList.toggle('event-mode', isEvent);
+}
+
+function openEventEditor(ev) {
+    editing = ev;
+    editingEvent = true;
+    setEditorMode(true);
+    const start = new Date(ev.start), end = new Date(ev.end);
+    document.getElementById('edit-title').value = ev.title || '';
+    document.getElementById('edit-notes').value = ev.description || '';
+    document.getElementById('edit-due').value = toInputDate(start);
+    document.getElementById('edit-time').value = ev.allDay ? '' : start.toTimeString().slice(0, 5);
+    const minutes = ev.allDay ? 'allday' : String(Math.round((end - start) / 60000));
+    const dur = document.getElementById('edit-duration');
+    if (![...dur.options].some(o => o.value === minutes)) dur.add(new Option(minutes + ' min', minutes));
+    dur.value = minutes;
+    document.getElementById('edit-recurring').hidden = !ev.recurring;
+    document.getElementById('editor').showModal();
+    document.getElementById('edit-title').focus();
+}
+
+function eventEditorValues() {
+    const title = document.getElementById('edit-title').value.trim() || editing.title;
+    const date = document.getElementById('edit-due').value || toInputDate(new Date(editing.start));
+    const dur = document.getElementById('edit-duration').value;
+    const description = document.getElementById('edit-notes').value;
+    if (dur === 'allday') {
+        const start = localDateTime(date, '00:00');
+        return { title, description, allDay: true, start: start.toISOString(), end: new Date(start.getTime() + 864e5).toISOString() };
+    }
+    const start = localDateTime(date, document.getElementById('edit-time').value || '09:00');
+    return { title, description, allDay: false, start: start.toISOString(), end: new Date(start.getTime() + Number(dur) * 60000).toISOString() };
+}
+
+let editingEvent = false;
+
 function openEditor(task) {
     editing = task;
+    editingEvent = false;
+    setEditorMode(false);
     document.getElementById('edit-title').value = task.Title || '';
     document.getElementById('edit-notes').value = task.Notes || '';
     document.getElementById('edit-due').value = toInputDate(task.DueDate);
@@ -533,14 +750,22 @@ function initEditor() {
     }));
 
     document.getElementById('edit-delete').addEventListener('click', async () => {
-        const task = editing;
-        if (!confirm(`„${task.Title}“ endgültig löschen?`)) return;
+        const item = editing;
+        if (editingEvent) {
+            if (!confirm(`Termin „${item.title}“ aus dem Kalender löschen?`)) return;
+            dialog.close('delete');
+            deleteEventNow(item, pick(LINES.deleted));
+            return;
+        }
+        if (!confirm(`„${item.Title}“ endgültig löschen?`)) return;
         dialog.close('delete');
-        deleteTaskNow(task, pick(LINES.deleted));
+        deleteTaskNow(item, pick(LINES.deleted));
     });
 
     dialog.addEventListener('close', () => {
-        if (dialog.returnValue === 'save' && editing) {
+        if (dialog.returnValue === 'save' && editing && editingEvent) {
+            saveEvent(editing, eventEditorValues());
+        } else if (dialog.returnValue === 'save' && editing) {
             const changes = editorValues();
             if (changes.Status !== editing.Status) {
                 setStatus(editing, changes.Status, changes);
@@ -613,7 +838,12 @@ function runUndo() {
 function setStatus(task, status, extra = {}) {
     const before = { Status: task.Status, Status_Since: task.Status_Since };
     saveTask(task, { ...extra, Status: status });
-    say(pick(status === DONE_STATUS ? LINES.done : LINES.move));
+    if (status !== DONE_STATUS && countMove(task) >= 5) {
+        flashFace('B2');
+        say(pick(LINES.moveAgain));
+    } else {
+        say(pick(status === DONE_STATUS ? LINES.done : LINES.move));
+    }
     setUndo(() => {
         saveTask(task, { Status: before.Status });
         task.Status_Since = before.Status_Since; // alte Verweildauer zurück
@@ -759,6 +989,11 @@ function renderTasks() {
     container.replaceChildren();
 
     let list = allTasks.filter(t => t.Status === currentStatus).map(t => ({ t, u: urgency(t) }));
+    if (currentStatus === 'Zu tun') {
+        // Termine der nächsten Tage dazu; innerhalb gleicher Stufe: Termine nach Startzeit vor Aufgaben
+        const evs = allEvents.slice().sort((a, b) => new Date(a.start) - new Date(b.start)).map(e => ({ e, u: eventUrgency(e) }));
+        list = [...evs, ...list];
+    }
     if (currentStatus === DONE_STATUS) {
         list.sort((a, b) => String(b.t.Status_Since || b.t.Updated_At || '').localeCompare(String(a.t.Status_Since || a.t.Updated_At || '')));
         list = list.slice(0, 50);
@@ -776,7 +1011,8 @@ function renderTasks() {
         empty.textContent = 'Leer. Marvin ist fast beeindruckt.';
         container.appendChild(empty);
     }
-    list.forEach(({ t, u }) => container.appendChild(buildCard(t, u)));
+    list.forEach(({ t, e, u }) => container.appendChild(e ? buildEventCard(e, u) : buildCard(t, u)));
+    updateMoodFace();
 
     const doneLink = document.getElementById('done-link');
     const doneCount = allTasks.filter(t => t.Status === DONE_STATUS).length;
@@ -806,6 +1042,23 @@ function buildCard(task, u) {
 
     if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
     else attachGestures(card, task);
+    return card;
+}
+
+function buildEventCard(ev, u) {
+    const card = document.createElement('div');
+    card.className = u.cls;
+    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg>';
+    const title = document.createElement('span');
+    title.className = 'card-title';
+    title.textContent = ev.title || '';
+    const num = document.createElement('span');
+    num.className = 'card-num event-time';
+    num.style.color = u.color;
+    num.textContent = u.num;
+    card.append(title, num);
+    if (String(ev.id).startsWith('pending-')) card.classList.add('pending');
+    else card.addEventListener('click', () => openEventEditor(ev));
     return card;
 }
 

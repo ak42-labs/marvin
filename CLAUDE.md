@@ -86,7 +86,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 5. APPS SCRIPT
 *   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version deployen).
-*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks` (inkl. Google-Tasks-Import), `addTask`, `updateTask`, `deleteTask`, `addEvent`, `getConfig`. Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
+*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks` (inkl. Google-Tasks-Import), `addTask`, `updateTask`, `updateTasks`, `deleteTask`, `getEvents`, `addEvent`, `updateEvent`, `deleteEvent`, `getConfig` (Details: `apps-script/README.md`). Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
 *   **Auth:** Jede Anfrage braucht `token` == Script Property `MARVIN_TOKEN`.
 *   **Deployment-Einstellungen:** Web-App, Ausführen als: "Ich (armin...)", Zugriff: "Jeder".
 *   **Externe APIs/Schlüssel:** Google Sheets API (als Dienst im Script aktiviert, um CORS zu vermeiden).
@@ -107,6 +107,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 *   UX v1 (App 1.0.0, Backend 0.8, 19.11.2026): Amber-Glas, Drehrad, Dringlichkeit (Glut + Zahl), Gesten (Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42), Undo nach Anlegen/Verschieben/Erledigen, neues App-Icon.
 *   1.0.1: Drehrad per Wischen drehbar, aktiver Knopf durchscheinend, „rückgängig“ verschwindet nach 10 s, Marvin-Sätze stark erweitert (keine direkte Wiederholung). Offen: Soll Marvin bei jeder Aktion sprechen? (Sprechtempo 0.95 passt.)
+*   1.1.0 (Backend 0.9, 20.11.2026): **Google Kalender** (nur Hauptkalender, live, nicht im Sheet): Termine der nächsten `Frist` Tage als Karten im Hyperraum, Klartext statt Zahl (`heute 14:00`, `morgen 14:00`, `Di 14:00`, ganztägig ohne Uhrzeit); heute = glüht, morgen = warm. Gemini erkennt Termin vs. Aufgabe (`type`, `time`, `durationMinutes`; Termin nur mit Uhrzeit) und legt Termine im Kalender an (Erinnerung = Kalender-Standard). Antippen -> Bearbeiten im Termin-Modus (Datum, Uhrzeit, Dauer) -> ändert/löscht im Kalender; Serientermine nur im Google Kalender änderbar. Puffer: 1 Gemini-Aufruf + 1 Backend-Aufruf (`updateTasks`) für alle Einträge. Prompt: `dueDate` immer setzen, sobald ein Tag erkennbar ist. **Situative Augen:** Termin heute = B3 (Brauen), ≥3 glühende Aufgaben = D3 (Skeptiker), 5. Verschieben derselben Aufgabe = B2 (hängend) + eigener Spruch; Wartemodus: zufällig Augenrollen, Blinzeln, Umschauen, Seufzen (D1).
 *   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
@@ -137,10 +138,7 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  **Live-Test v0.3** mit echten Google-Home-Listen; entscheiden, welche Listen importiert werden (`Importliste`) und ob Einkäufe eigene Behandlung brauchen (z.B. eigene Kategorie/Ansicht).
-2.  **Korrektur per Sprache** im Bearbeiten-Modus (Gemini bekommt bestehenden Task + Anweisung) – evtl. unnötig, da Tastatur-Spracheingabe reicht.
-3.  **Undo** im Toast direkt nach dem Anlegen.
-4.  **System-Prompt verfeinern** anhand echter Nutzung.
-5.  ~~Look & Feel v1~~ umgesetzt. Offen aus ux-v1 §8/§10: Bearbeiten-Dialog im neuen Look, situative Augen (B2/B3/D3), v3 „Neigungs-Glas“.
-6.  **Google Calendar – nächster Schritt (geplant 20.11.2026):** Alle Termine der nächsten 7 Tage (Frist) aus Armins Kalender lesen und in Marvin anzeigen, mit derselben Zahlenlogik wie Tasks (`0` heute, `−1` morgen … `−7`). Backend: neue Aktion zum Lesen (CalendarApp), einmalige Berechtigung. Offen: eigene Karten im Hyperraum vs. eigener Bereich; Termine per Sprache anlegen (`addEvent` existiert, ungenutzt).
-7.  App-Icon (1.0.4): nach Armins Entwurf `icons/entwurf-armin.jpg` – Augen oberhalb der Mitte, weiße LED oben rechts, kein Rahmen. `icon.svg` = originalgetreu ("any"), `icon-maskable.svg` = für Android verkleinert, LED nach innen gerückt (sonst vom runden Zuschnitt abgeschnitten). Android zeigt neue Icons erst nach Neuinstallation der PWA.
+1.  **UI-Runde (außerhalb):** mehr Raum/Abstand, Farben unterscheiden (Menü vs. Karten), evtl. Farben je Art (Aufgabe/Termin). Bearbeiten-Dialog im neuen Look.
+2.  Soll Marvin bei jeder Aktion sprechen? (Usability)
+3.  v3 „Neigungs-Glas“ (DeviceOrientation).
+4.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.

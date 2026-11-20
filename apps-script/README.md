@@ -9,9 +9,13 @@
 |-------------|----------|----------|
 | `getTasks`  | –        | Importiert zuerst Google Tasks in den Puffer, dann Array aller Zeilen aus `Tasks` |
 | `addTask`   | `task`   | `{id, title}` – ID und Timestamps setzt der Server |
-| `addEvent`  | `event`  | `{eventId, title}` – Termin im Standardkalender |
 | `updateTask`| `id`, `changes` | Ändert Title/Status/Category/DueDate/Notes, setzt Updated_At |
 | `deleteTask`| `id`     | Löscht die Zeile |
+| `updateTasks`| `items: [{id, changes}]` | Mehrere Tasks auf einmal (Puffer-Einsortierung) |
+| `getEvents` | `days` (Std. 7) | Termine im Hauptkalender ab heute bis heute + days (vorbei = weggelassen) |
+| `addEvent`  | `event: {title, start, end, allDay, description}` | Legt Termin an (Erinnerung = Kalender-Standard) |
+| `updateEvent` | `id`, `changes` | Ändert Titel/Zeit/Beschreibung (nicht bei Serienterminen) |
+| `deleteEvent` | `id`   | Löscht Termin (nicht bei Serienterminen) |
 | `getConfig` | –        | `{statuses, categories, terms}` aus `Config` |
 
 Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (automatisch angelegt; nur bei Statuswechsel gesetzt). Spalten werden über die Kopfzeile adressiert.
@@ -40,3 +44,7 @@ Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Liste
 1. Editor: *Projekteinstellungen (Zahnrad) > Skripteigenschaften > Eigenschaft hinzufügen*: `MARVIN_TOKEN` = langer Zufallswert (z.B. Passwort-Generator, 40 Zeichen).
 2. Denselben Wert in der App unter ⚙︎ > Backend-Token eintragen (Android und Mac je einmal).
 3. Ohne passenden Token antwortet das Backend mit `unauthorized`.
+
+## Google Kalender
+
+Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar). Nach dem ersten Deploy einmal `testCalendar` im Editor ausführen und die Berechtigung erteilen; die Funktion liest nur.

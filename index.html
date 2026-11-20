@@ -58,12 +58,25 @@
     <dialog id="editor" class="sheet">
         <form method="dialog" id="editor-form">
             <textarea id="edit-title" rows="2" placeholder="Titel"></textarea>
+            <p id="edit-recurring" hidden>Serientermin – bitte direkt im Google Kalender ändern.</p>
             <div class="edit-row">
-                <select id="edit-category"></select>
+                <select id="edit-category" class="task-only"></select>
                 <input type="date" id="edit-due">
             </div>
+            <div class="edit-row event-only">
+                <input type="time" id="edit-time">
+                <select id="edit-duration">
+                    <option value="15">15 min</option>
+                    <option value="30">30 min</option>
+                    <option value="60">1 h</option>
+                    <option value="90">1,5 h</option>
+                    <option value="120">2 h</option>
+                    <option value="180">3 h</option>
+                    <option value="allday">ganztägig</option>
+                </select>
+            </div>
             <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>
-            <div class="status-buttons">
+            <div class="status-buttons task-only">
                 <button type="button" data-status="Gedächtnis"></button>
                 <button type="button" data-status="Zu tun"></button>
                 <button type="button" data-status="Pausiert"></button>

@@ -304,3 +304,25 @@ dialog.sheet input[type="date"] { color-scheme: dark; }
 .status-buttons button.active { background: rgba(255,150,50,.3); border-color: rgba(255,176,96,.8); color: #FFF3E6; }
 .status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; }
 .status-buttons button[data-status="Erledigt"].active { background: rgba(255,200,120,.35); border-color: var(--amber-soft); }
+
+/* Wartemodus-Gesten (Klasse kurz am Knopf, überschreibt das Dösen) */
+#marvin-btn.q-roll .eye  { animation: roll 1.6s ease-in-out; opacity: 1; }
+@keyframes roll { 0% { transform: translate(0,0); } 25% { transform: translate(-7px,-6px); } 50% { transform: translate(0,-9px); } 75% { transform: translate(7px,-6px); } 100% { transform: translate(0,0); } }
+#marvin-btn.q-blink .eye { animation: blink-eye .35s ease-in-out 2; opacity: 1; }
+@keyframes blink-eye { 50% { transform: scaleY(.1); } }
+#marvin-btn.q-look .eye  { animation: look 1.8s ease-in-out; opacity: 1; }
+@keyframes look { 0%,100% { transform: translateX(0); } 30%,55% { transform: translateX(-10px); } 70% { transform: translateX(8px); } }
+#marvin-btn.q-sigh .eye  { animation: sigh 1.8s ease-in-out; }
+@keyframes sigh { 0% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(4px); opacity: .6; } 100% { transform: translateY(0); opacity: 1; } }
+
+/* Termine: leicht anderes Glas (kühler Rand), Zeit in Klartext */
+.card.event::before { background: linear-gradient(180deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 25%, rgba(255,255,255,.03) 60%, rgba(255,220,180,.5) 92%, rgba(255,240,210,.8) 100%); }
+.card-num.event-time { min-width: 0; white-space: nowrap; letter-spacing: .02em; }
+
+/* Bearbeiten: Termin-Modus */
+.event-only { display: none; }
+dialog.event-mode .event-only { display: flex; }
+dialog.event-mode .task-only { display: none !important; }
+#edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0 0 10px; }
+#edit-recurring[hidden] { display: none; }
+dialog.sheet input[type="time"] { color-scheme: dark; }

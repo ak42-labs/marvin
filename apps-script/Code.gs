@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.8'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.9'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -19,8 +19,16 @@ function doPost(e) {
       data = deleteTask(payload.id);
     } else if (action === 'addTask') {
       data = addTask(payload.task);
+    } else if (action === 'updateTasks') {
+      data = (payload.items || []).map(it => updateTask(it.id, it.changes)); // mehrere auf einmal (Puffer)
+    } else if (action === 'getEvents') {
+      data = getEvents(payload.days);
     } else if (action === 'addEvent') {
       data = addEvent(payload.event);
+    } else if (action === 'updateEvent') {
+      data = updateEvent(payload.id, payload.changes);
+    } else if (action === 'deleteEvent') {
+      data = deleteEvent(payload.id);
     } else if (action === 'getConfig') {
       data = getConfig();
     } else {
@@ -91,21 +99,65 @@ function ensureColumn_(sheet, name) {
   return headers;
 }
 
-function addEvent(eventData) {
-  const calendar = CalendarApp.getDefaultCalendar();
-  const start = new Date(eventData.startTime);
-  const end = new Date(eventData.endTime);
-  
-  let options = {};
-  if (eventData.guestEmail) {
-    options.guests = eventData.guestEmail;
-    options.sendInvites = true;
-  }
-  
-  const event = calendar.createEvent(eventData.title, start, end, options);
-  event.addPopupReminder(1440); // 24 Stunden vorher
-  
-  return { eventId: event.getId(), title: event.getTitle() };
+// ---------- Google Kalender (nur Hauptkalender) ----------
+// Termine leben ausschließlich im Kalender; Marvin liest/schreibt live. Erinnerungen = Kalender-Standard.
+
+function eventToJson_(ev) {
+  return {
+    id: ev.getId(),
+    title: ev.getTitle(),
+    start: ev.getStartTime().toISOString(),
+    end: ev.getEndTime().toISOString(),
+    allDay: ev.isAllDayEvent(),
+    description: ev.getDescription() || '',
+    location: ev.getLocation() || '',
+    recurring: ev.isRecurringEvent(),
+  };
+}
+
+// Termine von heute 00:00 bis heute + days (Standard 7); bereits vorbei = weggelassen
+function getEvents(days) {
+  const cal = CalendarApp.getDefaultCalendar();
+  const from = new Date(); from.setHours(0, 0, 0, 0);
+  const to = new Date(from.getTime() + ((days || 7) + 1) * 864e5);
+  const now = new Date();
+  return cal.getEvents(from, to)
+    .filter(ev => ev.getEndTime() > now)
+    .map(eventToJson_);
+}
+
+// event: { title, start, end, allDay, description }  (start/end als ISO; bei allDay nur das Datum zählt)
+function addEvent(event) {
+  const cal = CalendarApp.getDefaultCalendar();
+  const opts = event.description ? { description: event.description } : {};
+  const ev = event.allDay
+    ? cal.createAllDayEvent(event.title, new Date(event.start), opts)
+    : cal.createEvent(event.title, new Date(event.start), new Date(event.end), opts);
+  return eventToJson_(ev);
+}
+
+function updateEvent(id, changes) {
+  const ev = CalendarApp.getDefaultCalendar().getEventById(id);
+  if (!ev) throw new Error('Termin nicht gefunden');
+  if (ev.isRecurringEvent()) throw new Error('Serientermine bitte im Google Kalender ändern');
+  if ('title' in changes) ev.setTitle(changes.title);
+  if ('description' in changes) ev.setDescription(changes.description || '');
+  if (changes.allDay) ev.setAllDayDate(new Date(changes.start));
+  else if (changes.start && changes.end) ev.setTime(new Date(changes.start), new Date(changes.end));
+  return eventToJson_(ev);
+}
+
+function deleteEvent(id) {
+  const ev = CalendarApp.getDefaultCalendar().getEventById(id);
+  if (!ev) throw new Error('Termin nicht gefunden');
+  if (ev.isRecurringEvent()) throw new Error('Serientermine bitte im Google Kalender löschen');
+  ev.deleteEvent();
+  return { id: id };
+}
+
+// Im Editor ausführen: erteilt die Kalender-Berechtigung und zeigt die Termine der nächsten 7 Tage (ändert nichts)
+function testCalendar() {
+  getEvents(7).forEach(e => console.log(e.start + '  ' + e.title + (e.allDay ? ' (ganztägig)' : '') + (e.recurring ? ' [Serie]' : '')));
 }
 
 function getConfig() {
