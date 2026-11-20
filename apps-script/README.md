@@ -47,4 +47,4 @@ Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Liste
 
 ## Google Kalender
 
-Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar). Nach dem ersten Deploy einmal `testCalendar` im Editor ausführen und die Berechtigung erteilen; die Funktion liest nur.
+Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar), ohne Geburtstage (Termin-Typ BIRTHDAY). Nach dem ersten Deploy einmal `testCalendar` im Editor ausführen und die Berechtigung erteilen; die Funktion liest nur.

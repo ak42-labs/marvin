@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.9'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.10'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -122,8 +122,17 @@ function getEvents(days) {
   const to = new Date(from.getTime() + ((days || 7) + 1) * 864e5);
   const now = new Date();
   return cal.getEvents(from, to)
-    .filter(ev => ev.getEndTime() > now)
+    .filter(ev => ev.getEndTime() > now && !isBirthday_(ev))
     .map(eventToJson_);
+}
+
+// Geburtstage liegen bei Google im Hauptkalender als eigener Termin-Typ -> ausblenden
+function isBirthday_(ev) {
+  try {
+    return ev.getEventType() === CalendarApp.EventType.BIRTHDAY;
+  } catch (err) {
+    return false; // ältere Laufzeit ohne getEventType
+  }
 }
 
 // event: { title, start, end, allDay, description }  (start/end als ISO; bei allDay nur das Datum zählt)
