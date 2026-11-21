@@ -93,6 +93,10 @@ Armin bevorzugt **flach statt Glas** – Tempo zählt. (Mockup „Bearbeiten“,
 | 5. Verschieben derselben Aufgabe | Spezialspruch | ja |
 | Leerlauf-Gag mit Spruch | ja (nur manche Gags) | nein |
 
+**„rückgängig“ heißt jetzt „Keine Panik ↺“** (Text-Knopf rechts in der Marvin-Zeile, `white-space:nowrap`; der Marvin-Text bricht links um, der Knopf nicht).
+
+**Gemini-Kommentare:** natürliches Deutsch (österreichisch verständlich), keine wörtlich übersetzten englischen Witzmuster wie „Das tut mir leid. Nicht.“ – Ironie über Wortwahl, nicht über angehängtes „Nicht.“. Prompt um 3–4 gute Beispielsätze aus den festen Marvin-Sprüchen ergänzen.
+
 Cursor `▍` blinkt nach dem letzten Zeichen noch ~2 s und verschwindet dann (Ruhe am Bildschirm).
 
 ## 7. Marvins Augen v2 (Stand 21.11., Mockup „Augen-Galerie v2.2“, „Arkanoid“, „Neigungs-Glas“)
@@ -112,7 +116,7 @@ Gestrichen: Wellen, Spiralen, Brauen, Schütteln, 3×-Tippen.
 
 **Leerlauf-Gags** (Spaß-Modus an): erster nach 6–8 s ohne Berührung, dann alle 12–20 s zufällig, je 2–4 s; nie während Scrollen/Tippen/Sprechen/Zuhören; Berührung bricht sofort ab.
 - Umschauen (Pupillen ±10 px) · Nach oben rechts (9,−4) · Einander anschauen (+11/−11) · Augenrollen (kleine Kreise ±5 × ±3, 1.6 s) · Langeweile (nur Lid wird flach: `d:path("M-23 4 Q0 2 23 4")`, Pupillen (8,2), **kein** Absinken) · Blinzeln (scaleY .1)
-- Pixel sortieren (6 Pixel je Auge fallen **zufällig verstreut** ein: Start je Pixel dx −40…40, dy −60…−15, Rotation ±180°, Verzögerung 0–0.45 s) · Pixel-Explosion (erst **Implosion**: Pixel ziehen sich zur Mitte, scale .5, hell `#FFF3E6`; dann **Explosion** ganz aus dem Knopf ±75–100 px mit Rotation; dann Rückkehr) · Pixel-Glitch (ersetzt Pixel-Blinzeln: Pixel springen kurz in Stufen ±3–8 px versetzt, flackern hell) · Einschlafen (Atmen ±3 px, drei Z 11/14/17 px steigen **zwischen den Augen** auf – Start am linken Anfang des rechten Bogens)
+- Pixel sortieren (6 Pixel je Auge fallen **zufällig verstreut** ein: Start je Pixel dx −40…40, dy −60…−15, Rotation ±180°, Verzögerung 0–0.45 s) · Pixel-Explosion (erst **Implosion**: Pixel ziehen sich zur Mitte, scale .5, hell `#FFF3E6`; dann **Explosion** ganz aus dem Knopf ±75–100 px mit Rotation; dann Rückkehr) · Pixel-Tausch (ersetzt Pixel-Blinzeln: alle Pixel wechseln das Auge – links ±76 px nach rechts und umgekehrt, abwechselnd im Bogen über/unter der Mitte, je 0.06 s versetzt, dann zurück) · Einschlafen (Atmen ±3 px, drei Z 11/14/17 px steigen auf, Start **leicht links vom Anfang des rechten Bogens**, x≈90 von 170)
 - Selten (≈1 von 8 Gags): **Arkanoid** (siehe unten).
 
 **Reaktionen** (bei Spaß-Modus aus: keine):
@@ -120,7 +124,7 @@ Gestrichen: Wellen, Spiralen, Brauen, Schütteln, 3×-Tippen.
 - **Gelöscht:** X sofort da (1.15 → 1), schrumpft auf 0 und verschwindet, dann kommen die Bögen zurück.
 - **Viel Überfälliges** (≥3 glühende Karten beim Öffnen) – zwei Varianten, Armin entscheidet am Handy, Standard A:
   - A **Schock:** Lider springen 6 px hoch, Augen reißen auf (Pupillen scale 1.7 → 1.5). Kein Tropfen.
-  - B **Runzeln:** Lider kippen nach innen (±14°), Pupillen schielen zur Mitte (±9 px).
+  - B **Böse:** Lider kippen nach innen (±14°), Pupillen zur Mitte (±9 px). Gefällt – beide behalten, abwechselnd einsetzen.
 
 **Easter Egg 2× tippen = Arkanoid** (auch als seltener Leerlauf-Gag):
 - Die Augen werden zu Pixel-Steinen (je Auge 6 Steine aus der Pixelform, Faktor 1.6 bei Knopfgröße), Ball r 6 `#FFF3E6`, Schläger 70 × 6 unten.
