@@ -158,8 +158,8 @@ main {
 /* Termine: Champagner */
 .card.ev {
     background:
-        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,236,200,.22) 0%, rgba(255,225,180,.07) 45%, transparent 80%),
-        linear-gradient(180deg, rgba(255,250,240,.09), rgba(255,255,255,.02));
+        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,236,200,.3) 0%, rgba(255,225,180,.1) 45%, transparent 80%),
+        linear-gradient(180deg, rgba(255,238,200,.16), rgba(255,228,185,.06));   /* leichte Champagner-Tönung der ganzen Karte */
 }
 .card.ev::before { background: linear-gradient(180deg, rgba(255,252,240,.9), rgba(255,245,225,.15) 25%, rgba(255,240,210,.05) 70%, rgba(255,236,200,.5)); }
 .card.ev.hot {
@@ -255,75 +255,76 @@ main {
     .wheel button, .card { transition: none; }
 }
 
-/* ---------- Dialoge ---------- */
+/* ---------- Dialoge (Bearbeiten / Einstellungen) – flach, wie 1.1.0 (Wunsch Armin) ---------- */
 
 dialog {
-    background: linear-gradient(180deg, rgba(60,50,44,.92), rgba(24,19,16,.96));
+    background: linear-gradient(180deg, rgba(60,50,44,.96), rgba(22,17,14,.98));
     color: var(--text);
-    border: none;
-    border-radius: 30px;
-    padding: 22px 20px 20px;
+    border: 1px solid rgba(255,200,150,.25);
+    border-radius: 28px;
+    padding: 24px;
     width: min(420px, calc(100vw - 32px));
     font-family: var(--font-body);
-    box-shadow: 0 24px 60px rgba(0,0,0,.7);
+    box-shadow: 0 20px 50px rgba(0,0,0,.7), 0 0 30px rgba(255,120,30,.12);
 }
 dialog::backdrop { background: rgba(0,0,0,.65); }
-dialog form { display: flex; flex-direction: column; gap: 14px; }
-dialog h2 { margin: 0; font-size: 16px; font-family: var(--font-display); font-weight: 400; letter-spacing: .08em; }
+dialog h2 { margin: 0 0 16px; font-size: 18px; font-family: var(--font-display); font-weight: 400; letter-spacing: .08em; }
 
 dialog label {
     display: flex; flex-direction: column; gap: 6px;
-    font-size: 14px; color: var(--muted);
+    font-size: 14px; color: var(--muted); margin-bottom: 14px;
 }
 dialog label.check { flex-direction: row; align-items: center; gap: 10px; color: var(--text); }
-dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: var(--amber); box-shadow: none; }
+dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: var(--amber); }
 
-/* Felder eingelassen */
 dialog input, dialog textarea, dialog select {
     width: 100%;
-    border: none;
+    background: rgba(255,240,225,.06);
+    border: 1px solid rgba(255,200,150,.2);
     border-radius: 16px;
-    padding: 14px 16px;
-    background: rgba(0,0,0,.4);
-    box-shadow: inset 0 2px 6px rgba(0,0,0,.75), 0 1px 0 rgba(255,255,255,.12);
+    padding: 12px 14px;
     color: var(--text);
-    font: inherit; font-weight: 300;
-    font-size: 16px; /* verhindert Auto-Zoom (Vorgabe 15 px, Android zoomt darunter) */
+    font: inherit;
+    font-size: 16px; /* verhindert Auto-Zoom */
     resize: none;
 }
-dialog input:focus, dialog textarea:focus, dialog select:focus { outline: 2px solid rgba(255,176,96,.55); outline-offset: 1px; }
-#edit-title { font-weight: 600; font-size: 17px; }
-#edit-notes { color: var(--muted); }
+dialog input:focus, dialog textarea:focus, dialog select:focus { outline: 2px solid rgba(255,176,96,.6); outline-offset: 1px; }
+
+.hint { font-size: 12px; color: var(--muted-2); margin: 0 0 16px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-actions .spacer { flex: 1; }
+
+.pill {
+    background: rgba(255,240,225,.06); border: 1px solid rgba(255,200,150,.2);
+    color: var(--text); border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 400;
+}
+.pill.accent { background: rgba(255,150,50,.25); border-color: rgba(255,176,96,.6); }
+.pill.danger { color: #FF9C7A; border-color: rgba(255,120,90,.35); background: transparent; }
+
+/* Bearbeiten: oben angedockt, damit die Tastatur unten Platz hat */
+dialog.sheet { margin: 12px auto auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
+dialog.sheet textarea, dialog.sheet select, dialog.sheet input { margin-bottom: 10px; }
+#edit-title { font-size: 18px; font-weight: 400; }
+#edit-notes { font-size: 14px; color: var(--muted); }
 dialog select option { background: #221a15; }
 dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
 
-.hint { font-size: 12px; color: var(--muted-2); margin: 0; }
-
-.edit-row { display: flex; gap: 10px; }
+.edit-row { display: flex; gap: 8px; }
 .edit-row > * { flex: 1; min-width: 0; }
 
-/* Status: 3 direkte Knöpfe + "42 · ERLEDIGT" */
-.status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 16px; }
 .status-buttons button {
-    height: 48px; padding: 0 4px;
-    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 18px;
-    color: var(--text); font-family: var(--font-display); font-size: 10.5px; letter-spacing: .03em;
+    background: rgba(255,240,225,.05); border: 1px solid rgba(255,200,150,.18);
+    color: var(--text); border-radius: 18px; padding: 14px 4px;
+    font-family: var(--font-display); font-size: 11px; letter-spacing: .04em;
 }
-.status-buttons button.active { background: rgba(255,150,50,.22); border-color: rgba(255,176,96,.7); color: #FFF3E6; }
-.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; letter-spacing: .12em; }
-
-/* Aktionen: Löschen (Text) · Abbrechen (Text) · Speichern (Amber-Pille) */
-.dialog-actions { display: flex; align-items: center; gap: 8px; }
-.dialog-actions .spacer { flex: 1; }
-.text-btn { background: none; border: none; padding: 12px 8px; font-size: 15px; font-weight: 400; color: #C9B9A8; }
-.text-btn.danger { color: #E8907A; padding-left: 4px; }
-.save-pill { height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; font-weight: 600; }
-
-dialog.sheet { margin: 12px auto auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
+.status-buttons button.active { background: rgba(255,150,50,.3); border-color: rgba(255,176,96,.8); color: #FFF3E6; }
+.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; }
+.status-buttons button[data-status="Erledigt"].active { background: rgba(255,200,120,.35); border-color: var(--amber-soft); }
 
 /* Termin-Modus */
 .event-only { display: none; }
 dialog.event-mode .event-only { display: flex; }
 dialog.event-mode .task-only { display: none !important; }
-#edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0; }
+#edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0 0 10px; }
 #edit-recurring[hidden] { display: none; }

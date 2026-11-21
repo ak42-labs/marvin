@@ -190,7 +190,7 @@ const Face = (() => {
     function arkanoid() {
         stop();
         const { width: W, height: H } = btn.getBoundingClientRect();
-        const s = 1.6, r = 6, padW = 70, padY = H - 16, left = 40, right = W - 40, top = 12;
+        const s = 1.6, r = 6, padW = 70, padY = H - 16, left = 40, right = W - 40, top = 4;
         const centers = [W / 2 - 60, W / 2 + 60], cy = H * 0.43;
         let bricks = [];
         centers.forEach(cx => PX6.forEach(p => bricks.push({ x: cx + p[0] * s, y: cy + p[1] * s, w: p[2] * s - 1.5, h: p[3] * s - 1.5 })));
@@ -245,6 +245,7 @@ const Face = (() => {
             }
             if (by > H + 10) { hooks.say?.(LINES.arkMiss[0]); serve(); }
             for (const b of bricks) {
+                if (b.dead) continue; // bereits abgeräumt
                 const cx = Math.max(b.x, Math.min(bx, b.x + b.w)), cyy = Math.max(b.y, Math.min(by, b.y + b.h));
                 if ((bx - cx) ** 2 + (by - cyy) ** 2 < r * r) {
                     const ox = Math.min(Math.abs(bx - b.x), Math.abs(bx - b.x - b.w));

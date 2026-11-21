@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '2.0.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '2.0.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMarvinButton();
     initEditor();
     document.querySelectorAll('.status-buttons button').forEach(b => {
-        b.textContent = b.dataset.status === DONE_STATUS ? '42 · ERLEDIGT' : STATUS_LABELS[b.dataset.status].name;
+        b.textContent = STATUS_LABELS[b.dataset.status].name + (b.dataset.status === DONE_STATUS ? ' ✓' : '');
     });
     document.getElementById('undo-btn').addEventListener('click', runUndo);
     document.getElementById('done-link').addEventListener('click', toggleDone);
@@ -323,7 +323,7 @@ function initMarvinButton() {
     btn.addEventListener('click', () => {
         if (longPressed) { longPressed = false; return; }
         if (Face.isGame()) { Face.abort(); return; }           // Antippen beendet Arkanoid
-        if (recognition) { recognition.stop(); return; }
+        if (recognition) { stopListening ? stopListening() : recognition.stop(); return; }
         // Doppeltipp = Arkanoid; einfacher Tipp wartet kurz, ob ein zweiter kommt
         if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; Face.arkanoid(); return; }
         tapTimer = setTimeout(() => { tapTimer = null; onMarvinTap(); }, 260);
@@ -345,35 +345,65 @@ function onMarvinTap() {
     }
 }
 
+// Länger zuhören: Aufnahme läuft durchgehend und endet erst nach SILENCE_MS ohne neue Wörter
+// (oder per Tipp). Chrome beendet "continuous" teils selbst – dann wird nahtlos neu gestartet.
+const SILENCE_MS = 3000;
+const FIRST_WORD_MS = 8000;
 function startListening() {
-    let transcript = '';
-    recognition = new SpeechRecognition();
-    recognition.lang = 'de-AT';
-    recognition.interimResults = true;
-    recognition.continuous = false; // endet automatisch bei Stille
+    let finalText = '';
+    let interim = '';
+    let stopped = false;
+    let silenceTimer = null;
+    const started = Date.now();
 
-    recognition.onresult = (e) => {
-        transcript = Array.from(e.results).map(r => r[0].transcript).join(' ');
-        showLive(transcript);
+    const finish = () => {
+        if (stopped) return;
+        stopped = true;
+        clearTimeout(silenceTimer);
+        try { recognition?.stop(); } catch {}
     };
-    recognition.onerror = (e) => {
-        if (e.error === 'not-allowed') showToast('Kein Mikrofonzugriff. Wie erwartet.');
-        else if (e.error !== 'no-speech' && e.error !== 'aborted') showToast('Spracherkennung: ' + e.error);
-    };
-    recognition.onend = () => {
-        recognition = null;
-        showLive('');
-        setButtonState('idle');
-        if (transcript.trim()) handleInput(transcript.trim());
+    const armSilence = (ms) => { clearTimeout(silenceTimer); silenceTimer = setTimeout(finish, ms); };
+
+    const begin = () => {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'de-AT';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.onresult = (e) => {
+            interim = '';
+            for (let k = e.resultIndex; k < e.results.length; k++) {
+                const r = e.results[k];
+                if (r.isFinal) finalText += (finalText ? ' ' : '') + r[0].transcript.trim();
+                else interim += r[0].transcript;
+            }
+            showLive((finalText + ' ' + interim).trim());
+            armSilence(SILENCE_MS);
+        };
+        recognition.onerror = (e) => {
+            if (e.error === 'not-allowed') { stopped = true; showToast('Kein Mikrofonzugriff. Wie erwartet.'); }
+            else if (e.error !== 'no-speech' && e.error !== 'aborted') showToast('Spracherkennung: ' + e.error);
+        };
+        recognition.onend = () => {
+            // Vom Browser beendet, obwohl wir noch zuhören wollen -> weiter
+            if (!stopped && Date.now() - started < 60000) { try { begin(); return; } catch {} }
+            recognition = null;
+            setButtonState('idle');
+            const text = (finalText + ' ' + interim).trim();
+            if (text) handleInput(text);
+        };
+        recognition.start();
     };
 
     setButtonState('listening');
     document.getElementById('marvin-text').textContent = '…';
     setUndo(null);
-    recognition.start();
+    armSilence(FIRST_WORD_MS);
+    begin();
+    // Tipp während der Aufnahme beendet sie (über recognition.stop) – stopped markieren
+    stopListening = finish;
 }
+let stopListening = null;
 
-// Live-Transkript erscheint in der Marvin-Zeile
 function showLive(text) {
     if (!text) return;
     clearInterval(typeTimer);
@@ -857,8 +887,8 @@ function setStatus(task, status, extra = {}) {
     } else if (countMove(task) === 5) {
         Face.flash('hang');
         say(pick(LINES.moveAgain), { voice: true });
-    } else if (Date.now() - (lastMoveAt.get(task.ID) || 0) > 10000) {
-        say(pick(LINES.move)); // Verschieben: Text ja, Stimme nein; <10 s erneut: still
+    } else {
+        say(pick(LINES.move), { voice: true }); // vorerst jedes Mal Text + Stimme (später ggf. reduzieren, ux-v2 §6)
     }
     lastMoveAt.set(task.ID, Date.now());
     setUndo(() => {
