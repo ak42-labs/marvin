@@ -112,26 +112,26 @@ Gestrichen: Wellen, Spiralen, Brauen, Schütteln, 3×-Tippen.
 
 **Leerlauf-Gags** (Spaß-Modus an): erster nach 6–8 s ohne Berührung, dann alle 12–20 s zufällig, je 2–4 s; nie während Scrollen/Tippen/Sprechen/Zuhören; Berührung bricht sofort ab.
 - Umschauen (Pupillen ±10 px) · Nach oben rechts (9,−4) · Einander anschauen (+11/−11) · Augenrollen (kleine Kreise ±5 × ±3, 1.6 s) · Langeweile (nur Lid wird flach: `d:path("M-23 4 Q0 2 23 4")`, Pupillen (8,2), **kein** Absinken) · Blinzeln (scaleY .1)
-- Pixel sortieren (fallen von oben ein, je 0.1 s versetzt) · Pixel-Explosion (Pixel fliegen **ganz aus dem Knopf** ±70–95 px mit Rotation, ausgeblendet, kommen zurück) · Pixel-Blinzeln (ganze Pixelgruppe scaleY 1 → .55 → .15 → .55 → 1 in Stufen) · Einschlafen (Atmen ±3 px, drei Z 11/14/17 px starten **auf Augenhöhe** und steigen auf)
+- Pixel sortieren (6 Pixel je Auge fallen **zufällig verstreut** ein: Start je Pixel dx −40…40, dy −60…−15, Rotation ±180°, Verzögerung 0–0.45 s) · Pixel-Explosion (erst **Implosion**: Pixel ziehen sich zur Mitte, scale .5, hell `#FFF3E6`; dann **Explosion** ganz aus dem Knopf ±75–100 px mit Rotation; dann Rückkehr) · Pixel-Glitch (ersetzt Pixel-Blinzeln: Pixel springen kurz in Stufen ±3–8 px versetzt, flackern hell) · Einschlafen (Atmen ±3 px, drei Z 11/14/17 px steigen **zwischen den Augen** auf – Start am linken Anfang des rechten Bogens)
 - Selten (≈1 von 8 Gags): **Arkanoid** (siehe unten).
 
 **Reaktionen** (bei Spaß-Modus aus: keine):
-- **Erledigt:** Bogen → **großer Stern** (scale .5 → 1.8 → 1.35, ~1.5 s stehen) **+ Sternenregen** über die ganze Knopfbreite (14 kleine Sterne, versetzt fallend). Ersetzt das 3×-Tippen.
+- **Erledigt:** Bogen → **großer Stern** (scale .5 → 1.8 → 1.35, ~1.5 s stehen) **+ Sternenregen** über die ganze Knopffläche (16 kleine Sterne, x und y zufällig verteilt, Verzögerung zufällig 0.5–2.1 s, kurzer Fall 40 px). Achtung: Position per äußerem `<g transform>`, Animation auf dem inneren Element (CSS-transform überschreibt sonst das SVG-transform). Ersetzt das 3×-Tippen.
 - **Gelöscht:** X sofort da (1.15 → 1), schrumpft auf 0 und verschwindet, dann kommen die Bögen zurück.
 - **Viel Überfälliges** (≥3 glühende Karten beim Öffnen) – zwei Varianten, Armin entscheidet am Handy, Standard A:
-  - A **Schock:** Lider springen 6 px hoch, Pupillen schrumpfen (scale .45), Schweißtropfen (`#CFE5FF`) rinnt rechts herunter.
-  - B **Stirnrunzeln:** Pupillen schauen hoch zu den Karten (0,−5), Lider kippen nach innen (±14°).
+  - A **Schock:** Lider springen 6 px hoch, Augen reißen auf (Pupillen scale 1.7 → 1.5). Kein Tropfen.
+  - B **Runzeln:** Lider kippen nach innen (±14°), Pupillen schielen zur Mitte (±9 px).
 
 **Easter Egg 2× tippen = Arkanoid** (auch als seltener Leerlauf-Gag):
 - Die Augen werden zu Pixel-Steinen (je Auge 6 Steine aus der Pixelform, Faktor 1.6 bei Knopfgröße), Ball r 6 `#FFF3E6`, Schläger 70 × 6 unten.
 - Physik per `requestAnimationFrame` (dt-basiert, max 33 ms): Startwinkel zufällig, Wände, Kreis-gegen-Rechteck-Kollision, Treffer entfernt den Stein und spiegelt die Achse mit der kleineren Überlappung; Schläger lenkt je nach Trefferpunkt ab (±1 rad) und beschleunigt um 2 %.
 - Marvin spielt selbst: Schläger folgt dem Ball träge (Faktor 5.5/s + leichtes Wackeln) – verfehlt gelegentlich („Verfehlt. Absichtlich. Glaube ich.“).
-- Alle Steine weg → Spruch, Augen sortieren sich neu (Pixel-Einfall). Spätestens nach ~10 s Ende, Augen zurück. Antippen beendet.
+- Alle Steine weg → Spruch, Augen sortieren sich neu (Pixel-Einfall). Sprüche erscheinen wie immer in der Marvin-Zeile **über** dem Knopf. Spätestens nach ~10 s Ende, Augen zurück. Antippen beendet.
 - Ideen für weitere Leerlauf-Spiele später: Space Invaders (Pixel-Augen marschieren), Lunar Lander (kleine Fähre landet auf dem Augenbogen).
 
 **Einstellungen:** „Spaß-Modus“ an/aus. Aus = nur Grundzustände. `prefers-reduced-motion` = wie aus.
 
-**v3 Neigungs-Glas** (Demo im Mockup): `deviceorientation` → `tx = gamma/30`, `ty = (beta−45)/30`, beide auf −1…1 begrenzt. Glutkern der Amber-Elemente wandert (`radial-gradient … at (50−tx·22)% (112−ty·14)%`), ein Glanz-Layer verschiebt sich gegenläufig (`translate(−tx·55px, −ty·30px)`), ruhige Karten drehen den Verlauf um `tx·25°`, Pupillen schauen mit (`cx = tx·9`, `cy = 11+ty·2.5`). Nur Android/Chrome, ohne Sensor statisch.
+**v3 Neigungs-Glas** (Demo im Mockup, **bewusst minimal**): `deviceorientation` → `tx = gamma/30`, `ty = (beta−45)/30`, beide auf −1…1 begrenzt. Glutkern wandert (`at (50−tx·6)% (112−ty·4)%`), Glanz-Layer gegenläufig (`translate(−tx·14px, −ty·8px)`), ruhige Karten drehen den Verlauf um `tx·6°`, Pupillen schauen mit (`cx = tx·4`, `cy = 11+ty·1.5`). Gags laufen in der App **einmal** ab (nicht in Schleife wie in der Galerie). Nur Android/Chrome, ohne Sensor statisch.
 
 ## 8. Sonstiges
 
