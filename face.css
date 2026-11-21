@@ -1,0 +1,104 @@
+/* Marvins Augen – UX v2 §7 (Keyframes 1:1 aus dem Mockup "Augen-Galerie v2.2") */
+
+#marvin-btn .eyes { overflow: visible; filter: drop-shadow(0 0 7px #FF9A3C); transition: opacity .25s; }
+#marvin-btn svg g, #marvin-btn svg path, #marvin-btn svg circle, #marvin-btn svg rect,
+#marvin-btn svg polygon, #marvin-btn svg text, #fx g, #fx polygon, #fx rect {
+    transform-box: fill-box; transform-origin: center;
+}
+/* Pupillen schauen mit der Neigung mit */
+#marvin-btn .pw { transform: translate(calc(var(--tx) * 4px), calc(var(--ty) * 1.5px)); }
+
+/* ---- Grundzustände (Augen-Gruppe) ---- */
+.doze .eye { animation: doze 3.4s ease-in-out infinite; }
+@keyframes doze { 0%,100% { opacity: .5; transform: translateY(1px); } 50% { opacity: 1; transform: translateY(0); } }
+.listen .eye { animation: listen .45s ease-in-out infinite alternate; }
+@keyframes listen { from { transform: translateY(0) scaleY(1); } to { transform: translateY(-4px) scaleY(1.25); } }
+.think .eye { animation: think 1.2s ease-in-out infinite; }
+@keyframes think { 0%,100% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
+.speak .eye { animation: speak .18s steps(2) infinite; }
+@keyframes speak { 0% { opacity: 1; } 100% { opacity: .45; } }
+/* Während Gags/Reaktionen ruht die Grundanimation */
+#marvin-btn.gagging .eye { animation: none !important; opacity: 1 !important; }
+
+/* ---- Statische Posen (situativ) ---- */
+#marvin-btn.p-up:not(.gagging) .pup { transform: translate(9px, -4px); }
+#marvin-btn.p-bored:not(.gagging) .lid { d: path("M-23 4 Q0 2 23 4"); }
+#marvin-btn.p-bored:not(.gagging) .pup { transform: translate(8px, 2px); }
+
+/* ---- Leerlauf-Gags (laufen einmal) ---- */
+.g-blink .eye { animation: blinkA 2.4s 1 both !important; }
+@keyframes blinkA { 0%,88%,100% { transform: scaleY(1); } 92% { transform: scaleY(.1); } }
+.g-look .pup { animation: lookA 3s ease-in-out 1 both; }
+@keyframes lookA { 0%,100% { transform: translateX(0); } 20%,40% { transform: translateX(-10px); } 60%,80% { transform: translateX(10px); } }
+.g-up .pup { animation: upA 3s ease-in-out 1 both; }
+@keyframes upA { 0%,100% { transform: translate(0,0); } 30%,70% { transform: translate(9px,-4px); } }
+.g-each .left .pup { animation: eachL 3s ease-in-out 1 both; }
+.g-each .right .pup { animation: eachR 3s ease-in-out 1 both; }
+@keyframes eachL { 0%,100% { transform: none; } 25%,75% { transform: translateX(11px); } }
+@keyframes eachR { 0%,100% { transform: none; } 25%,75% { transform: translateX(-11px); } }
+.g-roll .pup { animation: rollA 1.6s linear 2 both; }
+@keyframes rollA { 0% { transform: translate(-5px,0); } 25% { transform: translate(0,-3px); } 50% { transform: translate(5px,0); } 75% { transform: translate(0,2.5px); } 100% { transform: translate(-5px,0); } }
+.g-bored .lid { animation: boredLid 4s ease-in-out 1 both; }
+@keyframes boredLid { 0%,100% { d: path("M-23 2 Q0 -12 23 2"); } 35%,80% { d: path("M-23 4 Q0 2 23 4"); } }
+.g-bored .pup { animation: boredPup 4s ease-in-out 1 both; }
+@keyframes boredPup { 0%,100% { transform: translate(0,0); } 35%,80% { transform: translate(8px,2px); } }
+
+/* Pixel sortieren: fallen zufällig verstreut ein */
+.px { animation: pxin 3s cubic-bezier(.2,1.3,.4,1) 1 both; }
+@keyframes pxin { 0% { transform: translate(var(--dx),var(--dy)) rotate(var(--r)); opacity: 0; } 8% { opacity: 1; } 30%,85% { transform: none; opacity: 1; } 100% { opacity: 1; } }
+
+/* Pixel-Explosion: Implosion -> ohne Pause Feuerwerk -> Rückkehr */
+.p1 { animation: ex1 3s ease-in-out 1 both; } .p2 { animation: ex2 3s ease-in-out 1 both; } .p3 { animation: ex3 3s ease-in-out 1 both; }
+.p4 { animation: ex4 3s ease-in-out 1 both; } .p5 { animation: ex5 3s ease-in-out 1 both; }
+.right .p1 { animation-name: ex5; } .right .p2 { animation-name: ex4; } .right .p5 { animation-name: ex1; } .right .p4 { animation-name: ex2; }
+@keyframes ex1 { 0%,8%,90%,100% { transform: none; opacity: 1; } 24% { transform: translate(12px,-2px) scale(.5); opacity: 1; fill: #FFF3E6; } 36% { opacity: 1; fill: #FFE2B0; } 48%,62% { transform: translate(-95px,65px) rotate(-260deg) scale(2.6); opacity: 0; } }
+@keyframes ex2 { 0%,8%,90%,100% { transform: none; opacity: 1; } 24% { transform: translate(8px,4px) scale(.5); opacity: 1; fill: #FFF3E6; } 36% { opacity: 1; fill: #FFE2B0; } 48%,62% { transform: translate(-75px,-75px) rotate(200deg) scale(2.6); opacity: 0; } }
+@keyframes ex3 { 0%,8%,90%,100% { transform: none; opacity: 1; } 24% { transform: translate(0,8px) scale(.5); opacity: 1; fill: #FFF3E6; } 36% { opacity: 1; fill: #FFE2B0; } 48%,62% { transform: translate(0,-95px) rotate(260deg) scale(2.6); opacity: 0; } }
+@keyframes ex4 { 0%,8%,90%,100% { transform: none; opacity: 1; } 24% { transform: translate(-8px,4px) scale(.5); opacity: 1; fill: #FFF3E6; } 36% { opacity: 1; fill: #FFE2B0; } 48%,62% { transform: translate(85px,-65px) rotate(-210deg) scale(2.6); opacity: 0; } }
+@keyframes ex5 { 0%,8%,90%,100% { transform: none; opacity: 1; } 24% { transform: translate(-12px,-2px) scale(.5); opacity: 1; fill: #FFF3E6; } 36% { opacity: 1; fill: #FFE2B0; } 48%,62% { transform: translate(100px,60px) rotate(240deg) scale(2.6); opacity: 0; } }
+
+/* Pixel-Tausch: Pixel wechseln das Auge, abwechselnd über/unter der Mitte */
+.sw { animation: swap 3.4s cubic-bezier(.5,0,.3,1) 1 both; }
+@keyframes swap { 0%,15% { transform: none; } 35% { transform: translate(calc(var(--sx) * .5), var(--sy)); } 55%,80% { transform: translate(var(--sx), 0); } 100% { transform: none; } }
+
+/* Einschlafen */
+.zz { animation: zz 2.7s ease-out 1 both; opacity: 0; }
+@keyframes zz { 0% { opacity: 0; transform: translate(0,0) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(16px,-26px) scale(1.2); } }
+.g-sleep .eyes-g { animation: breath 2.6s ease-in-out 2 both; }
+@keyframes breath { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+
+/* ---- Reaktionen ---- */
+/* Erledigt: Bogen -> großer Stern + Sternenregen */
+.r-done .arcS { animation: dArc 3.2s 1 both; }
+@keyframes dArc { 0%,14% { opacity: 1; } 18%,88% { opacity: 0; } 96%,100% { opacity: 1; } }
+.r-done .starS { animation: dStar 3.2s 1 both; }
+@keyframes dStar { 0%,14% { opacity: 0; transform: scale(.5); } 24% { opacity: 1; transform: scale(1.8); } 34%,82% { opacity: 1; transform: scale(1.35); } 90%,100% { opacity: 0; transform: scale(1.35); } }
+.fall { animation: fall 2s ease-in 1 both; opacity: 0; }
+@keyframes fall { 0% { transform: translateY(-12px) scale(.6); opacity: 0; } 12% { opacity: 1; } 100% { transform: translateY(40px) scale(1); opacity: 0; } }
+/* Gelöscht: X sofort da, schrumpft weg, Bögen kommen zurück */
+.r-del .xS { animation: dX 3s 1 both; }
+@keyframes dX { 0% { opacity: 1; transform: scale(1.15); } 8%,40% { opacity: 1; transform: scale(1); } 62%,100% { opacity: 0; transform: scale(0); } }
+.r-del .arcS { animation: dArc2 3s 1 both; }
+@keyframes dArc2 { 0%,66% { opacity: 0; transform: scale(.4); } 80%,100% { opacity: 1; transform: scale(1); } }
+/* Überfällig A: Schock */
+.r-shock .lid { animation: shLid 3.2s ease-out 1 both; }
+@keyframes shLid { 0%,10%,80%,100% { transform: translateY(0); } 18%,70% { transform: translateY(-6px); } }
+.r-shock .pup { animation: shPup 3.2s ease-out 1 both; }
+@keyframes shPup { 0%,10%,80%,100% { transform: scale(1); } 16% { transform: scale(1.7); } 22%,70% { transform: scale(1.5); } }
+/* Überfällig B: Böse */
+.r-frown .left .pup { animation: frPL 3.2s ease-in-out 1 both; }
+.r-frown .right .pup { animation: frPR 3.2s ease-in-out 1 both; }
+@keyframes frPL { 0%,30%,100% { transform: none; } 42%,80% { transform: translate(9px,-1px); } }
+@keyframes frPR { 0%,30%,100% { transform: none; } 42%,80% { transform: translate(-9px,-1px); } }
+.r-frown .left .lid { animation: frL 3.2s ease-in-out 1 both; }
+.r-frown .right .lid { animation: frR 3.2s ease-in-out 1 both; }
+@keyframes frL { 0%,30%,100% { transform: none; } 42%,80% { transform: rotate(14deg) translateY(2px); } }
+@keyframes frR { 0%,30%,100% { transform: none; } 42%,80% { transform: rotate(-14deg) translateY(2px); } }
+
+/* Arkanoid */
+.brick { animation: brickIn .5s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes brickIn { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+    #marvin-btn *, #fx * { animation: none !important; }
+}

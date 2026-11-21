@@ -1,4 +1,4 @@
-/* Marvin – UX v1 "Amber-Glas" (Vorgabe: docs/ux-v1.md) */
+/* Marvin – UX v2 (Vorgabe: docs/ux-v2.md, baut auf docs/ux-v1.md auf) */
 
 :root {
     --text: #F4EDE4;
@@ -10,11 +10,13 @@
     --line: #E9D7C2;
     --font-display: 'Michroma', sans-serif;
     --font-body: 'Sora', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    /* Neigungs-Glas: von face.js gesetzt, -1 … 1 */
+    --tx: 0;
+    --ty: 0;
 }
 
 * { box-sizing: border-box; }
-
-html, body { height: 100%; }
+html, body { height: 100%; overscroll-behavior: none; }
 
 body {
     margin: 0;
@@ -31,29 +33,26 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
-html, body { overscroll-behavior: none; }
-
-/* Fest am Bildschirm verankert: die Seite selbst kann nie verrutschen (Tastatur, Laden, Scroll-Sprünge) */
+/* Fest am Bildschirm verankert: die Seite selbst kann nie verrutschen */
 #app {
     position: fixed;
     top: 0; bottom: 0; left: 0; right: 0;
     max-width: 520px;
     margin: 0 auto;
-    padding: calc(20px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(24px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
-    gap: 14px;
     overflow: hidden; /* Drehrad-Nachbarn ragen über den Rand */
 }
 
 button { font-family: inherit; cursor: pointer; }
 
-/* ---------- Material: Amber-Glas ---------- */
+/* ---------- Material: Amber-Glas (nur Steuerung: Drehrad + Marvin-Knopf) ---------- */
 
 .glass {
     position: relative; isolation: isolate; overflow: hidden; color: #FFF3E6; border: none;
     background:
-        radial-gradient(60% 75% at 50% 112%, rgba(255,150,50,.95) 0%, rgba(240,100,25,.6) 28%, rgba(140,50,15,.22) 55%, transparent 75%),
+        radial-gradient(60% 75% at calc(50% - var(--tx) * 6%) calc(112% - var(--ty) * 4%), rgba(255,150,50,.95) 0%, rgba(240,100,25,.6) 28%, rgba(140,50,15,.22) 55%, transparent 75%),
         linear-gradient(180deg, rgba(92,80,72,.55) 0%, rgba(40,33,29,.82) 45%, rgba(20,15,12,.92) 100%);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.55), inset 0 10px 18px -12px rgba(255,255,255,.35),
         inset 0 -16px 26px -12px rgba(255,140,50,.55), 0 18px 36px rgba(0,0,0,.6), 0 0 30px rgba(255,120,30,.14);
@@ -71,7 +70,7 @@ button { font-family: inherit; cursor: pointer; }
 .glass.dim {
     color: rgba(255,243,230,.55);
     background:
-        radial-gradient(55% 60% at 50% 118%, rgba(255,150,50,.35) 0%, rgba(200,80,20,.16) 35%, transparent 70%),
+        radial-gradient(55% 60% at calc(50% - var(--tx) * 6%) calc(118% - var(--ty) * 4%), rgba(255,150,50,.35) 0%, rgba(200,80,20,.16) 35%, transparent 70%),
         linear-gradient(180deg, rgba(80,70,64,.42) 0%, rgba(34,28,25,.85) 50%, rgba(18,14,12,.94) 100%);
     box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 10px 18px -12px rgba(255,255,255,.25), 0 12px 24px rgba(0,0,0,.55);
 }
@@ -83,21 +82,26 @@ button { font-family: inherit; cursor: pointer; }
     position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;
     opacity: .14; mix-blend-mode: overlay; pointer-events: none;
 }
-.glass > :not(.grain), .card > :not(.grain) { position: relative; z-index: 3; }
+/* Glanz-Layer, wandert gegenläufig zur Neigung */
+.sheen {
+    position: absolute; inset: -40%; z-index: 1; pointer-events: none;
+    background: radial-gradient(30% 22% at 50% 50%, rgba(255,255,255,.12), rgba(255,255,255,0) 70%);
+    transform: translate(calc(var(--tx) * -14px), calc(var(--ty) * -8px));
+}
+.glass > :not(.grain):not(.sheen), .card > :not(.grain):not(.sheen) { position: relative; z-index: 3; }
 
 /* ---------- 1. Drehrad ---------- */
 
-.wheel { position: relative; height: 64px; flex-shrink: 0; }
+.wheel { position: relative; height: 64px; flex-shrink: 0; touch-action: pan-y; margin-bottom: 12px; }
 .wheel button {
     position: absolute; display: flex; align-items: center; padding: 0;
     font-family: var(--font-display); font-weight: 400; white-space: nowrap;
     transition: left .35s cubic-bezier(.3,.7,.2,1), top .35s, width .35s, height .35s, font-size .35s, opacity .35s;
 }
-.wheel { touch-action: pan-y; }
-/* Aktiver Knopf: deutlich durchscheinend, damit die Nachbarn darunter leicht sichtbar bleiben */
+/* Aktiver Knopf: durchscheinend, Nachbarn leicht sichtbar */
 .wheel button.glass.active {
     background:
-        radial-gradient(60% 75% at 50% 112%, rgba(255,150,50,.85) 0%, rgba(240,100,25,.45) 28%, rgba(140,50,15,.12) 55%, transparent 75%),
+        radial-gradient(60% 75% at calc(50% - var(--tx) * 6%) calc(112% - var(--ty) * 4%), rgba(255,150,50,.85) 0%, rgba(240,100,25,.45) 28%, rgba(140,50,15,.12) 55%, transparent 75%),
         linear-gradient(180deg, rgba(92,80,72,.28) 0%, rgba(40,33,29,.42) 45%, rgba(20,15,12,.55) 100%);
     -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
 }
@@ -106,7 +110,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .status-line {
     display: flex; justify-content: space-between; align-items: baseline;
-    padding: 2px 6px 0; flex-shrink: 0;
+    padding: 2px 6px 0; flex-shrink: 0; margin-bottom: 12px;
     font-family: var(--font-display); font-size: 13px; color: var(--muted);
 }
 #status-sub { letter-spacing: .16em; }
@@ -115,42 +119,61 @@ button { font-family: inherit; cursor: pointer; }
 
 main {
     flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
-    display: flex; flex-direction: column; gap: 10px;
+    display: flex; flex-direction: column; gap: 14px;
     padding: 2px 2px 28px;
+    margin-bottom: 16px;
     -webkit-mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 36px), transparent 100%);
     mask-image: linear-gradient(180deg, #000 0, #000 calc(100% - 36px), transparent 100%);
 }
-#task-list { display: flex; flex-direction: column; gap: 10px; }
+#task-list { display: flex; flex-direction: column; gap: 14px; }
 
+/* Karten = neutrales Rauchglas, Glut nur bei Dringlichkeit */
 .card {
     flex-shrink: 0; position: relative; isolation: isolate; overflow: hidden;
-    border-radius: 24px; padding: 16px 20px;
+    border-radius: 24px; padding: 18px 22px;
     touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     cursor: pointer; transition: transform .18s ease-out, opacity .18s;
     display: flex; align-items: center; gap: 12px;
-    background:
-        radial-gradient(60% 80% at 50% 130%, rgba(255,150,50,.28) 0%, rgba(200,80,20,.1) 45%, transparent 75%),
-        linear-gradient(180deg, rgba(92,82,76,.42) 0%, rgba(36,30,27,.76) 55%, rgba(20,16,14,.88) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), inset 0 8px 14px -10px rgba(255,255,255,.3),
-        inset 0 -10px 18px -10px rgba(255,140,50,.3), 0 10px 22px rgba(0,0,0,.5);
+    background: linear-gradient(calc(180deg + var(--tx) * 6deg), rgba(255,255,255,.075) 0%, rgba(255,255,255,.03) 55%, rgba(255,255,255,.015) 100%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.32), inset 0 8px 14px -10px rgba(255,255,255,.2), 0 10px 22px rgba(0,0,0,.45);
 }
 .card::before {
-    padding: 1.4px;
-    background: linear-gradient(180deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 25%, rgba(255,255,255,.03) 60%, rgba(255,190,120,.35) 92%, rgba(255,215,170,.6) 100%);
+    padding: 1.3px;
+    background: linear-gradient(180deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.1) 25%, rgba(255,255,255,.03) 70%, rgba(255,255,255,.14) 100%);
 }
 .card::after { height: 45%; background: linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,0)); }
-.card.warm {
-    background:
-        radial-gradient(70% 95% at 50% 125%, rgba(255,150,50,.6) 0%, rgba(220,90,20,.25) 40%, transparent 75%),
-        linear-gradient(180deg, rgba(92,82,76,.42) 0%, rgba(36,30,27,.76) 55%, rgba(20,16,14,.88) 100%);
-}
 .card.hot {
     background:
-        radial-gradient(75% 100% at 50% 125%, rgba(255,150,50,.9) 0%, rgba(240,100,25,.5) 35%, rgba(140,50,15,.15) 65%, transparent 85%),
-        linear-gradient(180deg, rgba(92,80,72,.45) 0%, rgba(40,33,29,.8) 55%, rgba(20,15,12,.9) 100%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 8px 14px -10px rgba(255,255,255,.35),
-        inset 0 -12px 22px -10px rgba(255,140,50,.5), 0 10px 26px rgba(0,0,0,.55), 0 0 26px rgba(255,120,30,.22);
+        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,150,50,.85) 0%, rgba(240,100,25,.45) 35%, rgba(140,50,15,.12) 65%, transparent 85%),
+        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 10px 26px rgba(0,0,0,.5), 0 0 24px rgba(255,120,30,.2);
 }
+.card.hot::before { background: linear-gradient(180deg, rgba(255,255,255,.8), rgba(255,255,255,.12) 25%, rgba(255,190,120,.5) 90%, rgba(255,220,170,.85)); }
+.card.warm {
+    background:
+        radial-gradient(70% 95% at calc(50% - var(--tx) * 6%) calc(130% - var(--ty) * 4%), rgba(255,150,50,.45) 0%, rgba(220,90,20,.18) 40%, transparent 75%),
+        linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+}
+
+/* Termine: Champagner */
+.card.ev {
+    background:
+        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,236,200,.22) 0%, rgba(255,225,180,.07) 45%, transparent 80%),
+        linear-gradient(180deg, rgba(255,250,240,.09), rgba(255,255,255,.02));
+}
+.card.ev::before { background: linear-gradient(180deg, rgba(255,252,240,.9), rgba(255,245,225,.15) 25%, rgba(255,240,210,.05) 70%, rgba(255,236,200,.5)); }
+.card.ev.hot {
+    background:
+        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,238,205,.6) 0%, rgba(255,225,180,.22) 40%, transparent 80%),
+        linear-gradient(180deg, rgba(255,250,240,.1), rgba(255,255,255,.02));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 10px 26px rgba(0,0,0,.5), 0 0 24px rgba(255,236,200,.18);
+}
+.card.ev.warm {
+    background:
+        radial-gradient(75% 100% at calc(50% - var(--tx) * 6%) calc(128% - var(--ty) * 4%), rgba(255,238,205,.38) 0%, rgba(255,225,180,.12) 40%, transparent 80%),
+        linear-gradient(180deg, rgba(255,250,240,.09), rgba(255,255,255,.02));
+}
+
 .card.dragging { transition: none; }
 .card.pending { opacity: .55; }
 
@@ -161,8 +184,9 @@ main {
 }
 .card-num {
     flex-shrink: 0; min-width: 34px; text-align: right;
-    font-family: var(--font-display); font-size: 12px; color: #A89888;
+    font-family: var(--font-display); font-size: 12px; color: #A39383;
 }
+.card-num.event-time { min-width: 0; white-space: nowrap; letter-spacing: .02em; color: #FFF3DC; }
 
 /* Lange drücken -> Leuchtbalken füllt sich */
 .ring {
@@ -199,20 +223,22 @@ main {
 /* ---------- 5. Marvin-Zeile ---------- */
 
 .marvin-line {
-    min-height: 48px; padding: 8px 6px; flex-shrink: 0;
+    min-height: 48px; padding: 0 6px; flex-shrink: 0; margin-bottom: 20px;
     font-size: 16px; font-weight: 300; font-style: italic; line-height: 1.45;
-    color: var(--line); display: flex; align-items: center; gap: 10px;
+    color: var(--line); display: flex; align-items: center; gap: 12px;
 }
-.marvin-text { flex: 1; }
+.marvin-text { flex: 1; min-width: 0; }
 .cursor { font-style: normal; color: var(--amber); animation: blink 1s steps(1) infinite; }
+.cursor.gone { visibility: hidden; animation: none; }
 @keyframes blink { 50% { opacity: 0; } }
 #undo-btn {
+    flex-shrink: 0; white-space: nowrap;
     background: none; border: 1px solid rgba(255,200,150,.35); border-radius: 14px;
-    color: var(--amber-soft); font-style: normal; font-size: 16px; font-weight: 300; padding: 9px 12px;
+    color: var(--amber-soft); font-style: normal; font-size: 15px; font-weight: 300; padding: 9px 12px;
 }
 #undo-btn[hidden] { display: none; }
 
-/* ---------- 6. Marvin-Knopf & Augen ---------- */
+/* ---------- 6. Marvin-Knopf ---------- */
 
 #marvin-btn {
     height: 100px; border-radius: 50px; flex-shrink: 0;
@@ -221,108 +247,83 @@ main {
     transition: transform .1s;
 }
 #marvin-btn:active { transform: scale(.98); }
-.eyes { filter: drop-shadow(0 0 7px #FF9A3C); }
-.eye { transform-box: fill-box; transform-origin: center; }
-
-.doze .eye { animation: doze 3.4s ease-in-out infinite; }
-@keyframes doze { 0%,100% { opacity: .5; transform: translateY(1px); } 50% { opacity: 1; transform: translateY(0); } }
-.listen .eye { animation: listen .45s ease-in-out infinite alternate; }
-@keyframes listen { from { transform: translateY(0) scaleY(1); } to { transform: translateY(-4px) scaleY(1.25); } }
-.think .eye { animation: think 1.2s ease-in-out infinite; }
-@keyframes think { 0%,100% { transform: translateX(-6px); } 50% { transform: translateX(6px); } }
-.speak .eye { animation: speak .18s steps(2) infinite; }
-@keyframes speak { 0% { opacity: 1; } 100% { opacity: .45; } }
+#fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; border-radius: inherit; }
+#fx svg { position: absolute; }
 
 @media (prefers-reduced-motion: reduce) {
-    .eye, .cursor { animation: none !important; }
+    .cursor { animation: none !important; }
     .wheel button, .card { transition: none; }
 }
 
-/* ---------- Dialoge (Bearbeiten / Einstellungen) – vorläufig im Amber-Ton ---------- */
+/* ---------- Dialoge ---------- */
 
 dialog {
-    background: linear-gradient(180deg, rgba(60,50,44,.96), rgba(22,17,14,.98));
+    background: linear-gradient(180deg, rgba(60,50,44,.92), rgba(24,19,16,.96));
     color: var(--text);
-    border: 1px solid rgba(255,200,150,.25);
-    border-radius: 28px;
-    padding: 24px;
+    border: none;
+    border-radius: 30px;
+    padding: 22px 20px 20px;
     width: min(420px, calc(100vw - 32px));
     font-family: var(--font-body);
-    box-shadow: 0 20px 50px rgba(0,0,0,.7), 0 0 30px rgba(255,120,30,.12);
+    box-shadow: 0 24px 60px rgba(0,0,0,.7);
 }
 dialog::backdrop { background: rgba(0,0,0,.65); }
-dialog h2 { margin: 0 0 16px; font-size: 18px; font-family: var(--font-display); font-weight: 400; letter-spacing: .08em; }
+dialog form { display: flex; flex-direction: column; gap: 14px; }
+dialog h2 { margin: 0; font-size: 16px; font-family: var(--font-display); font-weight: 400; letter-spacing: .08em; }
 
 dialog label {
     display: flex; flex-direction: column; gap: 6px;
-    font-size: 14px; color: var(--muted); margin-bottom: 14px;
+    font-size: 14px; color: var(--muted);
 }
 dialog label.check { flex-direction: row; align-items: center; gap: 10px; color: var(--text); }
-dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: var(--amber); }
+dialog label.check input { width: 20px; height: 20px; padding: 0; accent-color: var(--amber); box-shadow: none; }
 
+/* Felder eingelassen */
 dialog input, dialog textarea, dialog select {
     width: 100%;
-    background: rgba(255,240,225,.06);
-    border: 1px solid rgba(255,200,150,.2);
+    border: none;
     border-radius: 16px;
-    padding: 12px 14px;
+    padding: 14px 16px;
+    background: rgba(0,0,0,.4);
+    box-shadow: inset 0 2px 6px rgba(0,0,0,.75), 0 1px 0 rgba(255,255,255,.12);
     color: var(--text);
-    font: inherit;
-    font-size: 16px; /* verhindert Auto-Zoom */
+    font: inherit; font-weight: 300;
+    font-size: 16px; /* verhindert Auto-Zoom (Vorgabe 15 px, Android zoomt darunter) */
     resize: none;
 }
-dialog input:focus, dialog textarea:focus, dialog select:focus { outline: 2px solid rgba(255,176,96,.6); outline-offset: 1px; }
+dialog input:focus, dialog textarea:focus, dialog select:focus { outline: 2px solid rgba(255,176,96,.55); outline-offset: 1px; }
+#edit-title { font-weight: 600; font-size: 17px; }
+#edit-notes { color: var(--muted); }
+dialog select option { background: #221a15; }
+dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
 
-.hint { font-size: 12px; color: var(--muted-2); margin: 0 0 16px; }
-.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-.dialog-actions .spacer { flex: 1; }
+.hint { font-size: 12px; color: var(--muted-2); margin: 0; }
 
-.pill {
-    background: rgba(255,240,225,.06); border: 1px solid rgba(255,200,150,.2);
-    color: var(--text); border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 400;
-}
-.pill.accent { background: rgba(255,150,50,.25); border-color: rgba(255,176,96,.6); }
-.pill.danger { color: #FF9C7A; border-color: rgba(255,120,90,.35); background: transparent; }
-
-/* Bearbeiten: oben angedockt, damit die Tastatur unten Platz hat */
-dialog.sheet { margin: 12px auto auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
-dialog.sheet textarea, dialog.sheet select, dialog.sheet input { margin-bottom: 10px; }
-#edit-title { font-size: 18px; font-weight: 400; }
-#edit-notes { font-size: 14px; color: var(--muted); }
-dialog.sheet select option { background: #221a15; }
-dialog.sheet input[type="date"] { color-scheme: dark; }
-
-.edit-row { display: flex; gap: 8px; }
+.edit-row { display: flex; gap: 10px; }
 .edit-row > * { flex: 1; min-width: 0; }
 
-.status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 16px; }
+/* Status: 3 direkte Knöpfe + "42 · ERLEDIGT" */
+.status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .status-buttons button {
-    background: rgba(255,240,225,.05); border: 1px solid rgba(255,200,150,.18);
-    color: var(--text); border-radius: 18px; padding: 14px 4px;
-    font-family: var(--font-display); font-size: 11px; letter-spacing: .04em;
+    height: 48px; padding: 0 4px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 18px;
+    color: var(--text); font-family: var(--font-display); font-size: 10.5px; letter-spacing: .03em;
 }
-.status-buttons button.active { background: rgba(255,150,50,.3); border-color: rgba(255,176,96,.8); color: #FFF3E6; }
-.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; }
-.status-buttons button[data-status="Erledigt"].active { background: rgba(255,200,120,.35); border-color: var(--amber-soft); }
+.status-buttons button.active { background: rgba(255,150,50,.22); border-color: rgba(255,176,96,.7); color: #FFF3E6; }
+.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; letter-spacing: .12em; }
 
-/* Wartemodus-Gesten (Klasse kurz am Knopf, überschreibt das Dösen) */
-#marvin-btn.q-roll .eye  { animation: roll 1.6s ease-in-out; opacity: 1; }
-@keyframes roll { 0% { transform: translate(0,0); } 25% { transform: translate(-7px,-6px); } 50% { transform: translate(0,-9px); } 75% { transform: translate(7px,-6px); } 100% { transform: translate(0,0); } }
-#marvin-btn.q-blink .eye { animation: blink-eye .35s ease-in-out 2; opacity: 1; }
-@keyframes blink-eye { 50% { transform: scaleY(.1); } }
-#marvin-btn.q-look .eye  { animation: look 1.8s ease-in-out; opacity: 1; }
-@keyframes look { 0%,100% { transform: translateX(0); } 30%,55% { transform: translateX(-10px); } 70% { transform: translateX(8px); } }
-#marvin-btn.q-sigh .eye  { animation: sigh 1.8s ease-in-out; }
-@keyframes sigh { 0% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(4px); opacity: .6; } 100% { transform: translateY(0); opacity: 1; } }
+/* Aktionen: Löschen (Text) · Abbrechen (Text) · Speichern (Amber-Pille) */
+.dialog-actions { display: flex; align-items: center; gap: 8px; }
+.dialog-actions .spacer { flex: 1; }
+.text-btn { background: none; border: none; padding: 12px 8px; font-size: 15px; font-weight: 400; color: #C9B9A8; }
+.text-btn.danger { color: #E8907A; padding-left: 4px; }
+.save-pill { height: 48px; border-radius: 24px; padding: 0 24px; font-size: 15px; font-weight: 600; }
 
-/* Termine: leicht anderes Glas (kühler Rand), Zeit in Klartext */
-.card.event::before { background: linear-gradient(180deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,.12) 25%, rgba(255,255,255,.03) 60%, rgba(255,220,180,.5) 92%, rgba(255,240,210,.8) 100%); }
-.card-num.event-time { min-width: 0; white-space: nowrap; letter-spacing: .02em; }
+dialog.sheet { margin: 12px auto auto; max-height: calc(100dvh - 24px); overflow-y: auto; }
 
-/* Bearbeiten: Termin-Modus */
+/* Termin-Modus */
 .event-only { display: none; }
 dialog.event-mode .event-only { display: flex; }
 dialog.event-mode .task-only { display: none !important; }
-#edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0 0 10px; }
+#edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0; }
 #edit-recurring[hidden] { display: none; }
-dialog.sheet input[type="time"] { color-scheme: dark; }

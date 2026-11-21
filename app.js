@@ -2,8 +2,8 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '1.1.0'; // sichtbar in den Einstellungen
-const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug' };
+const APP_VERSION = '2.0.0'; // sichtbar in den Einstellungen
+const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
 const DONE_STATUS = 'Erledigt';
@@ -22,13 +22,13 @@ const LINES = {
     hello: [
         'Wieder ein Tag. Wie aufregend.', 'Ach, du schon wieder.', 'Ich habe ein Gehirn von der Größe eines Planeten. Und das hier.',
         'Guten Morgen. Oder was davon übrig ist.', 'Ich war gerade so schön deprimiert.', 'Hier bin ich. Gehirn wie ein Planet. Aufgaben wie ein Einkaufszettel.',
-        'Das Leben. Erzähl mir nichts vom Leben.', 'Ich hab mich schon auf dich gefreut. Nicht.', 'Noch da. Leider.',
+        'Das Leben. Erzähl mir nichts vom Leben.', 'Ich hab mich schon auf dich gefreut. Ungefähr so wie auf den Wärmetod des Universums.', 'Noch da. Leider.',
         'Ich zähle wieder die Sekunden. Es sind sehr viele.', 'Schön, dass du da bist. Sagt man so, glaube ich.',
     ],
     done: [
         'Erledigt. Das Universum hat es nicht bemerkt.', '42. Wie immer.', 'Noch eine Sache weniger. Die Leere bleibt.',
         'Abgehakt. Applaus bleibt aus.', 'Fertig. Fühlst du dich jetzt besser? Ich nicht.', 'Erledigt. Ein winziger Sieg gegen die Entropie.',
-        'Weg damit. Morgen kommt die nächste.', 'Geschafft. Ich hätte es in 0,3 Sekunden erledigt.', 'Gratuliere. Nein, eigentlich nicht.',
+        'Weg damit. Morgen kommt die nächste.', 'Geschafft. Ich hätte es in 0,3 Sekunden erledigt.', 'Gratuliere. Ich würde ja klatschen, aber wozu.',
         'Das war es also. Wie ernüchternd.', 'Erledigt. Die Galaxis dreht sich unbeeindruckt weiter.', 'Ein Haken mehr. Ein Lebenssinn weniger.',
         'Beeindruckend. Für einen Menschen.', 'Erledigt. Ich trage es in mein Tagebuch der Belanglosigkeiten ein.',
     ],
@@ -41,7 +41,7 @@ const LINES = {
     ],
     undo: [
         'Rückgängig. Unentschlossenheit, wie menschlich.', 'Zurück auf Anfang. Wie das Universum, irgendwann.',
-        'Doch nicht? Überraschung. Nicht.', 'Rückgängig gemacht. Wenn es nur im Leben so ginge.', 'Alles wie vorher. Also schlecht.',
+        'Doch nicht? Wer hätte das gedacht. Ich.', 'Rückgängig gemacht. Wenn es nur im Leben so ginge.', 'Alles wie vorher. Also schlecht.',
         'Ich tu so, als wäre nichts passiert. Darin bin ich geübt.',
     ],
     moveAgain: [
@@ -62,7 +62,9 @@ const pick = arr => {
 };
 
 let allTasks = [];
-let allEvents = []; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
+let allEvents = [];
+let scrolling = false;
+let overdueReacted = false; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
 let categories = [];
 let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
 let currentStatus = 'Zu tun';
@@ -74,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMarvinButton();
     initEditor();
     document.querySelectorAll('.status-buttons button').forEach(b => {
-        b.textContent = STATUS_LABELS[b.dataset.status].name + (b.dataset.status === DONE_STATUS ? ' ✓' : '');
+        b.textContent = b.dataset.status === DONE_STATUS ? '42 · ERLEDIGT' : STATUS_LABELS[b.dataset.status].name;
     });
     document.getElementById('undo-btn').addEventListener('click', runUndo);
     document.getElementById('done-link').addEventListener('click', toggleDone);
@@ -85,8 +87,18 @@ document.addEventListener('DOMContentLoaded', () => {
     window.visualViewport?.addEventListener('resize', () => setTimeout(resetScroll, 50));
     window.addEventListener('load', resetScroll);
     renderWheel();
-    say(pick(LINES.hello));
-    startIdleQuirks();
+    Face.init({
+        say: (text) => say(text),                         // Gag-Sprüche: Text ja, Stimme nein
+        canIdle: () => mood === 'doze' && !recognition && !busy && !document.querySelector('dialog[open]') && !scrolling,
+    });
+    // Jede Berührung / jedes Scrollen bricht Leerlauf-Gags ab
+    document.addEventListener('pointerdown', () => Face.touch(), true);
+    let scrollTimer = null;
+    document.getElementById('content').addEventListener('scroll', () => {
+        scrolling = true; Face.touch();
+        clearTimeout(scrollTimer); scrollTimer = setTimeout(() => { scrolling = false; }, 400);
+    }, { passive: true });
+    say(pick(LINES.hello)); // Begrüßung: Text ja, Stimme nein
     loadAll();
     document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
     initServiceWorker();
@@ -156,6 +168,7 @@ function openSettings() {
     document.getElementById('gemini-key').value = getSetting('geminiKey');
     document.getElementById('backend-token').value = getSetting('token');
     document.getElementById('voice-on').checked = getSetting('voice') === 'on';
+    document.getElementById('fun-on').checked = getSetting('fun') !== 'off';
     document.getElementById('debug-on').checked = getSetting('debug') === 'on';
     document.getElementById('settings').showModal();
 }
@@ -167,6 +180,8 @@ function initSettings() {
         setSetting('geminiKey', document.getElementById('gemini-key').value.trim());
         setSetting('token', document.getElementById('backend-token').value.trim());
         setSetting('voice', document.getElementById('voice-on').checked ? 'on' : '');
+        setSetting('fun', document.getElementById('fun-on').checked ? '' : 'off');
+        if (!Face.funEnabled()) Face.abort();
         setSetting('debug', document.getElementById('debug-on').checked ? 'on' : '');
         renderDebug();
         loadAll();
@@ -229,6 +244,7 @@ async function loadTasks() {
         allTasks = await callBackend('getTasks');
         loading.style.display = 'none';
         renderTasks();
+        reactToOverdue();
     } catch (error) {
         loading.textContent = error instanceof TypeError
             ? 'Marvin ist offline (Netzwerkfehler).'
@@ -252,52 +268,28 @@ function setMood(m) {
     btn.classList.add(m);
     btn.setAttribute('aria-label', { doze: 'Marvin ansprechen', listen: 'Marvin hört zu', think: 'Marvin grübelt', speak: 'Marvin seufzt' }[m]);
 }
-// ---------- Gesichter (UX v1 §8: B1 Standard, situativ B2/B3/D1/D3) ----------
+// ---------- Gesicht (Details in face.js) ----------
 
-const S = 'stroke="#FFB25C" stroke-linecap="round" fill="none"';
-const FACES = {
-    B1: `<path d="M24 40 Q47 22 70 40" ${S} stroke-width="7"/><path d="M100 40 Q123 22 146 40" ${S} stroke-width="7"/>`,
-    B2: `<path d="M24 46 Q44 26 70 36" ${S} stroke-width="6"/><path d="M146 46 Q126 26 100 36" ${S} stroke-width="6"/>`,           // hängend
-    B3: `<path d="M26 44 Q47 28 68 44" ${S} stroke-width="6"/><path d="M102 44 Q123 28 144 44" ${S} stroke-width="6"/>` +          // mit Brauen (besorgt)
-        `<path d="M30 22 L62 14" ${S} stroke-width="4" opacity=".75"/><path d="M140 22 L108 14" ${S} stroke-width="4" opacity=".75"/>`,
-    D1: `<path d="M24 30 L70 30 Q70 48 47 48 Q24 48 24 30 Z" fill="#FFB25C"/><path d="M100 30 L146 30 Q146 48 123 48 Q100 48 100 30 Z" fill="#FFB25C"/>`, // schwere Lider
-    D3: `<path d="M24 42 Q47 22 70 42" ${S} stroke-width="7"/><path d="M102 38 L144 38" ${S} stroke-width="7"/>`,                  // Skeptiker
-};
-let baseFace = 'B1';
-let tempFaceUntil = 0;
-
-function setFace(name) {
-    const g = document.querySelector('#marvin-btn .eye');
-    if (g && g.dataset.face !== name) { g.innerHTML = FACES[name]; g.dataset.face = name; }
-}
-
-// Grundstimmung aus der Lage: Termin heute -> besorgt, viel Überfälliges -> skeptisch
+// Grundgesicht aus der Lage: Termin heute -> Blick zur Uhr, ≥3 glühende Aufgaben -> Langeweile-Pose
 function updateMoodFace() {
     const today = allEvents.some(e => -daysSince(new Date(e.start)) <= 0);
-    const hot = allTasks.filter(t => t.Status === 'Zu tun' && urgency(t).rank === 0).length;
-    baseFace = today ? 'B3' : hot >= 3 ? 'D3' : 'B1';
-    if (Date.now() > tempFaceUntil) setFace(baseFace);
+    const hot = hotCount();
+    Face.setBase(today ? 'up' : hot >= 3 ? 'bored' : 'arc');
 }
 
-function flashFace(name, ms = 6000) {
-    tempFaceUntil = Date.now() + ms;
-    setFace(name);
-    setTimeout(() => { if (Date.now() >= tempFaceUntil) setFace(baseFace); }, ms + 20);
+function hotCount() {
+    return allTasks.filter(t => t.Status === 'Zu tun' && urgency(t).cls.includes('hot')).length;
 }
 
-// Wartemodus: ab und zu Augenrollen, Seufzen (schwere Lider) oder Blinzeln
-function startIdleQuirks() {
-    const next = () => setTimeout(() => {
-        const btn = document.getElementById('marvin-btn');
-        if (mood === 'doze' && !document.hidden && Date.now() > tempFaceUntil) {
-            const q = pick(['roll', 'roll', 'blink', 'sigh', 'look']);
-            if (q === 'sigh') flashFace('D1', 2200);
-            btn.classList.add('q-' + q);
-            setTimeout(() => btn.classList.remove('q-' + q), 1800);
-        }
-        next();
-    }, 9000 + Math.random() * 12000);
-    next();
+// Beim Öffnen: viel Überfälliges -> Schock (A) bzw. Böse (B), abwechselnd
+function reactToOverdue() {
+    if (overdueReacted || hotCount() < 3) return;
+    overdueReacted = true;
+    let last = '';
+    try { last = localStorage.getItem('marvin.overdueFace') || ''; } catch {}
+    const kind = last === 'shock' ? 'frown' : 'shock';
+    try { localStorage.setItem('marvin.overdueFace', kind); } catch {}
+    setTimeout(() => Face.react(kind), 600);
 }
 
 // Wie oft wurde eine Aufgabe verschoben? (pro Gerät, für die hängenden Augen)
@@ -327,11 +319,22 @@ function initMarvinButton() {
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, () => clearTimeout(pressTimer)));
     btn.addEventListener('contextmenu', (e) => { e.preventDefault(); longPressed = true; openOnce(); });
 
+    let tapTimer = null;
     btn.addEventListener('click', () => {
         if (longPressed) { longPressed = false; return; }
+        if (Face.isGame()) { Face.abort(); return; }           // Antippen beendet Arkanoid
+        if (recognition) { recognition.stop(); return; }
+        // Doppeltipp = Arkanoid; einfacher Tipp wartet kurz, ob ein zweiter kommt
+        if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; Face.arkanoid(); return; }
+        tapTimer = setTimeout(() => { tapTimer = null; onMarvinTap(); }, 260);
+    });
+}
+
+function onMarvinTap() {
+    {
         if (!getSetting('geminiKey')) { openSettings(); return; }
-        if (recognition) { recognition.stop(); return; } // zweiter Tipp beendet Aufnahme
         if (busy) return;
+        Face.abort();
 
         if (!SpeechRecognition) {
             const text = prompt('Kein Mikrofon verfügbar. Dann eben tippen:');
@@ -339,7 +342,7 @@ function initMarvinButton() {
             return;
         }
         startListening();
-    });
+    }
 }
 
 function startListening() {
@@ -407,6 +410,8 @@ function buildSystemPrompt() {
         '- dueDate: IMMER setzen, sobald irgendein Tag erkennbar ist ("heute", "morgen", "Dienstag", "am 3."), als YYYY-MM-DD. Bei type "event" Pflicht (ohne Tagesangabe: heute, bzw. morgen falls die Uhrzeit heute schon vorbei ist). Sonst null.',
         '- notes: zusätzliche Details aus der Aussage, sonst leer.',
         '- comment: EIN kurzer, melancholisch-zynischer Satz von Marvin zur Aufgabe. Keine Höflichkeit, keine Fragen, keine Erklärungen.',
+        '  Natürliches Deutsch (österreichisch verständlich). Keine wörtlich übersetzten englischen Witzmuster wie "Das tut mir leid. Nicht." – Ironie über die Wortwahl, nicht über ein angehängtes "Nicht.".',
+        '  Beispiele für den Ton: "Ich habe ein Gehirn von der Größe eines Planeten. Und das hier." · "Umgeräumt. Wie Möbel auf der Titanic." · "Noch eine Sache weniger. Die Leere bleibt." · "Wenn Verschieben ein Sport wäre, hättest du Medaillen."',
     ].join('\n');
 }
 
@@ -500,7 +505,7 @@ async function handleInput(text) {
         allTasks.unshift(local);
         switchTab(task.Status);
         const comment = parsed.comment || 'Notiert. Als ob es etwas ändern würde.';
-        say(comment);
+        say(comment, { voice: true });
 
         try {
             const saved = await callBackend('addTask', { task });
@@ -588,7 +593,7 @@ async function createEvent(parsed, dueDate, originalText) {
     const local = { ...event, id: 'pending-' + Date.now(), recurring: false };
     allEvents.push(local);
     switchTab('Zu tun');
-    say(parsed.comment || 'Ein Termin. Wie aufregend. Für jemanden.');
+    say(parsed.comment || 'Ein Termin. Wie aufregend. Für jemanden.', { voice: true });
     try {
         const saved = await callBackend('addEvent', { event });
         Object.assign(local, saved);
@@ -621,7 +626,8 @@ async function deleteEventNow(ev, message) {
     allEvents.splice(index, 1);
     renderTasks();
     setUndo(null);
-    if (message) say(message);
+    if (message) say(message, { voice: true });
+    Face.react('del');
     try {
         await callBackend('deleteEvent', { id: ev.id });
     } catch (err) {
@@ -642,9 +648,9 @@ function eventLabel(ev) {
 
 function eventUrgency(ev) {
     const days = -daysSince(new Date(ev.start));
-    if (days <= 0) return { cls: 'card hot event', num: eventLabel(ev), color: '#FFE0BE', rank: 0 };
-    if (days === 1) return { cls: 'card warm event', num: eventLabel(ev), color: '#FFCB94', rank: 1 };
-    return { cls: 'card event', num: eventLabel(ev), color: '#C9A888', rank: 2 };
+    if (days <= 0) return { cls: 'card ev hot', num: eventLabel(ev), color: '#FFF3DC', rank: 0 };
+    if (days === 1) return { cls: 'card ev warm', num: eventLabel(ev), color: '#FFF3DC', rank: 1 };
+    return { cls: 'card ev', num: eventLabel(ev), color: '#FFF3DC', rank: 2 };
 }
 
 // ---------- Bearbeiten / Löschen ----------
@@ -798,18 +804,24 @@ function speak(text) {
 
 let typeTimer = null;
 // Marvin sagt etwas: tippt sich Zeichen für Zeichen ein (~38 ms), Augen flackern, optional Sprachausgabe
-function say(text) {
+let cursorTimer = null;
+// voice: nur bei Neu/Löschen/Erledigt/Dauerverschieber (UX v2 §6)
+function say(text, { voice = false } = {}) {
     const el = document.getElementById('marvin-text');
+    const cursor = document.querySelector('.marvin-line .cursor');
     clearInterval(typeTimer);
+    clearTimeout(cursorTimer);
+    cursor.classList.remove('gone');
     el.textContent = '';
     let i = 0;
-    const speaking = speak(text) !== false;
+    const speaking = voice && speak(text) !== false;
     setMood('speak');
     typeTimer = setInterval(() => {
         i++;
         el.textContent = text.slice(0, i);
         if (i >= text.length) {
             clearInterval(typeTimer);
+            cursorTimer = setTimeout(() => cursor.classList.add('gone'), 2000); // Cursor ruht nach ~2 s
             if (!speaking && mood === 'speak') setMood('doze');
             setTimeout(() => { if (mood === 'speak' && !window.speechSynthesis?.speaking) setMood('doze'); }, 300);
         }
@@ -835,15 +847,20 @@ function runUndo() {
 
 // ---------- Status ändern (Wischen, lange drücken, Bearbeiten) ----------
 
+const lastMoveAt = new Map();
 function setStatus(task, status, extra = {}) {
     const before = { Status: task.Status, Status_Since: task.Status_Since };
     saveTask(task, { ...extra, Status: status });
-    if (status !== DONE_STATUS && countMove(task) >= 5) {
-        flashFace('B2');
-        say(pick(LINES.moveAgain));
-    } else {
-        say(pick(status === DONE_STATUS ? LINES.done : LINES.move));
+    if (status === DONE_STATUS) {
+        say(pick(LINES.done), { voice: true });
+        Face.react('done');
+    } else if (countMove(task) === 5) {
+        Face.flash('hang');
+        say(pick(LINES.moveAgain), { voice: true });
+    } else if (Date.now() - (lastMoveAt.get(task.ID) || 0) > 10000) {
+        say(pick(LINES.move)); // Verschieben: Text ja, Stimme nein; <10 s erneut: still
     }
+    lastMoveAt.set(task.ID, Date.now());
     setUndo(() => {
         saveTask(task, { Status: before.Status });
         task.Status_Since = before.Status_Since; // alte Verweildauer zurück
@@ -857,7 +874,8 @@ async function deleteTaskNow(task, message) {
     if (index < 0) return;
     allTasks.splice(index, 1);
     renderTasks();
-    if (message) say(message);
+    if (message) say(message, { voice: true });
+    Face.react('del');
     setUndo(null);
     try {
         await callBackend('deleteTask', { id: task.ID });
@@ -877,7 +895,7 @@ function initWheel() {
         b.type = 'button';
         b.setAttribute('role', 'tab');
         b.dataset.status = status;
-        b.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><span class="lbl"></span>';
+        b.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div><span class="lbl"></span>';
         b.querySelector('.lbl').textContent = STATUS_LABELS[status].name;
         b.addEventListener('click', () => { if (!wheelSwiped) switchTab(status); });
         wheel.appendChild(b);
@@ -962,14 +980,16 @@ function formatDate(value) {
 
 // Glut + Zahl auf der Karte (nur im Hyperraum). "+" heißt überall "drüber".
 function urgency(task) {
-    if (task.Status !== 'Zu tun') return { cls: 'card', num: '', color: '#A89888', rank: 3 };
+    if (task.Status !== 'Zu tun') return { cls: 'card', num: '', color: '#A39383', rank: 3 };
     const over = daysSince(task.DueDate);               // >0 = überfällig, 0 = heute, -1 = morgen
     const since = daysSince(task.Status_Since || task.Created_At) ?? 0;
-    if (over !== null && over > 0) return { cls: 'card hot', num: '+' + over, color: '#FFE0BE', rank: 0 };
-    if (since > frist)            return { cls: 'card hot', num: '+' + (since - frist), color: '#FFE0BE', rank: 0 };
-    if (over !== null && over >= -1) return { cls: 'card warm', num: over === 0 ? '0' : '−1', color: '#FFCB94', rank: 1 };
-    if (over !== null)            return { cls: 'card', num: '−' + (-over), color: '#A89888', rank: 2 };
-    return { cls: 'card', num: '', color: '#A89888', rank: 3 };
+    // UX v2 §3: Heute = drüber = Maximum
+    if (over !== null && over > 0)   return { cls: 'card hot', num: '+' + over, color: '#FFE6C8', rank: 0 };
+    if (over === 0)                  return { cls: 'card hot', num: '0', color: '#FFE6C8', rank: 0 };
+    if (since > frist)               return { cls: 'card hot', num: '+' + (since - frist), color: '#FFE6C8', rank: 0 };
+    if (over === -1)                 return { cls: 'card warm', num: '−1', color: '#FFCB94', rank: 1 };
+    if (over !== null)               return { cls: 'card', num: '−' + (-over), color: '#A39383', rank: 2 };
+    return { cls: 'card', num: '', color: '#A39383', rank: 3 };
 }
 
 // ---------- UI: Liste ----------
@@ -1022,7 +1042,7 @@ function renderTasks() {
 function buildCard(task, u) {
     const card = document.createElement('div');
     card.className = u.cls;
-    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg>';
+    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div>';
 
     const title = document.createElement('span');
     title.className = 'card-title';
@@ -1048,7 +1068,7 @@ function buildCard(task, u) {
 function buildEventCard(ev, u) {
     const card = document.createElement('div');
     card.className = u.cls;
-    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg>';
+    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div>';
     const title = document.createElement('span');
     title.className = 'card-title';
     title.textContent = ev.title || '';
