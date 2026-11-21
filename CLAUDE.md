@@ -151,3 +151,4 @@ Backlog (Priorisierung durch Armin):
 3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
 4.  **Nächste Design-Serie (Design-Chat):** weitere Leerlauf-Spiele im Marvin-Knopf nach dem Muster Arkanoid – Space Invaders (Pixel-Augen marschieren, Mini-Kanone schießt), Lunar Lander (Fähre landet auf dem Augenbogen), Defender (Schiff fliegt horizontal durch den Knopf). Erst Mockup, dann Vorgabe in `docs/`.
 5.  **Weitere Usability-Verbesserungen** – Sammlung aus dem Alltag, Runde im Design-Chat.
+6.  **Fließende Augen-Übergänge (Design-Chat):** Animationen sollen ineinander übergehen statt hart zu wechseln (Bogen ↔ Lid+Pupille ↔ Schlaf ↔ Stern/X per Morphing; Übergang zu Pixeln als eigenes Thema – z.B. Bogen zerfällt in Pixel). Erst diskutieren, dann Mockup.
