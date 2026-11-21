@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '2.0.1'; // sichtbar in den Einstellungen
+const APP_VERSION = '2.0.2'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -347,8 +347,8 @@ function onMarvinTap() {
 
 // Länger zuhören: Aufnahme läuft durchgehend und endet erst nach SILENCE_MS ohne neue Wörter
 // (oder per Tipp). Chrome beendet "continuous" teils selbst – dann wird nahtlos neu gestartet.
-const SILENCE_MS = 3000;
-const FIRST_WORD_MS = 8000;
+const SILENCE_MS = 2000;
+const FIRST_WORD_MS = 5000;
 function startListening() {
     let finalText = '';
     let interim = '';

@@ -16,6 +16,7 @@ const Face = (() => {
     let running = null;        // { name, timer, cleanup }
     let nextAt = Infinity;
     let lastGag = '';
+    const GAP_MIN = 10000, GAP_MAX = 16000; // Pause zwischen Leerlauf-Gags (Vorgabe 12–20 s, für Vorführung etwas kürzer)
 
     // ---------- Formen (lokal um 0,0; side 1 = links, -1 = rechts) ----------
 
@@ -95,7 +96,7 @@ const Face = (() => {
         btn.classList.remove('p-up', 'p-bored');
         if (shapeName) setShape(shapeName);
         if (cls) btn.classList.add(cls);
-        running = { name, cleanup, timer: setTimeout(() => { stop(); schedule(12000, 20000); }, ms) };
+        running = { name, cleanup, timer: setTimeout(() => { stop(); schedule(GAP_MIN, GAP_MAX); }, ms) };
     }
 
     function funEnabled() {
@@ -141,7 +142,9 @@ const Face = (() => {
 
     function runRandomGag() {
         if (Math.random() < 1 / 8) { arkanoid(); return; }
-        const names = Object.keys(GAGS).filter(n => n !== lastGag);
+        // Pixel-Gags doppelt gewichtet (sind die schönsten und kamen sonst kaum vor)
+        const weighted = Object.keys(GAGS).flatMap(n => n.startsWith('px') ? [n, n] : [n]);
+        const names = weighted.filter(n => n !== lastGag);
         const name = names[Math.floor(Math.random() * names.length)];
         lastGag = name;
         GAGS[name]();
@@ -223,7 +226,7 @@ const Face = (() => {
             running.cleanup = null;
             running.name = 'sort';
             setShape('pxSort');
-            running.timer = setTimeout(() => { stop(); schedule(12000, 20000); }, 3000);
+            running.timer = setTimeout(() => { stop(); schedule(GAP_MIN, GAP_MAX); }, 3000);
         };
 
         const step = (t) => {
