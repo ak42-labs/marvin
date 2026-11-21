@@ -143,3 +143,5 @@ Backlog (Priorisierung durch Armin):
 1.  **UX v2 umsetzen** nach `docs/ux-v2.md` (freigegeben 21.11.2026; enthält auch die Sprech-Regeln).
 2.  v3 „Neigungs-Glas“ (DeviceOrientation).
 3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
+4.  **Nächste Design-Serie (Design-Chat):** weitere Leerlauf-Spiele im Marvin-Knopf nach dem Muster Arkanoid – Space Invaders (Pixel-Augen marschieren, Mini-Kanone schießt), Lunar Lander (Fähre landet auf dem Augenbogen), Defender (Schiff fliegt horizontal durch den Knopf). Erst Mockup, dann Vorgabe in `docs/`.
+5.  **Weitere Usability-Verbesserungen** – Sammlung aus dem Alltag, Runde im Design-Chat.
