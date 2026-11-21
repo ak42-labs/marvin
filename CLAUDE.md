@@ -44,8 +44,9 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 3. ARCHITEKTUR (IST-STAND)
 **Dateien im Repo (`ak42-labs/marvin`):**
-*   `index.html`: UX v1: Drehrad (Planetenhirn | Hyperraum | Anhalter), Statuszeile, Kartenliste, Link „42 · n“, Marvin-Zeile (Schreibmaschine + „rückgängig“), Marvin-Knopf mit Augen (doze/listen/think/speak). Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>` (Marvin-Knopf lange drücken / Rechtsklick).
-*   `style.css`: Amber-Glas (reines CSS + SVG-Körnung `#noise`), Fonts Michroma + Sora (Google Fonts).
+*   `index.html`: UX v2 (Basis v1): Drehrad (Planetenhirn | Hyperraum | Anhalter), Statuszeile, Kartenliste, Link „42 · n“, Marvin-Zeile (Schreibmaschine + „rückgängig“), Marvin-Knopf mit Augen (doze/listen/think/speak). Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>` (Marvin-Knopf lange drücken / Rechtsklick).
+*   `style.css`: Layout/Material UX v2 – Amber-Glas nur für Drehrad + Marvin-Knopf, Karten = Rauchglas, Termine = Champagner, flacher Bearbeiten-Dialog; Neigungs-Glas über CSS-Variablen `--tx/--ty`. Fonts Michroma + Sora.
+*   `face.js` + `face.css`: Marvins Gesicht (UX v2 §7): Formen, Leerlauf-Gags, Reaktionen (Erledigt/Gelöscht/Überfällig), Arkanoid (2× tippen / selten im Leerlauf), Neigungs-Glas. Schnittstelle `Face.*`, von `app.js` angesteuert.
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
@@ -109,6 +110,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   UX v1 (App 1.0.0, Backend 0.8, 19.11.2026): Amber-Glas, Drehrad, Dringlichkeit (Glut + Zahl), Gesten (Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42), Undo nach Anlegen/Verschieben/Erledigen, neues App-Icon.
 *   1.0.1: Drehrad per Wischen drehbar, aktiver Knopf durchscheinend, „rückgängig“ verschwindet nach 10 s, Marvin-Sätze stark erweitert (keine direkte Wiederholung). Offen: Soll Marvin bei jeder Aktion sprechen? (Sprechtempo 0.95 passt.)
 *   1.1.0 (Backend 0.9, 20.11.2026): **Google Kalender** (nur Hauptkalender ohne Geburtstage – Backend 0.10 –, live, nicht im Sheet): Termine der nächsten `Frist` Tage als Karten im Hyperraum, Klartext statt Zahl (`heute 14:00`, `morgen 14:00`, `Di 14:00`, ganztägig ohne Uhrzeit); heute = glüht, morgen = warm. Gemini erkennt Termin vs. Aufgabe (`type`, `time`, `durationMinutes`; Termin nur mit Uhrzeit) und legt Termine im Kalender an (Erinnerung = Kalender-Standard). Antippen -> Bearbeiten im Termin-Modus (Datum, Uhrzeit, Dauer) -> ändert/löscht im Kalender; Serientermine nur im Google Kalender änderbar. Puffer: 1 Gemini-Aufruf + 1 Backend-Aufruf (`updateTasks`) für alle Einträge. Prompt: `dueDate` immer setzen, sobald ein Tag erkennbar ist. **Situative Augen:** Termin heute = B3 (Brauen), ≥3 glühende Aufgaben = D3 (Skeptiker), 5. Verschieben derselben Aufgabe = B2 (hängend) + eigener Spruch; Wartemodus: zufällig Augenrollen, Blinzeln, Umschauen, Seufzen (D1).
+*   **2.0.0 (21.11.2026): UX v2** nach `docs/ux-v2.md` umgesetzt: mehr Raum (8er-Raster), Amber nur Steuerung, Karten Rauchglas, Termine Champagner, „heute = Maximum“, flacher Bearbeiten-Dialog, Sprechregeln §6, „Keine Panik ↺“, Cursor ruht nach 2 s, Gemini-Ton ohne „Nicht.“-Muster, neue Augen + Gags + Reaktionen + Arkanoid, Einstellung „Spaß-Modus“, Neigungs-Glas. Situativ: Termin heute = Blick zur Uhr, ≥3 glühend = Langeweile-Pose + beim Öffnen Schock/Böse abwechselnd, 5. Verschieben = hängende Augen.
 *   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
@@ -140,7 +142,8 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  **UX v2 umsetzen** nach `docs/ux-v2.md` (freigegeben 21.11.2026; enthält auch die Sprech-Regeln).
+1.  ~~UX v2~~ umgesetzt (2.0.0). Live-Test am Handy: Gag-Frequenz, Arkanoid, Neigungs-Glas, Überfällig A vs. B.
+1b. **Einkäufe:** eigener Platz auf dem Drehrad, Arbeitsname „Proviant“ (Favorit Armin); Tippen = gekauft. Noch nicht beauftragt.
 2.  v3 „Neigungs-Glas“ (DeviceOrientation).
 3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
 4.  **Nächste Design-Serie (Design-Chat):** weitere Leerlauf-Spiele im Marvin-Knopf nach dem Muster Arkanoid – Space Invaders (Pixel-Augen marschieren, Mini-Kanone schießt), Lunar Lander (Fähre landet auf dem Augenbogen), Defender (Schiff fliegt horizontal durch den Knopf). Erst Mockup, dann Vorgabe in `docs/`.
