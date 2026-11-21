@@ -12,7 +12,7 @@ Leitidee v2: **mehr Raum, klare Hierarchie, Marvin als Spielkind.** KISS bleibt.
 | Stelle | Wert |
 |---|---|
 | Seitenrand links/rechts | 20 px (oben/unten 24) |
-| Drehrad → Statuszeile | 24 |
+| Drehrad → Statuszeile | 12 |
 | Statuszeile → erste Karte | 12 |
 | Zwischen Karten | 14 |
 | Karten-Innenabstand | 18 × 22 |
@@ -93,40 +93,46 @@ Armin bevorzugt **flach statt Glas** – Tempo zählt. (Mockup „Bearbeiten“,
 | 5. Verschieben derselben Aufgabe | Spezialspruch | ja |
 | Leerlauf-Gag mit Spruch | ja (nur manche Gags) | nein |
 
-## 7. Marvins Augen v2
+Cursor `▍` blinkt nach dem letzten Zeichen noch ~2 s und verschwindet dann (Ruhe am Bildschirm).
 
-Alle Augen als Paar, Mittelpunkte `(47,32)` und `(123,32)` im 170 × 64-Augen-SVG, Farbe `#FFB25C`, Glühen `drop-shadow(0 0 7px #FF9A3C)`. Lokale Pfade (um 0,0):
+## 7. Marvins Augen v2 (Stand 21.11., Mockup „Augen-Galerie v2.2“, „Arkanoid“, „Neigungs-Glas“)
 
-| Form | SVG (lokal) |
+Paar mit Mittelpunkten `(47,32)` / `(123,32)` im 170 × 64-Augen-SVG, Farbe `#FFB25C`, Glühen `drop-shadow(0 0 7px #FF9A3C)`, `transform-box:fill-box; transform-origin:center` auf allen animierten Teilen. Exakte Keyframes: Quelltext der Mockup-Ansichten.
+
+| Form | SVG (lokal um 0,0) |
 |---|---|
-| Bogen (Standard B1) | `<path d="M-23 8 Q0 -10 23 8" stroke-width="7" stroke-linecap="round" fill="none"/>` |
-| **Lid + Pupille** (neu, für alles Schauen) | `<path class="lid" d="M-23 2 Q0 -12 23 2" stroke-width="5"/>` + `<circle class="pup" cx="0" cy="11" r="6"/>` |
+| Bogen (Standard) | `<path d="M-23 8 Q0 -10 23 8" stroke-width="7" stroke-linecap="round" fill="none"/>` |
+| **Lid + Pupille** | `<path class="lid" d="M-23 2 Q0 -12 23 2" stroke-width="5"/>` + `<circle class="pup" cx="0" cy="11" r="5" fill="#FFF3E6"/>` – die hellbeige Pupille ist der Akzentpunkt aus dem App-Icon (keine extra Status-LED) |
 | Schlaf | `<path d="M-21 4 Q0 16 21 4" stroke-width="6"/>` |
-| Wellen | `<path d="M-24 4 q6 -8 12 0 t12 0 t12 0 t12 0" stroke-width="5"/>` – animiert per CSS `d:path()` zwischen `q6 -8` und `q6 8` (1 s alternate) |
-| Stern | `<polygon points="0,-16 4,-5.5 15.2,-4.9 6.5,2.1 9.4,12.9 0,6.7 -9.4,12.9 -6.5,2.1 -15.2,-4.9 -4,-5.5" fill="#FFD08A"/>` – **dreht nicht** |
+| Stern | `<polygon points="0,-16 4,-5.5 15.2,-4.9 6.5,2.1 9.4,12.9 0,6.7 -9.4,12.9 -6.5,2.1 -15.2,-4.9 -4,-5.5" fill="#FFE2B0"/>` – dreht nicht |
 | X | `<path d="M-12 -10 L12 10 M12 -10 L-12 10" stroke-width="6"/>` |
-| Spirale | `<path d="M0 0 m0 -2 a2 2 0 1 1 -2 2 a5 5 0 1 1 5 5 a8.5 8.5 0 1 1 -8.5 -8.5 a12.5 12.5 0 1 1 12.5 12.5" stroke-width="3.5"/>` – dreht (1 s) |
-| Pixel | 5 Rects: `(-24,4,8×8) (-16,-4,8×8) (-8,-8,16×8) (8,-4,8×8) (16,4,8×8)` |
+| Pixel | 5 Rects `(-24,4,8×8) (-16,-4,8×8) (-8,-8,16×8) (8,-4,8×8) (16,4,8×8)` |
 
-`transform-box:fill-box; transform-origin:center` auf allen animierten Teilen. Exakte Keyframes: Mockup „Augen-Galerie“ (Quelltext).
+Gestrichen: Wellen, Spiralen, Brauen, Schütteln, 3×-Tippen.
 
-**Leerlauf-Gags** (Spaß-Modus an): erster nach 6–8 s ohne Berührung, dann alle 12–20 s zufällig, je 2–4 s, nie während Scrollen/Tippen/Sprechen/Zuhören. Berührung bricht den Gag sofort ab.
-- Umschauen (Pupillen ±10 px) · Nach oben rechts (Uhr) · Einander anschauen (Pupillen +11 / −11) · Augenrollen (Pupillen kreisen, 1.8 s) · Langeweile (Lid wird flach `d:path("M-23 4 Q0 2 23 4")`, Pupillen driften (8,3), Seufzer: Augen sinken 5 px) · Blinzeln (Bogen scaleY .1, 250 ms)
-- Pixel sortieren (fallen von oben ein, Versatz 0.1 s) · Pixel-Explosion (fliegen auseinander, rotieren, kommen zurück) · Pixel-Blinzeln (Stufen fallen zusammen) · Wellen · Einschlafen (Atmen ±3 px, **drei Z** z/Z/Z 12/16/20 px steigen versetzt auf)
+**Leerlauf-Gags** (Spaß-Modus an): erster nach 6–8 s ohne Berührung, dann alle 12–20 s zufällig, je 2–4 s; nie während Scrollen/Tippen/Sprechen/Zuhören; Berührung bricht sofort ab.
+- Umschauen (Pupillen ±10 px) · Nach oben rechts (9,−4) · Einander anschauen (+11/−11) · Augenrollen (kleine Kreise ±5 × ±3, 1.6 s) · Langeweile (nur Lid wird flach: `d:path("M-23 4 Q0 2 23 4")`, Pupillen (8,2), **kein** Absinken) · Blinzeln (scaleY .1)
+- Pixel sortieren (fallen von oben ein, je 0.1 s versetzt) · Pixel-Explosion (Pixel fliegen **ganz aus dem Knopf** ±70–95 px mit Rotation, ausgeblendet, kommen zurück) · Pixel-Blinzeln (ganze Pixelgruppe scaleY 1 → .55 → .15 → .55 → 1 in Stufen) · Einschlafen (Atmen ±3 px, drei Z 11/14/17 px starten **auf Augenhöhe** und steigen auf)
+- Selten (≈1 von 8 Gags): **Arkanoid** (siehe unten).
 
-**Reaktionen** (immer, auch Spaß aus? → nein: bei Spaß aus nur Bogen + Grundzustände):
-- Erledigt → Sterne poppen auf (scale .2 → 1.3 → 1) und stehen ~1.5 s still
-- Gelöscht → X-Augen, gleiches Pop, statisch
-- ≥3 glühende Karten beim Öffnen → Kopfschütteln (±9 px, 1.4 s)
+**Reaktionen** (bei Spaß-Modus aus: keine):
+- **Erledigt:** Bogen → **großer Stern** (scale .5 → 1.8 → 1.35, ~1.5 s stehen) **+ Sternenregen** über die ganze Knopfbreite (14 kleine Sterne, versetzt fallend). Ersetzt das 3×-Tippen.
+- **Gelöscht:** X sofort da (1.15 → 1), schrumpft auf 0 und verschwindet, dann kommen die Bögen zurück.
+- **Viel Überfälliges** (≥3 glühende Karten beim Öffnen) – zwei Varianten, Armin entscheidet am Handy, Standard A:
+  - A **Schock:** Lider springen 6 px hoch, Pupillen schrumpfen (scale .45), Schweißtropfen (`#CFE5FF`) rinnt rechts herunter.
+  - B **Stirnrunzeln:** Pupillen schauen hoch zu den Karten (0,−5), Lider kippen nach innen (±14°).
 
-**Easter Eggs** (Tap-Zählung: 320 ms Fenster nach letztem Tipp; 1 Tipp = normal zuhören):
-- **2× tippen → Pong:** Ball r=5.5 `#FFF1D6`, mit **echter Kollision** (requestAnimationFrame, ~4 s): prallt an Knopfrändern (Pillenform: Ecken als Halbkreise) **und an den Augen** ab (Augen als Kreise r≈20 um die Mittelpunkte). Treffer: Auge zuckt (translateY 5 px, scaleY .7, 120 ms). Spruch: „Pong. Erfunden 1972. Ich war schon damals gelangweilt.“
-- **3× tippen → Sternenregen:** Sternaugen + 12 kleine Sterne fallen (1.6 s, versetzt). Spruch: „Sterne. Wie hübsch. Sie sind alle schon tot.“
-- **Handy schütteln → Spiralaugen** 2 s (`devicemotion`, Beschleunigung > ~25 m/s², Sperre 5 s).
+**Easter Egg 2× tippen = Arkanoid** (auch als seltener Leerlauf-Gag):
+- Die Augen werden zu Pixel-Steinen (je Auge 6 Steine aus der Pixelform, Faktor 1.6 bei Knopfgröße), Ball r 6 `#FFF3E6`, Schläger 70 × 6 unten.
+- Physik per `requestAnimationFrame` (dt-basiert, max 33 ms): Startwinkel zufällig, Wände, Kreis-gegen-Rechteck-Kollision, Treffer entfernt den Stein und spiegelt die Achse mit der kleineren Überlappung; Schläger lenkt je nach Trefferpunkt ab (±1 rad) und beschleunigt um 2 %.
+- Marvin spielt selbst: Schläger folgt dem Ball träge (Faktor 5.5/s + leichtes Wackeln) – verfehlt gelegentlich („Verfehlt. Absichtlich. Glaube ich.“).
+- Alle Steine weg → Spruch, Augen sortieren sich neu (Pixel-Einfall). Spätestens nach ~10 s Ende, Augen zurück. Antippen beendet.
+- Ideen für weitere Leerlauf-Spiele später: Space Invaders (Pixel-Augen marschieren), Lunar Lander (kleine Fähre landet auf dem Augenbogen).
 
-**Einstellungen:** „Spaß-Modus“ (an/aus). Aus = nur Grundzustände (dösen/zuhören/grübeln/sprechen), keine Gags, keine Easter Eggs. `prefers-reduced-motion` = wie aus.
+**Einstellungen:** „Spaß-Modus“ an/aus. Aus = nur Grundzustände. `prefers-reduced-motion` = wie aus.
+
+**v3 Neigungs-Glas** (Demo im Mockup): `deviceorientation` → `tx = gamma/30`, `ty = (beta−45)/30`, beide auf −1…1 begrenzt. Glutkern der Amber-Elemente wandert (`radial-gradient … at (50−tx·22)% (112−ty·14)%`), ein Glanz-Layer verschiebt sich gegenläufig (`translate(−tx·55px, −ty·30px)`), ruhige Karten drehen den Verlauf um `tx·25°`, Pupillen schauen mit (`cx = tx·9`, `cy = 11+ty·2.5`). Nur Android/Chrome, ohne Sensor statisch.
 
 ## 8. Sonstiges
 
-- Situative Augen aus 1.1.0 bleiben, aber **B3 (Brauen) entfällt** → Termin heute: Lid + Pupille „nach oben rechts“ (Uhr). D3 Skeptiker → Lid + Pupille „Langeweile“-Pose. B2 hängend für Dauerverschieber bleibt.
-- v3 weiterhin: Neigungs-Glas.
+- Situative Augen aus 1.1.0: B3 (Brauen) entfällt → Termin heute: Lid + Pupille „nach oben rechts“ (Uhr). D3 Skeptiker → „Langeweile“-Pose. B2 hängend für Dauerverschieber bleibt.
