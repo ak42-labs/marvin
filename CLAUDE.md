@@ -49,7 +49,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
-*   `docs/ux-v2-briefing.md`: Übergabe an den Design-Chat für UX v2 (Ist-Stand + Wünsche: Raum, Farben je Art, Bearbeiten-Look, Marvin-Animationen).
+*   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
 **Datenfluss:**
@@ -140,7 +140,6 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  **UI-Runde (außerhalb):** mehr Raum/Abstand, Farben unterscheiden (Menü vs. Karten), evtl. Farben je Art (Aufgabe/Termin). Bearbeiten-Dialog im neuen Look.
-2.  Soll Marvin bei jeder Aktion sprechen? (Usability)
-3.  v3 „Neigungs-Glas“ (DeviceOrientation).
-4.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
+1.  **UX v2 umsetzen** nach `docs/ux-v2.md` (freigegeben 21.11.2026; enthält auch die Sprech-Regeln).
+2.  v3 „Neigungs-Glas“ (DeviceOrientation).
+3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
