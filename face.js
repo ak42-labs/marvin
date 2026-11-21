@@ -16,7 +16,8 @@ const Face = (() => {
     let running = null;        // { name, timer, cleanup }
     let nextAt = Infinity;
     let lastGag = '';
-    const GAP_MIN = 10000, GAP_MAX = 16000; // Pause zwischen Leerlauf-Gags (Vorgabe 12–20 s, für Vorführung etwas kürzer)
+    const GAP_MIN = 6000, GAP_MAX = 10000;   // Pause zwischen Leerlauf-Gags (Wunsch Armin: kürzer als Vorgabe 12–20 s)
+    const FIRST_MIN = 4000, FIRST_MAX = 6000; // erster Gag nach so viel Ruhe
 
     // ---------- Formen (lokal um 0,0; side 1 = links, -1 = rechts) ----------
 
@@ -160,7 +161,35 @@ const Face = (() => {
     // Jede Berührung bricht Gags ab und startet die Leerlauf-Uhr neu (Reaktionen laufen weiter)
     function touch() {
         if (running && !running.name.startsWith('r-')) stop();
-        schedule(6000, 8000);
+        schedule(FIRST_MIN, FIRST_MAX);
+    }
+
+    // ---------- Blick: Augen folgen Scrollen / Drehrad (ohne Klick) ----------
+    // dx, dy in px (Pupillen-Verschiebung). Mehrere Aufrufe hintereinander halten den Blick.
+    let glanceTimer = null;
+    function glance(dx, dy) {
+        if (!funEnabled()) return;
+        if (running && running.name !== 'glance') {
+            if (running.name.startsWith('r-')) return; // Reaktionen nicht unterbrechen
+            stop();
+        }
+        if (!running) {
+            btn.classList.add('gagging');
+            btn.classList.remove('p-up', 'p-bored');
+            setShape('lp');
+            running = { name: 'glance', timer: null };
+        }
+        eyes.querySelectorAll('.pup').forEach(p => {
+            p.style.transition = 'transform .18s ease-out';
+            p.style.transform = `translate(${dx}px, ${dy}px)`;
+        });
+        clearTimeout(glanceTimer);
+        glanceTimer = setTimeout(() => {
+            if (running?.name !== 'glance') return;
+            eyes.querySelectorAll('.pup').forEach(p => { p.style.transform = 'translate(0,0)'; });
+            setTimeout(() => { if (running?.name === 'glance') { running = null; stop(); } }, 300);
+        }, 1100);
+        schedule(FIRST_MIN, FIRST_MAX);
     }
 
     // ---------- Reaktionen ----------
@@ -302,7 +331,7 @@ const Face = (() => {
             btn = document.getElementById('marvin-btn');
             build();
             initTilt();
-            schedule(6000, 8000);
+            schedule(FIRST_MIN, FIRST_MAX);
             setInterval(tick, 500);
         },
         // Grundgesicht aus der Lage: 'arc' (Standard), 'up' (Termin heute: Blick zur Uhr), 'bored' (viel Überfälliges)
@@ -317,6 +346,7 @@ const Face = (() => {
         react,
         arkanoid() { if (funEnabled()) arkanoid(); },
         touch,
+        glance,
         abort: stop,
         isBusy: () => !!running,
         isGame: () => running?.name === 'arkanoid',

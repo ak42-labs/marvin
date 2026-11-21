@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '2.0.2'; // sichtbar in den Einstellungen
+const APP_VERSION = '2.0.3'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
 const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
@@ -64,6 +64,7 @@ const pick = arr => {
 let allTasks = [];
 let allEvents = [];
 let scrolling = false;
+let ignoreScrollUntil = 0;
 let overdueReacted = false; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
 let categories = [];
 let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
@@ -94,8 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Jede Berührung / jedes Scrollen bricht Leerlauf-Gags ab
     document.addEventListener('pointerdown', () => Face.touch(), true);
     let scrollTimer = null;
-    document.getElementById('content').addEventListener('scroll', () => {
-        scrolling = true; Face.touch();
+    let lastScrollTop = 0;
+    document.getElementById('content').addEventListener('scroll', (e) => {
+        const st = e.target.scrollTop, d = st - lastScrollTop;
+        lastScrollTop = st;
+        if (Math.abs(d) > 2 && Date.now() > ignoreScrollUntil) Face.glance(0, d > 0 ? 4 : -5); // runter scrollen = nach unten schauen
+        scrolling = true;
         clearTimeout(scrollTimer); scrollTimer = setTimeout(() => { scrolling = false; }, 400);
     }, { passive: true });
     say(pick(LINES.hello)); // Begrüßung: Text ja, Stimme nein
@@ -975,6 +980,9 @@ function renderWheel() {
 }
 
 function switchTab(status) {
+    const from = WHEEL.indexOf(currentStatus), to = WHEEL.indexOf(status);
+    if (from >= 0 && to >= 0 && from !== to) Face.glance(to > from ? 10 : -10, 0);
+    ignoreScrollUntil = Date.now() + 500; // Neuaufbau der Liste scrollt – kein Scroll-Blick
     currentStatus = status;
     renderWheel();
     renderTasks();
