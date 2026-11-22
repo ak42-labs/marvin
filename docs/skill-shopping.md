@@ -20,3 +20,10 @@ Kopiervorlage für einen Gemini-Skill / Gem, der aus Rezepten Einkäufe in Marvi
 5. Gleiche Artikel nicht doppelt anlegen, wenn sie im Blatt `tasks` schon mit `status = shopping` stehen.
 
 **Antwort an mich:** eine kurze Liste der eingetragenen Artikel mit Abteilung.
+
+**Regeln im Detail (Antworten auf Rückfragen):**
+- **Dubletten:** Steht der Artikel schon in `tasks` mit `status = shopping`, **keine neue Zeile**. Stattdessen in `notes` der bestehenden Zeile die neue Menge/Rezept-Info anhängen (neue Zeile in der Zelle, z.B. „+ 200 g für Pesto“).
+- **Abteilung:** Zuerst `shop_items` (exakter Name, Groß/Klein egal). Sonst die passendste `id` aus `shop_aisles` nach dem `name` wählen. Nur wenn wirklich unklar: `aisle_id` leer lassen.
+- **`store`:** Es gibt aktuell zwei Geschäfte: `supermarket` (alles außer Drogerie) und `drogerie`. Keine Bevorzugung – einfach die fachlich passende Abteilung nehmen; Drogerieartikel (Zahnpasta, Duschgel …) gehören zu `drogerie`.
+- **Spalten von `tasks` (genau diese Reihenfolge):** `id`, `title`, `status`, `category_id`, `due_date`, `notes`, `aisle_id`, `source`, `created_at`, `updated_at`, `status_since`. Pflicht beim Anhängen: `title`, `status = shopping`. Alles andere darf leer sein (`id`/Zeitstempel ergänzt Marvin; `source` gern `gemini`).
+- **Auslöser:** Nur bei Einkäufen, Zutaten, „Einkaufsliste“, „auf die Liste“ mit Bezug zu Marvin. Nicht bei allgemeinen Aufgaben, Terminen oder Notizen.
