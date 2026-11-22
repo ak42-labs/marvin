@@ -50,6 +50,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
+*   `docs/ux-v3.md`: UX v3 – Gestenregel, ein Formular für Aufgabe/Termin, Proviant, Laden ohne Warten.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
@@ -146,7 +147,7 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 
 Backlog (Priorisierung durch Armin):
 1.  ~~UX v2~~ umgesetzt (2.0.0). Live-Test am Handy: Gag-Frequenz, Arkanoid, Neigungs-Glas, Überfällig A vs. B.
-1b. **Einkäufe:** eigener Platz auf dem Drehrad, Arbeitsname „Proviant“ (Favorit Armin); Tippen = gekauft. Noch nicht beauftragt.
+1b. **UX v3 umsetzen** nach `docs/ux-v3.md` (freigegeben 22.11.2026): Gestenregel (tippen = erledigt, lange = bearbeiten), ein Formular (Uhrzeit entscheidet Aufgabe/Termin), Termine >Frist im Planetenhirn, Kategorie für Termine, Proviant mit Abteilungen, Laden ohne Warten.
 2.  v3 „Neigungs-Glas“ (DeviceOrientation).
 3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
 4.  **Nächste Design-Serie (Design-Chat):** weitere Leerlauf-Spiele im Marvin-Knopf nach dem Muster Arkanoid – Space Invaders (Pixel-Augen marschieren, Mini-Kanone schießt), Lunar Lander (Fähre landet auf dem Augenbogen), Defender (Schiff fliegt horizontal durch den Knopf). Erst Mockup, dann Vorgabe in `docs/`.
