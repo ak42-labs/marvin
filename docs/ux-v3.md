@@ -57,7 +57,8 @@ Gleiches Aussehen (heller Champagner-Look des bisherigen Termin-Dialogs) und **i
 Interne Werte bleiben, was im Sheet steht (`Config` Typ `Status`): aktuell **Puffer, Backlog, Zu tun, Pausiert, Erledigt** (+ neu `Proviant`). Code prüft `STATUS_LABELS` gegen diese Werte (`Backlog` statt `Gedächtnis`!). Anzeige weiter: Backlog = Planetenhirn, Zu tun = Hyperraum, Pausiert = Anhalter, Erledigt = 42.
 
 ## 7. Spalte wechseln mit dem Daumen (unten wischen)
-- Horizontal wischen (> 60 px, mehr horizontal als vertikal) **im unteren Bereich** dreht das Drehrad: auf der **Marvin-Zeile**, auf dem **Marvin-Knopf** und in **leeren Flächen der Liste** (unter der letzten Karte).
+- Horizontal wischen (> 60 px, mehr horizontal als vertikal) dreht das Drehrad **im ganzen unteren Bereich**: freie Fläche unter dem Link „42 · n“, die **Marvin-Zeile** und der **Marvin-Knopf** – eine durchgehende Wischzone.
+- Konfliktfrei mit dem Knopf: Bewegung > 8 px bricht den Lange-drücken-Timer (Einstellungen) ab und zählt nicht als Tipp/Doppeltipp; erst beim Loslassen wird entschieden (Wisch > 60 px horizontal → Spalte wechseln, sonst Tipp-Logik).
 - Auf einer **Karte** bleibt Wischen = Karte in Nachbar-Spalte verschieben (unverändert).
 - Marvin-Knopf: Tippen/Doppeltippen/lange drücken bleiben; nur eine horizontale Bewegung > 60 px zählt als Wisch. Die Augen schauen dabei in Drehrichtung (wie „Blick“ aus 2.0.3).
 - Richtung wie oben: Finger nach links = Spalte rechts davon (wie Seite umblättern).
