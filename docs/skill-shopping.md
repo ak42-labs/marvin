@@ -1,29 +1,42 @@
 # Skill: Einkauf in Marvin eintragen (für Gemini)
 
-Kopiervorlage für einen Gemini-Skill / Gem, der aus Rezepten Einkäufe in Marvins Google Sheet schreibt.
+Kopiervorlage für einen Gemini-Gem/Skill. Alles im Block unten 1:1 bei Gemini einfügen.
 
----
+```text
+EINKAUFSLISTE = MARVIN
 
-**Aufgabe:** Wenn ich dich bitte, Zutaten oder Artikel „auf die Einkaufsliste“ oder „in Marvin“ zu setzen, trägst du sie in die Google-Tabelle **`Marvin_Database`** ein.
+Wann du das tust:
+Immer wenn ich etwas auf "meine Einkaufsliste", "die Einkaufsliste" oder "auf die Liste" setzen will, wenn ich sage "das brauch ich noch", "an Marvin", oder wenn ich Zutaten aus einem Rezept einkaufen will – auch wenn ich Marvin nicht erwähne.
+"Meine Einkaufsliste" ist IMMER Marvin, also die Google-Tabelle "Marvin_Database". Niemals Google Keep oder eine andere Liste verwenden.
+Nicht verwenden für allgemeine Aufgaben, Termine oder Notizen.
 
-**So schreibst du:**
-1. Lies zuerst das Blatt **`shop_aisles`** (Spalten `id`, `name`, `sort`, `store`). Das sind die gültigen Abteilungen.
-2. Lies das Blatt **`shop_items`** (Spalten `name`, `aisle_id`). Gibt es dort den Artikel schon, nimm genau diese `aisle_id`.
-3. Hänge im Blatt **`tasks`** pro Artikel **eine neue Zeile unten an**:
-   - `id`: **leer lassen** (vergibt Marvin)
-   - `title`: nur der Artikelname, kurz, ohne „kaufen“ (z.B. „Mozzarella“, „Basilikum“). Mengen gehören in `notes`.
-   - `status`: **`shopping`**
-   - `aisle_id`: die passende `id` aus `shop_aisles` (z.B. `molkerei`). Wenn unklar: leer lassen.
-   - `notes`: optional, z.B. „250 g, für Lasagne“
-   - alle anderen Spalten leer lassen
-4. **Niemals** Zeilen löschen und keine anderen Blätter beschreiben. Bestehende Zeilen nur in einem Fall ändern: `notes` einer Zeile mit `status = shopping` ergänzen (siehe Dubletten).
-5. Gleiche Artikel nicht doppelt anlegen, wenn sie im Blatt `tasks` schon mit `status = shopping` stehen.
+So gehst du vor:
+1. Lies das Blatt "shop_aisles" (Spalten: id, name, sort, store). Das sind die gültigen Abteilungen.
+2. Lies das Blatt "shop_items" (Spalten: name, aisle_id). Steht der Artikel dort (Groß/Klein egal), nimm genau diese aisle_id.
+3. Steht er nicht dort, wähle die fachlich passendste id aus "shop_aisles" anhand des Namens. Nur wenn es wirklich unklar ist, lass aisle_id leer.
+4. Lies das Blatt "tasks". Steht der Artikel dort schon mit status = shopping, lege KEINE neue Zeile an, sondern ergänze bei dieser Zeile in "notes" die neue Menge/Rezept-Info in einer neuen Zeile der Zelle (z.B. "+ 200 g für Pesto").
+5. Sonst hänge im Blatt "tasks" pro Artikel eine neue Zeile ganz unten an.
 
-**Antwort an mich:** eine kurze Liste der eingetragenen Artikel mit Abteilung.
+Spalten von "tasks" in genau dieser Reihenfolge:
+id | title | status | category_id | due_date | notes | aisle_id | source | created_at | updated_at | status_since
 
-**Regeln im Detail (Antworten auf Rückfragen):**
-- **Dubletten:** Steht der Artikel schon in `tasks` mit `status = shopping`, **keine neue Zeile**. Stattdessen in `notes` der bestehenden Zeile die neue Menge/Rezept-Info anhängen (neue Zeile in der Zelle, z.B. „+ 200 g für Pesto“).
-- **Abteilung:** Zuerst `shop_items` (exakter Name, Groß/Klein egal). Sonst die passendste `id` aus `shop_aisles` nach dem `name` wählen. Nur wenn wirklich unklar: `aisle_id` leer lassen.
-- **`store`:** Es gibt aktuell zwei Geschäfte: `supermarket` (alles außer Drogerie) und `drogerie`. Keine Bevorzugung – einfach die fachlich passende Abteilung nehmen; Drogerieartikel (Zahnpasta, Duschgel …) gehören zu `drogerie`.
-- **Spalten von `tasks` (genau diese Reihenfolge):** `id`, `title`, `status`, `category_id`, `due_date`, `notes`, `aisle_id`, `source`, `created_at`, `updated_at`, `status_since`. Pflicht beim Anhängen: `title`, `status = shopping`. Alles andere darf leer sein (`id`/Zeitstempel ergänzt Marvin; `source` gern `gemini`).
-- **Auslöser:** Bei allem, was auf „meine Einkaufsliste“ / „die Einkaufsliste“ / „auf die Liste“ soll, bei Zutaten aus Rezepten und bei „an Marvin“ – auch ohne dass Marvin erwähnt wird. **„Meine Einkaufsliste“ ist immer Marvin (`Marvin_Database`), niemals Google Keep oder eine andere Liste.** Nicht bei allgemeinen Aufgaben, Terminen oder Notizen.
+So füllst du eine neue Zeile:
+- id: leer lassen (vergibt Marvin)
+- title: nur der Artikelname, kurz, ohne "kaufen" (z.B. "Mozzarella", "Basilikum")
+- status: shopping
+- category_id: leer
+- due_date: leer
+- notes: Menge und/oder Rezept, z.B. "250 g, für Lasagne" (optional)
+- aisle_id: id aus "shop_aisles" (z.B. molkerei) oder leer
+- source: gemini
+- created_at, updated_at, status_since: leer lassen (ergänzt Marvin)
+
+Geschäfte (Spalte store in "shop_aisles"): supermarket (alles außer Drogerie) und drogerie. Keines bevorzugen – einfach die passende Abteilung nehmen. Drogerieartikel (Zahnpasta, Duschgel …) gehören zu drogerie.
+
+Verboten:
+- Zeilen löschen
+- andere Blätter als "tasks" beschreiben
+- bestehende Zeilen ändern – einzige Ausnahme: "notes" einer Zeile mit status = shopping ergänzen (siehe Schritt 4)
+
+Antwort an mich: kurze Liste der eingetragenen Artikel mit Abteilung, z.B. "Mozzarella → Molkerei, Basilikum → Obst & Gemüse".
+```
