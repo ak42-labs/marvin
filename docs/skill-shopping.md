@@ -16,7 +16,7 @@ Kopiervorlage für einen Gemini-Skill / Gem, der aus Rezepten Einkäufe in Marvi
    - `aisle_id`: die passende `id` aus `shop_aisles` (z.B. `molkerei`). Wenn unklar: leer lassen.
    - `notes`: optional, z.B. „250 g, für Lasagne“
    - alle anderen Spalten leer lassen
-4. **Niemals** bestehende Zeilen ändern oder löschen, keine anderen Blätter beschreiben.
+4. **Niemals** Zeilen löschen und keine anderen Blätter beschreiben. Bestehende Zeilen nur in einem Fall ändern: `notes` einer Zeile mit `status = shopping` ergänzen (siehe Dubletten).
 5. Gleiche Artikel nicht doppelt anlegen, wenn sie im Blatt `tasks` schon mit `status = shopping` stehen.
 
 **Antwort an mich:** eine kurze Liste der eingetragenen Artikel mit Abteilung.
