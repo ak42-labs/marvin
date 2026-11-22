@@ -11,6 +11,8 @@
 | `addTask`   | `task`   | `{id, title}` – ID und Timestamps setzt der Server |
 | `updateTask`| `id`, `changes` | Ändert Title/Status/Category/DueDate/Notes, setzt Updated_At |
 | `deleteTask`| `id`     | Löscht die Zeile |
+| `addTasks` | `tasks: [task]` | Mehrere Tasks anlegen (Einkauf) |
+| `setArtikel` | `name`, `abteilung` | Merkt Abteilung eines Artikels (Config Typ `Artikel`) |
 | `updateTasks`| `items: [{id, changes}]` | Mehrere Tasks auf einmal (Puffer-Einsortierung) |
 | `getEvents` | `days` (Std. 7) | Termine im Hauptkalender ab heute bis heute + days (vorbei = weggelassen) |
 | `addEvent`  | `event: {title, start, end, allDay, description}` | Legt Termin an (Erinnerung = Kalender-Standard) |
@@ -52,3 +54,9 @@ Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar), ohne Geburtstage (Te
 ## Zeilen von Hand / von anderen KIs eintragen
 
 Erlaubt: Zeile mit **Title** füllen, **ID leer lassen**, Status `Puffer` (oder leer). Beim nächsten Laden vergibt das Backend ID + Zeitstempel, die App sortiert Puffer-Einträge per Gemini ein.
+
+## UX v3 (Backend 0.12)
+
+- Neue Spalte `Abteilung` in `Tasks` (automatisch angelegt, bestehende Zeilen unverändert).
+- Config: `Abteilung` (Reihenfolge = Laufweg, Spalte C `separat` = Trennlinie), `Artikel` (Spalte B Name, C Abteilung – wird von der App gepflegt), `Status` `Proviant`.
+- Termine: Kategorie unsichtbar per Tag `marvinCategory`; Termine ohne Tag liefern `category: ''`.

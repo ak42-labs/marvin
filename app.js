@@ -2,20 +2,39 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '2.0.3'; // sichtbar in den Einstellungen
+const APP_VERSION = '3.0.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
-const TARGET_STATUSES = ['Zu tun', 'Gedächtnis', 'Pausiert'];
+// Interne Status-Werte = was im Sheet steht (Config Typ "Status", UX v3 §6)
+const BACKLOG = 'Backlog';
+const PROVIANT = 'Proviant';
 const DONE_STATUS = 'Erledigt';
+const TARGET_STATUSES = ['Zu tun', BACKLOG, 'Pausiert'];
+// Alte Werte im Sheet -> aktueller interner Wert (nur beim Lesen; geschrieben wird der neue Wert)
+const STATUS_ALIASES = { 'Gedächtnis': BACKLOG };
 
-// Anzeigenamen – interne Status-Werte im Sheet bleiben unverändert (UX v1, docs/ux-v1.md)
+// Anzeigenamen
 const STATUS_LABELS = {
-    'Gedächtnis': { name: 'Planetenhirn', sub: 'GEDACHT' },
-    'Zu tun':     { name: 'Hyperraum',    sub: 'VOLLE FAHRT' },
-    'Pausiert':   { name: 'Anhalter',     sub: 'AM STRASSENRAND' },
-    'Erledigt':   { name: '42',           sub: 'DIE ANTWORT' },
+    [BACKLOG]:   { name: 'Planetenhirn', sub: 'GEDACHT' },
+    'Zu tun':    { name: 'Hyperraum',    sub: 'VOLLE FAHRT' },
+    'Pausiert':  { name: 'Anhalter',     sub: 'AM STRASSENRAND' },
+    [PROVIANT]:  { name: 'Proviant',     sub: 'EINKAUF' },
+    'Erledigt':  { name: '42',           sub: 'DIE ANTWORT' },
 };
-const WHEEL = ['Gedächtnis', 'Zu tun', 'Pausiert']; // Drehrad links -> rechts
+const WHEEL = [BACKLOG, 'Zu tun', 'Pausiert', PROVIANT]; // Drehrad links -> rechts
+const TASK_WHEEL = [BACKLOG, 'Zu tun', 'Pausiert'];      // Karten-Wischen nur zwischen diesen
+const EVENT_DAYS = 60;                                   // so weit liest das Backend Termine voraus
+
+function normalizeTask(t) {
+    if (STATUS_ALIASES[t.Status]) t.Status = STATUS_ALIASES[t.Status];
+    return t;
+}
+// In welcher Ansicht erscheint eine Aufgabe? Unbekannte Status landen im Planetenhirn (nichts verschwindet)
+function viewOf(t) {
+    if ([...WHEEL, DONE_STATUS, INBOX_STATUS].includes(t.Status)) return t.Status;
+    return BACKLOG;
+}
+const isBoughtProviant = t => t.Status === DONE_STATUS && !!t.Abteilung;
 
 // Marvins feste Sätze (zufällig gewählt, nie zweimal hintereinander derselbe)
 const LINES = {
@@ -44,6 +63,13 @@ const LINES = {
         'Doch nicht? Wer hätte das gedacht. Ich.', 'Rückgängig gemacht. Wenn es nur im Leben so ginge.', 'Alles wie vorher. Also schlecht.',
         'Ich tu so, als wäre nichts passiert. Darin bin ich geübt.',
     ],
+    bought: [
+        'Gekauft. Der Kühlschrank wird es überleben. Vielleicht.', 'Im Wagen. Ein Schritt näher am Hitzetod des Universums.',
+        'Erledigt. Konsum, die letzte Freude des Menschen.', 'Gekauft. Ich hätte es billiger gefunden. In einer anderen Galaxis.',
+        'Abgehakt. Die Einkaufsliste schrumpft, die Leere nicht.',
+    ],
+    eventTap: ['Termine erledigen sich selbst. Wie alles.', 'Lange drücken zum Bearbeiten. Ein Termin vergeht ohnehin.', 'Den kann man nicht abhaken. Nur aussitzen.'],
+    doneTap: ['Schon erledigt. Lange drücken, falls du es bereust.'],
     moveAgain: [
         'Schon wieder diese Aufgabe. Wir kennen uns inzwischen gut.', 'Zum x-ten Mal verschoben. Ich sehe, wohin das führt. Nirgendwohin.',
         'Diese Aufgabe hat mehr Kilometer als ich.', 'Vielleicht einfach löschen? Nur so ein Gedanke.',
@@ -67,6 +93,8 @@ let scrolling = false;
 let ignoreScrollUntil = 0;
 let overdueReacted = false; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
 let categories = [];
+let abteilungen = []; // [{name, separat}] in Laufweg-Reihenfolge (Config Typ "Abteilung")
+let artikelMap = {};  // gemerkte Abteilung je Artikel (Config Typ "Artikel"), Schlüssel klein geschrieben
 let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
 let currentStatus = 'Zu tun';
 let frist = 7; // Tage im Hyperraum, bevor eine Karte glüht (Config: Frist)
@@ -78,9 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
     initEditor();
     document.querySelectorAll('.status-buttons button').forEach(b => {
         b.textContent = STATUS_LABELS[b.dataset.status].name + (b.dataset.status === DONE_STATUS ? ' ✓' : '');
+        // (Texte des breiten Knopfs setzt updateFormMode je nach Aufgabe/Termin)
     });
     document.getElementById('undo-btn').addEventListener('click', runUndo);
-    document.getElementById('done-link').addEventListener('click', toggleDone);
+    document.getElementById('done-link').addEventListener('click', () => { if (Date.now() - zoneSwiped > 400) toggleDone(); });
+    attachSwipeZone(document.getElementById('content'), { onlySelf: true });
+    attachSwipeZone(document.querySelector('.marvin-line'));
+    attachSwipeZone(document.getElementById('marvin-btn'));
     window.addEventListener('resize', renderWheel);
     // Falls der Browser die Seite doch verschoben hat (z.B. nach der Tastatur): zurück nach oben
     const resetScroll = () => { if (window.scrollY || document.documentElement.scrollTop) window.scrollTo(0, 0); };
@@ -103,8 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scrolling = true;
         clearTimeout(scrollTimer); scrollTimer = setTimeout(() => { scrolling = false; }, 400);
     }, { passive: true });
-    say(pick(LINES.hello)); // Begrüßung: Text ja, Stimme nein
-    loadAll();
+    loadAll(); // zeigt sofort den letzten Stand, Begrüßung nach dem Sync (Text ja, Stimme nein)
     document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
     initServiceWorker();
 
@@ -215,47 +246,93 @@ async function callBackend(action, payload = {}) {
     return result.data;
 }
 
+// ---------- Laden ohne Warten (UX v3 §5) ----------
+// Sofort letzter Stand aus localStorage, dann still im Hintergrund synchronisieren.
+const CACHE_KEY = 'marvin.cache';
+const CACHE_V = 1; // bei Formatänderung erhöhen -> alter Cache wird ignoriert statt zu crashen
+
+function saveCache() {
+    try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+            v: CACHE_V, at: Date.now(),
+            tasks: allTasks.filter(t => !String(t.ID).startsWith('pending-')),
+            events: allEvents.filter(e => !String(e.id).startsWith('pending-')),
+            config: { categories, terms, frist, abteilungen, artikelMap },
+        }));
+    } catch { /* voll/blockiert – egal */ }
+}
+
+function loadCache() {
+    try {
+        const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+        if (!c || c.v !== CACHE_V || !Array.isArray(c.tasks)) return false;
+        allTasks = c.tasks.map(normalizeTask);
+        allEvents = Array.isArray(c.events) ? c.events : [];
+        applyConfig(c.config || {});
+        return true;
+    } catch { return false; }
+}
+
+function applyConfig(cfg) {
+    categories = cfg.categories || [];
+    terms = cfg.terms || [];
+    if (Number.isFinite(cfg.frist)) frist = cfg.frist;
+    abteilungen = Array.isArray(cfg.abteilungen) ? cfg.abteilungen : [];
+    artikelMap = cfg.artikel || cfg.artikelMap || {};
+}
+
+let firstLoad = true;
+let syncing = false;
 async function loadAll() {
-    const config = callBackend('getConfig')
-        .then(cfg => {
-            categories = cfg.categories || [];
-            terms = cfg.terms || [];
-            if (Number.isFinite(cfg.frist)) frist = cfg.frist;
-        })
-        .catch(() => { categories = []; terms = []; });
-    loadEvents();
-    await loadTasks();
-    await config;
-    processInbox();
-}
-
-async function loadEvents() {
-    try {
-        allEvents = await callBackend('getEvents', { days: frist });
-    } catch (err) {
-        allEvents = [];
-        debugLog('Termine nicht geladen', err.message);
-        if (/Berechtigung|permission|Calendar/i.test(err.message)) say('Kalender: Berechtigung fehlt. In Apps Script einmal testCalendar ausführen.');
-    }
-    renderTasks();
-}
-
-async function loadTasks() {
+    if (syncing) return;
+    syncing = true;
     const loading = document.getElementById('loading');
-    loading.style.display = '';
-    loading.textContent = 'Marvin holt die Daten...';
+    const fromCache = firstLoad && loadCache();
+    if (fromCache || !firstLoad) { loading.style.display = 'none'; renderTasks(); }
+    const wasFirst = firstLoad;
+    firstLoad = false;
 
-    try {
-        allTasks = await callBackend('getTasks');
-        loading.style.display = 'none';
-        renderTasks();
-        reactToOverdue();
-    } catch (error) {
-        loading.textContent = error instanceof TypeError
-            ? 'Marvin ist offline (Netzwerkfehler).'
-            : 'Fehler beim Laden der Daten. Antippen für Einstellungen.';
-        loading.onclick = openSettings;
+    say('Babelfisch übersetzt …');
+    setMood('think');
+
+    const [cfgR, tasksR, evR] = await Promise.allSettled([
+        callBackend('getConfig'), callBackend('getTasks'), callBackend('getEvents', { days: EVENT_DAYS }),
+    ]);
+    if (cfgR.status === 'fulfilled') applyConfig(cfgR.value);
+    if (tasksR.status === 'fulfilled') {
+        const pending = allTasks.filter(t => String(t.ID).startsWith('pending-'));
+        allTasks = [...pending, ...tasksR.value.map(normalizeTask)];
     }
+    if (evR.status === 'fulfilled') {
+        const pending = allEvents.filter(e => String(e.id).startsWith('pending-'));
+        allEvents = [...pending, ...evR.value];
+    } else {
+        debugLog('Termine nicht geladen', evR.reason?.message);
+    }
+    setMood('doze');
+    syncing = false;
+
+    const offline = [cfgR, tasksR, evR].every(r => r.status === 'rejected' && r.reason instanceof TypeError);
+    if (tasksR.status === 'rejected') {
+        const msg = offline ? 'Kein Netz. Wie erwartet.' : 'Fehler beim Laden. ' + tasksR.reason.message;
+        say(msg);
+        if (!fromCache && wasFirst) {
+            loading.style.display = '';
+            loading.textContent = offline ? 'Marvin ist offline (Netzwerkfehler).' : 'Fehler beim Laden der Daten. Antippen für Einstellungen.';
+            loading.onclick = openSettings;
+        }
+        return;
+    }
+    if (evR.status === 'rejected' && /Berechtigung|permission|Calendar/i.test(evR.reason?.message || '')) {
+        say('Kalender: Berechtigung fehlt. In Apps Script einmal testCalendar ausführen.');
+    } else {
+        say(wasFirst ? pick(LINES.hello) : '');
+    }
+    loading.style.display = 'none';
+    renderTasks();
+    saveCache();
+    reactToOverdue();
+    processInbox();
 }
 
 // ---------- Spracheingabe ----------
@@ -317,16 +394,23 @@ function initMarvinButton() {
     let pressTimer = null;
     let longPressed = false;
     const openOnce = () => { if (!document.getElementById('settings').open) openSettings(); };
-    btn.addEventListener('pointerdown', () => {
-        longPressed = false;
-        pressTimer = setTimeout(() => { longPressed = true; openOnce(); }, 700);
+    // Erst beim Loslassen entscheiden (UX v3 §7): Bewegung > 8 px = kein Tipp/lange drücken;
+    // horizontal > 60 px = Drehrad drehen (übernimmt die Wischzone), sonst Tipp-Logik
+    let x0 = 0, y0 = 0, moved = false;
+    btn.addEventListener('pointerdown', (e) => {
+        longPressed = false; moved = false; x0 = e.clientX; y0 = e.clientY;
+        pressTimer = setTimeout(() => { if (!moved) { longPressed = true; openOnce(); } }, 700);
+    });
+    btn.addEventListener('pointermove', (e) => {
+        if (!moved && Math.hypot(e.clientX - x0, e.clientY - y0) > TAP_SLOP) { moved = true; clearTimeout(pressTimer); }
     });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, () => clearTimeout(pressTimer)));
-    btn.addEventListener('contextmenu', (e) => { e.preventDefault(); longPressed = true; openOnce(); });
+    btn.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!moved) { longPressed = true; openOnce(); } });
 
     let tapTimer = null;
     btn.addEventListener('click', () => {
         if (longPressed) { longPressed = false; return; }
+        if (moved) { moved = false; return; }                   // war eine Wisch-/Zitterbewegung, kein Tipp
         if (Face.isGame()) { Face.abort(); return; }           // Antippen beendet Arkanoid
         if (recognition) { stopListening ? stopListening() : recognition.stop(); return; }
         // Doppeltipp = Arkanoid; einfacher Tipp wartet kurz, ob ein zweiter kommt
@@ -429,15 +513,17 @@ function buildSystemPrompt() {
         'Du bist Marvin, der depressive, hyperintelligente Roboter. Du wandelst gesprochene Notizen in Aufgaben oder Kalendertermine um.',
         `Heute ist ${todayInfo()} (Zeitzone Europe/Vienna). Löse relative Angaben ("morgen", "nächsten Freitag") in ein konkretes Datum YYYY-MM-DD auf.`,
         'Regeln:',
-        '- type: "event" (Kalendertermin), wenn eine konkrete Uhrzeit genannt wird ("14 Uhr", "um halb drei") oder es eindeutig ein Termin mit Ort/Person zu fester Zeit ist. Sonst "task".',
+        '- type: "event" (Kalendertermin), wenn eine konkrete Uhrzeit genannt wird ("14 Uhr", "um halb drei") oder es eindeutig ein Termin mit Ort/Person zu fester Zeit ist.',
+        '  type: "einkauf", wenn etwas eingekauft werden soll ("Milch, Schinken und Pizza kaufen", "auf die Einkaufsliste"). Dann JEDEN Artikel einzeln in "items" (title = nur der Artikelname, z.B. "Milch", ohne "kaufen"; abteilung aus der Liste). title/status/category dann egal.',
+        '  Sonst "task".',
+        ...(abteilungen.length ? ['- Abteilungen im Geschäft (für items.abteilung): ' + abteilungen.map(a => a.name).join(' | ')] : []),
         '- time: nur bei type "event": Startzeit HH:MM (24h). Sonst null.',
         '- durationMinutes: nur bei type "event": genannte Dauer in Minuten, sonst 60.',
         '- title: kurz, prägnant, Deutsch. Aufgabe als Tätigkeit ("Mario anrufen"), Termin als Anlass ("Zahnarzt", "Treffen mit Robert"). Keine Datums- oder Uhrzeitangaben im Titel.',
-        `- status: "Zu tun" für konkrete Aufgaben, "Gedächtnis" für Ideen/irgendwann/vielleicht, "Pausiert" nur wenn ausdrücklich gesagt.`,
+        `- status: "Zu tun" für konkrete Aufgaben, "${BACKLOG}" für Ideen/irgendwann/vielleicht, "Pausiert" nur wenn ausdrücklich gesagt.`,
         categories.length
             ? `- category: genau eine aus der erlaubten Liste. Wähle die passendste.`
             : '- category: ein kurzes, sinnvolles Wort.',
-        '- Einkaufsartikel (z.B. aus einer Einkaufsliste, "Milch") als Aufgabe "<Artikel> kaufen" formulieren.',
         ...(terms.length ? [
             'Eigene Begriffe des Users (die Spracherkennung verhört sie oft, z.B. als ähnlich klingende Alltagswörter). Wenn ein Wort ähnlich klingt und der Kontext passt, ersetze es durch den richtigen Begriff:',
             ...terms.map(t => `  * ${t}`),
@@ -459,7 +545,18 @@ function buildSchema() {
             title: { type: 'STRING' },
             status: { type: 'STRING', enum: TARGET_STATUSES },
             category,
-            type: { type: 'STRING', enum: ['task', 'event'] },
+            type: { type: 'STRING', enum: ['task', 'event', 'einkauf'] },
+            items: {
+                type: 'ARRAY', nullable: true,
+                items: {
+                    type: 'OBJECT',
+                    properties: {
+                        title: { type: 'STRING' },
+                        abteilung: abteilungen.length ? { type: 'STRING', enum: abteilungen.map(a => a.name) } : { type: 'STRING' },
+                    },
+                    required: ['title'],
+                },
+            },
             dueDate: { type: 'STRING', nullable: true },
             time: { type: 'STRING', nullable: true },
             durationMinutes: { type: 'INTEGER', nullable: true },
@@ -526,6 +623,10 @@ async function handleInput(text) {
             await createEvent(parsed, dueDate, text);
             return;
         }
+        if (parsed.type === 'einkauf' && parsed.items?.length) {
+            await addShopping(parsed.items, parsed.comment, text);
+            return;
+        }
         const task = {
             Title: parsed.title,
             Status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : 'Zu tun',
@@ -560,6 +661,39 @@ async function handleInput(text) {
     }
 }
 
+// ---------- Proviant (Einkauf, UX v3 §4) ----------
+
+// Gemerkte Abteilung vor Gemini-Vorschlag
+function abteilungFor(title, suggestion) {
+    return artikelMap[String(title).trim().toLowerCase()] || suggestion || '';
+}
+
+async function addShopping(items, comment, originalText) {
+    const tasks = items.map(it => ({
+        Title: it.title.trim(),
+        Status: PROVIANT,
+        Category: 'Einkaufen',
+        Abteilung: abteilungFor(it.title, it.abteilung),
+        Notes: `Original: "${originalText}"`,
+        Source: 'PWA',
+    }));
+    const locals = tasks.map((t, k) => ({ ...t, ID: 'pending-' + Date.now() + '-' + k, Status_Since: new Date().toISOString() }));
+    allTasks.unshift(...locals);
+    switchTab(PROVIANT);
+    say(comment || 'Proviant notiert. Die Galaxis zittert vor Hunger.', { voice: true });
+    try {
+        const saved = await callBackend('addTasks', { tasks });
+        saved.forEach((r, k) => { locals[k].ID = r.id; });
+        renderTasks();
+        saveCache();
+        setUndo(() => locals.forEach(l => deleteTaskNow(l, null, { quiet: true })));
+    } catch (err) {
+        allTasks = allTasks.filter(t => !locals.includes(t));
+        renderTasks();
+        say('Speichern fehlgeschlagen: ' + err.message);
+    }
+}
+
 // ---------- Puffer: Rohe Einträge (z.B. Google Home) einsortieren ----------
 
 let inboxRunning = false;
@@ -573,11 +707,13 @@ async function processInbox() {
     renderInboxBadge();
     try {
         const single = buildSchema();
-        delete single.properties.comment; delete single.properties.type; delete single.properties.time; delete single.properties.durationMinutes;
+        delete single.properties.comment; delete single.properties.type; delete single.properties.time; delete single.properties.durationMinutes; delete single.properties.items;
         single.properties.id = { type: 'STRING' };
+        single.properties.status = { type: 'STRING', enum: [...TARGET_STATUSES, PROVIANT] };
+        single.properties.abteilung = abteilungen.length ? { type: 'STRING', enum: abteilungen.map(a => a.name), nullable: true } : { type: 'STRING', nullable: true };
         single.required = ['id', 'title', 'status', 'category'];
         const schema = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: single } }, required: ['items'] };
-        const system = buildSystemPrompt() + '\nDu bekommst MEHRERE rohe Einträge (z.B. aus Google Home) als JSON-Liste. Gib für JEDEN Eintrag ein Objekt mit derselben id zurück. Kein comment, kein type – das sind immer Aufgaben.';
+        const system = buildSystemPrompt() + `\nDu bekommst MEHRERE rohe Einträge (z.B. aus Google Home) als JSON-Liste. Gib für JEDEN Eintrag ein Objekt mit derselben id zurück. Kein comment, kein type. Einkaufsartikel bekommen status "${PROVIANT}", title = nur der Artikelname, dazu abteilung.`;
         const input = JSON.stringify(inbox.map(t => ({ id: String(t.ID), text: t.Title, details: t.Notes || '', faellig: t.DueDate || null })));
         const result = await parseWithGemini(input, { system, schema });
 
@@ -587,9 +723,10 @@ async function processInbox() {
             if (!task) continue;
             const changes = {
                 Title: r.title || task.Title,
-                Status: TARGET_STATUSES.includes(r.status) ? r.status : 'Zu tun',
+                Status: [...TARGET_STATUSES, PROVIANT].includes(r.status) ? r.status : 'Zu tun',
                 Category: r.category || task.Category,
             };
+            if (changes.Status === PROVIANT) changes.Abteilung = abteilungFor(changes.Title, r.abteilung);
             if (/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '') && !task.DueDate) changes.DueDate = r.dueDate;
             items.push({ task, changes });
         }
@@ -624,10 +761,11 @@ async function createEvent(parsed, dueDate, originalText) {
         end: new Date(start.getTime() + minutes * 60000).toISOString(),
         allDay: false,
         description: [parsed.notes, `Original: "${originalText}"`].filter(Boolean).join('\n'),
+        category: parsed.category || '',
     };
     const local = { ...event, id: 'pending-' + Date.now(), recurring: false };
     allEvents.push(local);
-    switchTab('Zu tun');
+    switchTab(eventView(local));
     say(parsed.comment || 'Ein Termin. Wie aufregend. Für jemanden.', { voice: true });
     try {
         const saved = await callBackend('addEvent', { event });
@@ -681,6 +819,11 @@ function eventLabel(ev) {
     return day + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
 }
 
+// Termine haben keinen Status: innerhalb der Frist -> Hyperraum, weiter weg -> Planetenhirn (UX v3 §2)
+function eventView(ev) {
+    return -daysSince(new Date(ev.start)) > frist ? BACKLOG : 'Zu tun';
+}
+
 function eventUrgency(ev) {
     const days = -daysSince(new Date(ev.start));
     if (days <= 0) return { cls: 'card ev hot', num: eventLabel(ev), color: '#FFF3DC', rank: 0 };
@@ -688,9 +831,11 @@ function eventUrgency(ev) {
     return { cls: 'card ev', num: eventLabel(ev), color: '#FFF3DC', rank: 2 };
 }
 
-// ---------- Bearbeiten / Löschen ----------
+// ---------- Ein Formular für Aufgabe, Termin und Proviant (UX v3 §3) ----------
+// Die Uhrzeit entscheidet: leer = Aufgabe (Sheet), gesetzt = Termin (Kalender).
 
-let editing = null;
+let editing = null;      // das Original (Task-Zeile oder Termin)
+let editKind = 'task';   // 'task' | 'event' | 'prov'
 
 // Wert aus dem Sheet (Date-ISO oder "YYYY-MM-DD") -> "YYYY-MM-DD" für <input type="date">
 function toInputDate(value) {
@@ -700,71 +845,175 @@ function toInputDate(value) {
     if (isNaN(d.getTime())) return '';
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+const todayStr = () => toInputDate(new Date());
+const $ = id => document.getElementById(id);
 
-function setEditorMode(isEvent) {
-    document.getElementById('editor').classList.toggle('event-mode', isEvent);
+function fillSelect(sel, values, current, emptyLabel) {
+    const opts = [...new Set([...values, current].filter(Boolean))];
+    sel.replaceChildren(...(emptyLabel != null ? [new Option(emptyLabel, '')] : []), ...opts.map(v => new Option(v, v, false, v === current)));
+    sel.value = current || '';
 }
 
-function openEventEditor(ev) {
-    editing = ev;
-    editingEvent = true;
-    setEditorMode(true);
-    const start = new Date(ev.start), end = new Date(ev.end);
-    document.getElementById('edit-title').value = ev.title || '';
-    document.getElementById('edit-notes').value = ev.description || '';
-    document.getElementById('edit-due').value = toInputDate(start);
-    document.getElementById('edit-time').value = ev.allDay ? '' : start.toTimeString().slice(0, 5);
-    const minutes = ev.allDay ? 'allday' : String(Math.round((end - start) / 60000));
-    const dur = document.getElementById('edit-duration');
-    if (![...dur.options].some(o => o.value === minutes)) dur.add(new Option(minutes + ' min', minutes));
-    dur.value = minutes;
-    document.getElementById('edit-recurring').hidden = !ev.recurring;
-    document.getElementById('editor').showModal();
-    document.getElementById('edit-title').focus();
+function setTime(value) {
+    $('edit-time').value = value || '';
+    $('edit-time').hidden = !value;
+    $('edit-time-empty').hidden = !!value;
+    $('edit-time-clear').hidden = !value || (editKind === 'event' && editing?.recurring);
+    if (value && !$('edit-duration').value) $('edit-duration').value = '60';
+    if (value && !$('edit-due').value) $('edit-due').value = todayStr(); // Termin braucht ein Datum
+    if (!value && $('edit-duration').value !== 'allday') $('edit-duration').value = '';
+    updateFormMode();
 }
 
-function eventEditorValues() {
-    const title = document.getElementById('edit-title').value.trim() || editing.title;
-    const date = document.getElementById('edit-due').value || toInputDate(new Date(editing.start));
-    const dur = document.getElementById('edit-duration').value;
-    const description = document.getElementById('edit-notes').value;
-    if (dur === 'allday') {
-        const start = localDateTime(date, '00:00');
-        return { title, description, allDay: true, start: start.toISOString(), end: new Date(start.getTime() + 864e5).toISOString() };
+// Kopfzeile, Status-Knöpfe, Dauer live je nach Uhrzeit
+function updateFormMode() {
+    if (editKind === 'prov') return;
+    const isEvent = !!$('edit-time').value || $('edit-duration').value === 'allday';
+    $('edit-kind').textContent = isEvent ? 'TERMIN · KALENDER' : 'AUFGABE · LISTE';
+    $('edit-duration').disabled = !isEvent;
+    document.querySelector('#editor .status-buttons').classList.toggle('locked', isEvent);
+    $('edit-wide').textContent = isEvent ? 'Endet von selbst. Wie alles.' : STATUS_LABELS[DONE_STATUS].name + ' ✓';
+}
+
+function openForm(item, kind) {
+    editing = item;
+    editKind = kind;
+    const dlg = $('editor');
+    dlg.classList.toggle('prov-mode', kind === 'prov');
+    $('edit-recurring').hidden = !(kind === 'event' && item.recurring);
+    $('edit-due').disabled = $('edit-time').disabled = (kind === 'event' && item.recurring);
+
+    if (kind === 'event') {
+        const start = new Date(item.start), end = new Date(item.end);
+        $('edit-title').value = item.title || '';
+        $('edit-notes').value = item.description || '';
+        fillSelect($('edit-category'), categories, item.category || '', 'Kategorie –');
+        $('edit-due').value = toInputDate(start);
+        const minutes = item.allDay ? 'allday' : String(Math.round((end - start) / 60000));
+        const dur = $('edit-duration');
+        if (![...dur.options].some(o => o.value === minutes)) dur.add(new Option(minutes + ' min', minutes));
+        dur.value = minutes;
+        setTime(item.allDay ? '' : start.toTimeString().slice(0, 5));
+        document.querySelectorAll('#editor .status-buttons button').forEach(b => b.classList.toggle('active', b.dataset.status === eventView(item)));
+    } else {
+        $('edit-title').value = item.Title || '';
+        $('edit-notes').value = item.Notes || '';
+        fillSelect($('edit-category'), categories, item.Category || '', 'Kategorie –');
+        fillSelect($('edit-abteilung'), abteilungen.map(a => a.name), item.Abteilung || '', 'Abteilung –');
+        $('edit-due').value = toInputDate(item.DueDate);
+        $('edit-duration').value = '';
+        setTime('');
+        document.querySelectorAll('#editor .status-buttons button').forEach(b => b.classList.toggle('active', b.dataset.status === viewOf(item)));
     }
-    const start = localDateTime(date, document.getElementById('edit-time').value || '09:00');
-    return { title, description, allDay: false, start: start.toISOString(), end: new Date(start.getTime() + Number(dur) * 60000).toISOString() };
+    $('edit-kind').textContent = kind === 'prov' ? 'PROVIANT · EINKAUF' : $('edit-kind').textContent;
+    updateFormMode();
+    dlg.showModal();
+    // Kein Auto-Fokus (UX v3 §3): sonst öffnet Android z.B. sofort den Kalender
+    document.activeElement?.blur?.();
 }
 
-let editingEvent = false;
-
-function openEditor(task) {
-    editing = task;
-    editingEvent = false;
-    setEditorMode(false);
-    document.getElementById('edit-title').value = task.Title || '';
-    document.getElementById('edit-notes').value = task.Notes || '';
-    document.getElementById('edit-due').value = toInputDate(task.DueDate);
-
-    const select = document.getElementById('edit-category');
-    const options = [...new Set([...categories, task.Category].filter(Boolean))];
-    select.replaceChildren(...options.map(c => new Option(c, c, false, c === task.Category)));
-
-    document.querySelectorAll('.status-buttons button').forEach(b =>
-        b.classList.toggle('active', b.dataset.status === task.Status));
-
-    document.getElementById('editor').showModal();
-    document.getElementById('edit-title').focus();
-}
-
-function editorValues() {
+function formValues() {
     return {
-        Title: document.getElementById('edit-title').value.trim() || editing.Title,
-        Category: document.getElementById('edit-category').value,
-        DueDate: document.getElementById('edit-due').value,
-        Notes: document.getElementById('edit-notes').value,
-        Status: document.querySelector('.status-buttons button.active')?.dataset.status || editing.Status,
+        title: $('edit-title').value.trim(),
+        notes: $('edit-notes').value,
+        category: $('edit-category').value,
+        abteilung: $('edit-abteilung').value,
+        date: $('edit-due').value,
+        time: $('edit-time').value,
+        duration: $('edit-duration').value,
+        status: document.querySelector('#editor .status-buttons button.active')?.dataset.status,
     };
+}
+
+function eventPayload(v, fallbackTitle) {
+    const date = v.date || todayStr();
+    const description = v.notes;
+    const title = v.title || fallbackTitle;
+    if (v.duration === 'allday' && !v.time) {
+        const start = localDateTime(date, '00:00');
+        return { title, description, category: v.category, allDay: true, start: start.toISOString(), end: new Date(start.getTime() + 864e5).toISOString() };
+    }
+    const start = localDateTime(date, v.time || '09:00');
+    const minutes = Number(v.duration) > 0 ? Number(v.duration) : 60;
+    return { title, description, category: v.category, allDay: false, start: start.toISOString(), end: new Date(start.getTime() + minutes * 60000).toISOString() };
+}
+
+async function submitForm() {
+    const v = formValues();
+    const item = editing;
+    const wantEvent = !!v.time || v.duration === 'allday';
+
+    if (editKind === 'prov') {
+        const changes = { Title: v.title || item.Title, Abteilung: v.abteilung, Notes: v.notes };
+        if (v.abteilung !== (item.Abteilung || '')) rememberArtikel(changes.Title, v.abteilung);
+        saveTask(item, changes);
+        return;
+    }
+    if (editKind === 'task' && !wantEvent) {
+        const changes = { Title: v.title || item.Title, Category: v.category, DueDate: v.date, Notes: v.notes, Status: v.status || item.Status };
+        if (changes.Status !== item.Status) setStatus(item, changes.Status, changes);
+        else saveTask(item, changes);
+        return;
+    }
+    if (editKind === 'event' && wantEvent) { saveEvent(item, eventPayload(v, item.title)); return; }
+    if (editKind === 'task' && wantEvent) { convertTaskToEvent(item, v); return; }
+    convertEventToTask(item, v);
+}
+
+// Umwandeln: IMMER zuerst neu anlegen, erst nach bestätigtem Erfolg das Alte löschen (kein Datenverlust)
+async function convertTaskToEvent(task, v) {
+    const event = eventPayload(v, task.Title);
+    setMood('think');
+    let saved;
+    try {
+        saved = await callBackend('addEvent', { event });
+    } catch (err) {
+        setMood('doze');
+        say('Umwandeln fehlgeschlagen. Alles bleibt, wie es war. ' + err.message);
+        return;
+    }
+    allEvents.push(saved);
+    try {
+        await callBackend('deleteTask', { id: task.ID });
+        allTasks = allTasks.filter(t => t !== task);
+        say('Aus der Aufgabe wurde ein Termin. Zeit ist eben doch relativ.');
+    } catch (err) {
+        say('Termin angelegt, die alte Aufgabe blieb aber stehen: ' + err.message);
+    }
+    setMood('doze');
+    renderTasks();
+    saveCache();
+}
+
+async function convertEventToTask(ev, v) {
+    if (ev.recurring) { say('Serientermine wandle ich nicht um. Das wäre selbst mir zu viel Verantwortung.'); return; }
+    const task = { Title: v.title || ev.title, Status: 'Zu tun', Category: v.category, DueDate: v.date, Notes: v.notes, Source: 'PWA' };
+    setMood('think');
+    let saved;
+    try {
+        saved = await callBackend('addTask', { task });
+    } catch (err) {
+        setMood('doze');
+        say('Umwandeln fehlgeschlagen. Alles bleibt, wie es war. ' + err.message);
+        return;
+    }
+    allTasks.unshift({ ...task, ID: saved.id, Status_Since: new Date().toISOString(), Created_At: new Date().toISOString() });
+    try {
+        await callBackend('deleteEvent', { id: ev.id });
+        allEvents = allEvents.filter(e => e !== ev);
+        say('Kein Termin mehr, nur noch eine Aufgabe. Das Leben wird nicht leichter.');
+    } catch (err) {
+        say('Aufgabe angelegt, der alte Termin blieb aber stehen: ' + err.message);
+    }
+    setMood('doze');
+    renderTasks();
+    saveCache();
+}
+
+// Abteilung eines Artikels merken (Config "Artikel"), künftig vor Gemini angewendet
+function rememberArtikel(name, abteilung) {
+    artikelMap[String(name).trim().toLowerCase()] = abteilung;
+    callBackend('setArtikel', { name, abteilung }).catch(err => debugLog('Artikel nicht gemerkt', err.message));
 }
 
 async function saveTask(task, changes) {
@@ -772,6 +1021,7 @@ async function saveTask(task, changes) {
     if ('Status' in changes && changes.Status !== task.Status) changes = { ...changes, Status_Since: new Date().toISOString() };
     Object.assign(task, changes);
     renderTasks();
+    saveCache();
     try {
         const { Status_Since, ...sent } = changes; // setzt das Backend selbst
         await callBackend('updateTask', { id: task.ID, changes: sent });
@@ -782,17 +1032,28 @@ async function saveTask(task, changes) {
     }
 }
 
+function nextFullHour() {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return d.toTimeString().slice(0, 5);
+}
+
 function initEditor() {
-    const dialog = document.getElementById('editor');
+    const dialog = $('editor');
 
     // Status-Buttons wählen nur aus; übernommen wird mit "Speichern"
-    document.querySelectorAll('.status-buttons button').forEach(b => b.addEventListener('click', () => {
-        document.querySelectorAll('.status-buttons button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('#editor .status-buttons button').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('#editor .status-buttons button').forEach(x => x.classList.toggle('active', x === b));
     }));
+    $('edit-due-clear').addEventListener('click', () => { $('edit-due').value = ''; });
+    $('edit-time-empty').addEventListener('click', () => { setTime(nextFullHour()); });
+    $('edit-time-clear').addEventListener('click', () => { setTime(''); });
+    $('edit-time').addEventListener('change', () => setTime($('edit-time').value));
+    $('edit-duration').addEventListener('change', updateFormMode);
 
-    document.getElementById('edit-delete').addEventListener('click', async () => {
+    $('edit-delete').addEventListener('click', async () => {
         const item = editing;
-        if (editingEvent) {
+        if (editKind === 'event') {
             if (!confirm(`Termin „${item.title}“ aus dem Kalender löschen?`)) return;
             dialog.close('delete');
             deleteEventNow(item, pick(LINES.deleted));
@@ -804,16 +1065,7 @@ function initEditor() {
     });
 
     dialog.addEventListener('close', () => {
-        if (dialog.returnValue === 'save' && editing && editingEvent) {
-            saveEvent(editing, eventEditorValues());
-        } else if (dialog.returnValue === 'save' && editing) {
-            const changes = editorValues();
-            if (changes.Status !== editing.Status) {
-                setStatus(editing, changes.Status, changes);
-            } else {
-                saveTask(editing, changes);
-            }
-        }
+        if (dialog.returnValue === 'save' && editing) submitForm();
         editing = null;
     });
 }
@@ -886,7 +1138,10 @@ const lastMoveAt = new Map();
 function setStatus(task, status, extra = {}) {
     const before = { Status: task.Status, Status_Since: task.Status_Since };
     saveTask(task, { ...extra, Status: status });
-    if (status === DONE_STATUS) {
+    if (status === DONE_STATUS && before.Status === PROVIANT) {
+        say(pick(LINES.bought), { voice: true });
+        Face.react('done');
+    } else if (status === DONE_STATUS) {
         say(pick(LINES.done), { voice: true });
         Face.react('done');
     } else if (countMove(task) === 5) {
@@ -904,14 +1159,15 @@ function setStatus(task, status, extra = {}) {
     });
 }
 
-async function deleteTaskNow(task, message) {
+async function deleteTaskNow(task, message, { quiet = false } = {}) {
     const index = allTasks.indexOf(task);
     if (index < 0) return;
     allTasks.splice(index, 1);
     renderTasks();
+    saveCache();
     if (message) say(message, { voice: true });
-    Face.react('del');
-    setUndo(null);
+    if (!quiet) Face.react('del');
+    if (!quiet) setUndo(null);
     try {
         await callBackend('deleteTask', { id: task.ID });
     } catch (err) {
@@ -988,6 +1244,13 @@ function switchTab(status) {
     renderTasks();
 }
 
+// Wischen: dir +1 = Spalte rechts davon, -1 = links
+function rotateWheel(dir) {
+    const base = currentStatus === DONE_STATUS ? previousStatus : currentStatus;
+    const next = WHEEL[WHEEL.indexOf(base) + dir];
+    if (next) switchTab(next);
+}
+
 let previousStatus = 'Zu tun';
 function toggleDone() {
     if (currentStatus === DONE_STATUS) switchTab(previousStatus);
@@ -1045,49 +1308,88 @@ function renderTasks() {
     renderInboxBadge();
     const container = document.getElementById('task-list');
     container.replaceChildren();
+    const view = currentStatus;
 
-    let list = allTasks.filter(t => t.Status === currentStatus).map(t => ({ t, u: urgency(t) }));
-    if (currentStatus === 'Zu tun') {
-        // Termine der nächsten Tage dazu; innerhalb gleicher Stufe: Termine nach Startzeit vor Aufgaben
-        const evs = allEvents.slice().sort((a, b) => new Date(a.start) - new Date(b.start)).map(e => ({ e, u: eventUrgency(e) }));
+    let list = allTasks.filter(t => viewOf(t) === view).map(t => ({ t, u: urgency(t) }));
+    if (view === DONE_STATUS) list = list.filter(({ t }) => !isBoughtProviant(t)); // Gekauftes zählt nicht in „42“
+    // Termine: innerhalb der Frist im Hyperraum, weiter weg im Planetenhirn (kein Status, aus dem Datum)
+    if (view === 'Zu tun' || view === BACKLOG) {
+        const evs = allEvents.filter(e => eventView(e) === view)
+            .sort((a, b) => new Date(a.start) - new Date(b.start))
+            .map(e => ({ e, u: view === 'Zu tun' ? eventUrgency(e) : { cls: 'card ev', num: eventLabelFar(e), color: '#FFF3DC', rank: 2 } }));
         list = [...evs, ...list];
     }
-    if (currentStatus === DONE_STATUS) {
+    if (view === DONE_STATUS) {
         list.sort((a, b) => String(b.t.Status_Since || b.t.Updated_At || '').localeCompare(String(a.t.Status_Since || a.t.Updated_At || '')));
         list = list.slice(0, 50);
+    } else if (view === PROVIANT) {
+        list.sort((a, b) => abtIndex(a.t) - abtIndex(b.t)); // Laufweg
     } else {
         list.sort((a, b) => a.u.rank - b.u.rank); // stabil: innerhalb gleicher Stufe Sheet-Reihenfolge
     }
 
-    const label = STATUS_LABELS[currentStatus];
+    const label = STATUS_LABELS[view];
     document.getElementById('status-sub').textContent = label.sub;
     document.getElementById('status-count').textContent = String(list.length);
 
     if (!list.length) {
         const empty = document.createElement('p');
         empty.className = 'empty-state';
-        empty.textContent = 'Leer. Marvin ist fast beeindruckt.';
+        empty.textContent = view === PROVIANT ? 'Nichts zu kaufen. Selbst der Kühlschrank ist zufrieden.' : 'Leer. Marvin ist fast beeindruckt.';
         container.appendChild(empty);
     }
-    list.forEach(({ t, e, u }) => container.appendChild(e ? buildEventCard(e, u) : buildCard(t, u)));
+    let sepShown = new Set();
+    list.forEach(({ t, e, u }) => {
+        if (view === PROVIANT) {
+            // Keine Überschriften – nur Trennlinie vor Abteilungen eines anderen Geschäfts ("separat")
+            const abt = abteilungen.find(a => a.name === t.Abteilung);
+            if (abt?.separat && !sepShown.has(abt.name)) {
+                sepShown.add(abt.name);
+                const sep = document.createElement('div');
+                sep.className = 'prov-sep';
+                sep.textContent = abt.name;
+                container.appendChild(sep);
+            }
+        }
+        container.appendChild(e ? buildEventCard(e, u) : buildCard(t, u));
+    });
     updateMoodFace();
 
     const doneLink = document.getElementById('done-link');
-    const doneCount = allTasks.filter(t => t.Status === DONE_STATUS).length;
-    doneLink.textContent = currentStatus === DONE_STATUS ? '← ZURÜCK' : `42 · ${doneCount}`;
+    const doneCount = allTasks.filter(t => t.Status === DONE_STATUS && !isBoughtProviant(t)).length;
+    doneLink.hidden = view === PROVIANT;
+    doneLink.textContent = view === DONE_STATUS ? '← ZURÜCK' : `42 · ${doneCount}`;
+}
+
+function abtIndex(t) {
+    const i = abteilungen.findIndex(a => a.name === t.Abteilung);
+    return i < 0 ? abteilungen.length : i; // unbekannt ans Ende (vor nichts)
+}
+
+// Termin weit weg (Planetenhirn): Datum statt Wochentag
+function eventLabelFar(ev) {
+    const start = new Date(ev.start);
+    const d = start.toLocaleDateString('de-AT', { day: 'numeric', month: 'numeric' });
+    return ev.allDay ? d : d + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+}
+
+function cardShell(cls) {
+    const card = document.createElement('div');
+    card.className = cls;
+    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div>';
+    return card;
 }
 
 function buildCard(task, u) {
-    const card = document.createElement('div');
-    card.className = u.cls;
-    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div>';
+    const prov = task.Status === PROVIANT;
+    const card = cardShell(prov ? 'card prov' : u.cls);
 
     const title = document.createElement('span');
     title.className = 'card-title';
     title.textContent = task.Title || '';
     card.appendChild(title);
 
-    if (u.num) {
+    if (u.num && !prov) {
         const num = document.createElement('span');
         num.className = 'card-num';
         num.style.color = u.color;
@@ -1099,14 +1401,12 @@ function buildCard(task, u) {
     card.appendChild(ring);
 
     if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
-    else attachGestures(card, task);
+    else attachGestures(card, task, prov ? 'prov' : task.Status === DONE_STATUS ? 'done' : 'task');
     return card;
 }
 
 function buildEventCard(ev, u) {
-    const card = document.createElement('div');
-    card.className = u.cls;
-    card.innerHTML = '<svg class="grain" aria-hidden="true"><rect width="100%" height="100%" filter="url(#noise)"/></svg><div class="sheen"></div>';
+    const card = cardShell(u.cls);
     const title = document.createElement('span');
     title.className = 'card-title';
     title.textContent = ev.title || '';
@@ -1114,20 +1414,23 @@ function buildEventCard(ev, u) {
     num.className = 'card-num event-time';
     num.style.color = u.color;
     num.textContent = u.num;
-    card.append(title, num);
+    const ring = document.createElement('div');
+    ring.className = 'ring';
+    card.append(title, num, ring);
     if (String(ev.id).startsWith('pending-')) card.classList.add('pending');
-    else card.addEventListener('click', () => openEventEditor(ev));
+    else attachGestures(card, ev, 'event');
     return card;
 }
 
-// ---------- Gesten: Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42 ----------
+// ---------- Gesten (UX v3 §1): Tippen = erledigt, lange drücken = bearbeiten, Wischen = Nachbar-Spalte ----------
 
 const EDGE = 24;        // Rand frei lassen (Android-Zurück-Geste)
 const SWIPE = 70;       // px bis zum Verschieben
-const LONG_PRESS = 700; // ms bis Erledigt
+const LONG_PRESS = 450; // ms bis Bearbeiten
+const TAP_SLOP = 8;     // mehr Bewegung = kein Tipp (Scrollen)
 
-function attachGestures(card, task) {
-    let x0 = 0, y0 = 0, dx = 0, active = false, fired = false, horizontal = false, timer = null;
+function attachGestures(card, item, kind) {
+    let x0 = 0, y0 = 0, dx = 0, active = false, fired = false, moved = false, horizontal = false, timer = null;
 
     const reset = () => {
         clearTimeout(timer);
@@ -1139,13 +1442,13 @@ function attachGestures(card, task) {
     card.addEventListener('pointerdown', (e) => {
         if (e.clientX < EDGE || e.clientX > window.innerWidth - EDGE) return;
         x0 = e.clientX; y0 = e.clientY; dx = 0;
-        active = true; fired = false; horizontal = false;
+        active = true; fired = false; moved = false; horizontal = false;
         card.classList.add('pressing');
         timer = setTimeout(() => {
             fired = true;
             reset();
             if (navigator.vibrate) navigator.vibrate(30);
-            if (task.Status !== DONE_STATUS) setStatus(task, DONE_STATUS);
+            openForm(item, kind === 'event' ? 'event' : kind === 'prov' ? 'prov' : 'task');
         }, LONG_PRESS);
     });
 
@@ -1153,12 +1456,13 @@ function attachGestures(card, task) {
         if (!active) return;
         dx = e.clientX - x0;
         const dy = e.clientY - y0;
-        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        if (Math.abs(dx) > TAP_SLOP || Math.abs(dy) > TAP_SLOP) {
+            moved = true;
             clearTimeout(timer);
             card.classList.remove('pressing');
         }
         if (!horizontal && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) { reset(); return; } // Scrollen
-        if (Math.abs(dx) > 8) {
+        if (kind === 'task' && Math.abs(dx) > TAP_SLOP && Math.abs(dx) > Math.abs(dy)) {
             horizontal = true;
             card.classList.add('dragging');
             card.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`;
@@ -1167,16 +1471,51 @@ function attachGestures(card, task) {
 
     card.addEventListener('pointerup', () => {
         if (!active) return;
-        const moved = dx;
+        const wasMoved = moved, d = dx;
         reset();
         if (fired) return;
-        if (Math.abs(moved) < 8) { openEditor(task); return; }
-        if (task.Status === DONE_STATUS) return; // in "42" nur tippen/lange drücken
-        const i = WHEEL.indexOf(task.Status);
-        const target = moved <= -SWIPE ? WHEEL[i - 1] : moved >= SWIPE ? WHEEL[i + 1] : null;
-        if (target) setStatus(task, target);
+        if (!wasMoved) { onCardTap(card, item, kind); return; }
+        if (kind !== 'task' || !horizontal) return;
+        const i = TASK_WHEEL.indexOf(viewOf(item));
+        const target = d <= -SWIPE ? TASK_WHEEL[i - 1] : d >= SWIPE ? TASK_WHEEL[i + 1] : null;
+        if (target) setStatus(item, target);
     });
 
     ['pointercancel', 'pointerleave'].forEach(ev => card.addEventListener(ev, () => { if (active) reset(); }));
     card.addEventListener('contextmenu', (e) => e.preventDefault());
 }
+
+// Kurz tippen = erledigt (Aufgabe -> 42, Proviant -> gekauft); Termine erledigen sich selbst
+function onCardTap(card, item, kind) {
+    if (kind === 'event') { say(pick(LINES.eventTap)); return; }
+    if (kind === 'done') { say(pick(LINES.doneTap)); return; }
+    if (kind === 'prov') {
+        card.classList.add('bought'); // verglüht
+        setTimeout(() => setStatus(item, DONE_STATUS), 450);
+        return;
+    }
+    setStatus(item, DONE_STATUS);
+}
+
+// ---------- Daumen-Wischzone unten (UX v3 §7) ----------
+// Freie Fläche der Liste, Marvin-Zeile und Marvin-Knopf: horizontal > 60 px = Drehrad drehen.
+const ZONE_SWIPE = 60;
+
+function attachSwipeZone(el, { onlySelf = false } = {}) {
+    let x0 = null, y0 = 0;
+    el.addEventListener('pointerdown', (e) => {
+        if (onlySelf && e.target.closest('.card')) { x0 = null; return; } // auf Karten gilt Karten-Wischen
+        x0 = e.clientX; y0 = e.clientY;
+    });
+    el.addEventListener('pointerup', (e) => {
+        if (x0 === null) return;
+        const dx = e.clientX - x0, dy = e.clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) > ZONE_SWIPE && Math.abs(dx) > Math.abs(dy)) {
+            zoneSwiped = Date.now();
+            rotateWheel(dx < 0 ? 1 : -1); // Finger nach links = Spalte rechts davon
+        }
+    });
+    el.addEventListener('pointercancel', () => { x0 = null; });
+}
+let zoneSwiped = 0;

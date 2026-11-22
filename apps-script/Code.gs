@@ -1,6 +1,6 @@
 const SHEET_TASKS = 'Tasks';
 const SHEET_CONFIG = 'Config';
-const BACKEND_VERSION = '0.11'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '0.12'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 function doPost(e) {
   try {
@@ -20,6 +20,10 @@ function doPost(e) {
       data = deleteTask(payload.id);
     } else if (action === 'addTask') {
       data = addTask(payload.task);
+    } else if (action === 'addTasks') {
+      data = (payload.tasks || []).map(addTask); // mehrere auf einmal (Einkauf)
+    } else if (action === 'setArtikel') {
+      data = setArtikel_(payload.name, payload.abteilung);
     } else if (action === 'updateTasks') {
       data = (payload.items || []).map(it => updateTask(it.id, it.changes)); // mehrere auf einmal (Puffer)
     } else if (action === 'getEvents') {
@@ -97,7 +101,8 @@ function getTasks() {
 
 function addTask(task) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
-  const headers = ensureColumn_(sheet, 'Status_Since');
+  ensureColumn_(sheet, 'Status_Since');
+  const headers = ensureColumn_(sheet, 'Abteilung');
   const id = Utilities.getUuid();
   const now = new Date().toISOString();
   const values = {
@@ -111,6 +116,7 @@ function addTask(task) {
     Created_At: now,
     Updated_At: now,
     Status_Since: now,
+    Abteilung: task.Abteilung || '',
   };
   sheet.appendRow(headers.map(h => h in values ? values[h] : ''));
   return { id: id, title: task.Title, statusSince: now };
@@ -139,10 +145,16 @@ function eventToJson_(ev) {
     description: ev.getDescription() || '',
     location: ev.getLocation() || '',
     recurring: ev.isRecurringEvent(),
+    category: safeTag_(ev),
   };
 }
 
-// Termine von heute 00:00 bis heute + days (Standard 7); bereits vorbei = weggelassen
+// Kategorie unsichtbar am Termin (Tag); Termine ohne Tag -> ''
+function safeTag_(ev) {
+  try { return ev.getTag('marvinCategory') || ''; } catch (err) { return ''; }
+}
+
+// Termine von heute 00:00 bis heute + days (App fragt 60 Tage an); bereits vorbei = weggelassen
 function getEvents(days) {
   const cal = CalendarApp.getDefaultCalendar();
   const from = new Date(); from.setHours(0, 0, 0, 0);
@@ -169,6 +181,7 @@ function addEvent(event) {
   const ev = event.allDay
     ? cal.createAllDayEvent(event.title, new Date(event.start), opts)
     : cal.createEvent(event.title, new Date(event.start), new Date(event.end), opts);
+  if (event.category) ev.setTag('marvinCategory', event.category);
   return eventToJson_(ev);
 }
 
@@ -178,6 +191,7 @@ function updateEvent(id, changes) {
   if (ev.isRecurringEvent()) throw new Error('Serientermine bitte im Google Kalender ändern');
   if ('title' in changes) ev.setTitle(changes.title);
   if ('description' in changes) ev.setDescription(changes.description || '');
+  if ('category' in changes) ev.setTag('marvinCategory', changes.category || '');
   if (changes.allDay) ev.setAllDayDate(new Date(changes.start));
   else if (changes.start && changes.end) ev.setTime(new Date(changes.start), new Date(changes.end));
   return eventToJson_(ev);
@@ -198,24 +212,26 @@ function testCalendar() {
 
 function getConfig() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG);
-  if (!sheet) return { statuses: [], categories: [], terms: [] };
+  if (!sheet) return { statuses: [], categories: [], terms: [], abteilungen: [], artikel: {} };
   
   const data = sheet.getDataRange().getValues();
   data.shift(); 
   
-  let config = { statuses: [], categories: [], terms: [] };
+  let config = { statuses: [], categories: [], terms: [], abteilungen: [], artikel: {} };
   data.forEach(row => {
     if (row[0] === 'Status' && row[1]) config.statuses.push(row[1]);
     if (row[0] === 'Category' && row[1]) config.categories.push(row[1]);
     if (row[0] === 'Begriff' && row[1]) config.terms.push(row[1]); // eigenes Vokabular, z.B. "Vaget – Verein"
     if (row[0] === 'Frist' && row[1] !== '') config.frist = Number(row[1]); // Tage im Hyperraum, bevor es glüht
+    if (row[0] === 'Abteilung' && row[1]) config.abteilungen.push({ name: String(row[1]), separat: String(row[2] || '').trim().toLowerCase() === 'separat' });
+    if (row[0] === 'Artikel' && row[1]) config.artikel[String(row[1]).trim().toLowerCase()] = String(row[2] || '');
   });
   
   return config;
 }
 // ---------- Bearbeiten / Löschen ----------
 
-const EDITABLE_FIELDS = ['Title', 'Status', 'Category', 'DueDate', 'Notes'];
+const EDITABLE_FIELDS = ['Title', 'Status', 'Category', 'DueDate', 'Notes', 'Abteilung'];
 
 function findRow_(sheet, id) {
   const ids = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 1), 1).getValues();
@@ -227,7 +243,8 @@ function findRow_(sheet, id) {
 
 function updateTask(id, changes) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_TASKS);
-  const headers = ensureColumn_(sheet, 'Status_Since');
+  ensureColumn_(sheet, 'Status_Since');
+  const headers = ensureColumn_(sheet, 'Abteilung');
   const row = findRow_(sheet, id);
   const now = new Date().toISOString();
 
@@ -329,4 +346,20 @@ function testGoogleTasks() {
     const open = (Tasks.Tasks.list(list.id, { showCompleted: false, maxResults: 100 }).items || []);
     console.log('Liste "' + list.title + '": ' + open.length + ' offen -> ' + open.map(t => t.title).join(' | '));
   });
+}
+
+// ---------- Proviant: Abteilung je Artikel merken (Config Typ "Artikel", Spalte C = Abteilung) ----------
+function setArtikel_(name, abteilung) {
+  name = String(name || '').trim();
+  if (!name) throw new Error('Artikel ohne Namen');
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONFIG);
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][0] === 'Artikel' && String(values[i][1]).trim().toLowerCase() === name.toLowerCase()) {
+      sheet.getRange(i + 1, 3).setValue(abteilung || '');
+      return { name: name, abteilung: abteilung };
+    }
+  }
+  sheet.appendRow(['Artikel', name, abteilung || '']);
+  return { name: name, abteilung: abteilung };
 }

@@ -54,15 +54,26 @@
 
     <dialog id="editor" class="sheet">
         <form method="dialog" id="editor-form">
+            <!-- Ein Formular für Aufgabe und Termin – die Uhrzeit entscheidet (UX v3 §3) -->
+            <div id="edit-kind" class="edit-kind">AUFGABE · LISTE</div>
             <textarea id="edit-title" rows="2" placeholder="Titel"></textarea>
-            <p id="edit-recurring" hidden>Serientermin – bitte direkt im Google Kalender ändern.</p>
+            <p id="edit-recurring" class="edit-hint" hidden>Serientermin – Umwandeln und Zeit bitte im Google Kalender ändern.</p>
             <div class="edit-row">
-                <select id="edit-category" class="task-only"></select>
-                <input type="date" id="edit-due">
+                <select id="edit-category" class="not-prov" aria-label="Kategorie"></select>
+                <select id="edit-abteilung" class="only-prov" aria-label="Abteilung"></select>
+                <div class="field-x not-prov">
+                    <input type="date" id="edit-due" aria-label="Datum">
+                    <button type="button" class="x" id="edit-due-clear" aria-label="Datum leeren">×</button>
+                </div>
             </div>
-            <div class="edit-row event-only">
-                <input type="time" id="edit-time">
-                <select id="edit-duration">
+            <div class="edit-row not-prov">
+                <div class="field-x">
+                    <button type="button" id="edit-time-empty" class="placeholder">Uhrzeit –</button>
+                    <input type="time" id="edit-time" aria-label="Uhrzeit" hidden>
+                    <button type="button" class="x" id="edit-time-clear" aria-label="Uhrzeit entfernen" hidden>×</button>
+                </div>
+                <select id="edit-duration" aria-label="Dauer">
+                    <option value="">Dauer –</option>
                     <option value="15">15 min</option>
                     <option value="30">30 min</option>
                     <option value="60">1 h</option>
@@ -73,11 +84,11 @@
                 </select>
             </div>
             <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>
-            <div class="status-buttons task-only">
-                <button type="button" data-status="Gedächtnis"></button>
+            <div class="status-buttons not-prov">
+                <button type="button" data-status="Backlog"></button>
                 <button type="button" data-status="Zu tun"></button>
                 <button type="button" data-status="Pausiert"></button>
-                <button type="button" data-status="Erledigt"></button>
+                <button type="button" data-status="Erledigt" id="edit-wide"></button>
             </div>
             <div class="dialog-actions">
                 <button type="button" id="edit-delete" class="pill danger">Löschen</button>

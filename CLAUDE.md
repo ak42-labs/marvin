@@ -51,6 +51,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
 *   `docs/ux-v3.md`: UX v3 – Gestenregel, ein Formular für Aufgabe/Termin, Proviant, Laden ohne Warten.
+*   `docs/ux-v3.md`: Vorgabe UX v3 (Gestenregel, ein Formular, Proviant, Laden ohne Warten, Wischzone) – umgesetzt in 3.0.0.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
 
@@ -76,8 +77,9 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `Tasks`: Haupttabelle für alle Aufgaben.
 *   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (vom Backend automatisch angelegt; nur bei Statuswechsel gesetzt).
 *   `Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (Vokabular gegen Verhörer, geht in den Gemini-Prompt), `Importliste` (optional, welche Google-Tasks-Listen importiert werden), `Frist` (Tage im Hyperraum bis zur Glut; Standard 7).
-*   **Anzeigenamen** (nur UI, `STATUS_LABELS` in `app.js`): Gedächtnis = Planetenhirn, Zu tun = Hyperraum, Pausiert = Anhalter, Erledigt = 42.
-*   **Status-Modell (5 feste Werte):** `Puffer` (Inbox), `Gedächtnis` (Ideen/Backlog), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Erledigt` (Done).
+*   **Anzeigenamen** (nur UI, `STATUS_LABELS` in `app.js`): Backlog = Planetenhirn, Zu tun = Hyperraum, Pausiert = Anhalter, Proviant = Proviant, Erledigt = 42. Alter Wert `Gedächtnis` (noch in Altzeilen) wird beim Lesen als `Backlog` behandelt (`STATUS_ALIASES`); unbekannte Status erscheinen im Planetenhirn (nichts verschwindet).
+*   Spalte `Abteilung` (Proviant, vom Backend angelegt). Config `Abteilung` (Laufweg-Reihenfolge, Spalte C `separat` = Trennlinie), `Artikel` (gemerkte Abteilung, Spalte C).
+*   **Status-Modell:** `Puffer` (Inbox), `Backlog` (Ideen), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Proviant` (Einkauf), `Erledigt` (Done; gekaufter Proviant = Erledigt mit Abteilung, zählt nicht in „42“).
 *   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
 
 **Beispielzeilen (Tabellenblatt "Tasks"):**
@@ -115,6 +117,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   2.0.1: Bearbeiten-Dialog zurück auf den flachen Stand 1.1.0 (Armin: Dateneingabe zählt, kein Fancy; ux-v2 §5 damit überholt). Termine ganzflächig leicht Champagner getönt. Verschieben: vorerst jedes Mal Text + Stimme (Vorführmodus). Spracheingabe: durchgehend zuhören, Ende erst nach 3 s Stille (8 s bis zum ersten Wort) oder Tipp; vom Browser beendete Sitzungen werden nahtlos fortgesetzt. Arkanoid: abgeräumte Steine kollidieren nicht mehr, Ball nutzt volle Höhe.
 *   2.0.2: Spracheingabe Ende nach 2 s Stille, 5 s bis zum ersten Wort. Leerlauf-Gags alle 10–16 s, Pixel-Gags doppelt gewichtet. Neigungs-Glas ca. 3× stärker (Glut ±18 %, Glanz ±40 px, Karten-Verlauf ±20°).
 *   2.0.3: Leerlauf-Gags: erster nach 4–6 s Ruhe, dann alle 6–10 s. Neu „Blick“: Augen schauen beim Scrollen nach oben/unten und beim Drehrad-Wechsel in Drehrichtung (ohne Klick). Neigungs-Glas auf 1,5× Original (Glut ±9 %, Glanz ±21 px, Karten ±9°).
+*   **3.0.0 (Backend 0.12, 22.11.2026): UX v3** nach `docs/ux-v3.md`: Gesten überall gleich (Tipp ohne Bewegung = erledigt/gekauft, lange drücken 0,45 s = bearbeiten, Wischen = Nachbar-Spalte; Termin-Tipp = Spruch). Ein Formular für Aufgabe/Termin („Die Uhrzeit entscheidet“): Umwandeln legt IMMER zuerst neu an und löscht das Alte erst nach Erfolg; Serientermine nicht umwandelbar; kein Auto-Fokus. Termine 60 Tage voraus, > Frist im Planetenhirn; Kategorie am Termin per Tag `marvinCategory`. Proviant als 4. Drehrad-Position (Laufweg-Sortierung, Trennlinie bei „separat“, Tippen = verglüht/gekauft, Abteilung merken, Gemini `type:"einkauf"` mit mehreren Artikeln). Laden ohne Warten (Cache `marvin.cache`, Format-Version `CACHE_V`, „Babelfisch übersetzt …“, offline „Kein Netz. Wie erwartet.“). Daumen-Wischzone unten (freie Listenfläche, Marvin-Zeile, Marvin-Knopf; Entscheidung erst beim Loslassen).
 *   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
@@ -146,10 +149,8 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  ~~UX v2~~ umgesetzt (2.0.0). Live-Test am Handy: Gag-Frequenz, Arkanoid, Neigungs-Glas, Überfällig A vs. B.
-1b. **UX v3 umsetzen** nach `docs/ux-v3.md` (freigegeben 22.11.2026): Gestenregel (tippen = erledigt, lange = bearbeiten), ein Formular (Uhrzeit entscheidet Aufgabe/Termin), Termine >Frist im Planetenhirn, Kategorie für Termine, Proviant mit Abteilungen, Laden ohne Warten.
-2.  v3 „Neigungs-Glas“ (DeviceOrientation).
-3.  Einkaufsliste: Google Keep (keine API) – geparkt; Option Bring!.
-4.  **Nächste Design-Serie (Design-Chat):** weitere Leerlauf-Spiele im Marvin-Knopf nach dem Muster Arkanoid – Space Invaders (Pixel-Augen marschieren, Mini-Kanone schießt), Lunar Lander (Fähre landet auf dem Augenbogen), Defender (Schiff fliegt horizontal durch den Knopf). Erst Mockup, dann Vorgabe in `docs/`.
-5.  **Weitere Usability-Verbesserungen** – Sammlung aus dem Alltag, Runde im Design-Chat.
-6.  **Fließende Augen-Übergänge (Design-Chat):** Animationen sollen ineinander übergehen statt hart zu wechseln (Bogen ↔ Lid+Pupille ↔ Schlaf ↔ Stern/X per Morphing; Übergang zu Pixeln als eigenes Thema – z.B. Bogen zerfällt in Pixel). Erst diskutieren, dann Mockup.
+1.  **Live-Test UX v3** am Handy (Testliste im Chat vom 22.11.2026).
+2.  Config: Zeile `Status | Proviant` ergänzen (Doku-Zweck; die App braucht sie nicht).
+3.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
+4.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
+5.  Fließende Augen-Übergänge (Design-Chat).

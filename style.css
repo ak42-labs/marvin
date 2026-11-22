@@ -328,3 +328,58 @@ dialog.event-mode .event-only { display: flex; }
 dialog.event-mode .task-only { display: none !important; }
 #edit-recurring { font-size: 13px; color: var(--amber-soft); margin: 0 0 10px; }
 #edit-recurring[hidden] { display: none; }
+
+/* ================= UX v3 ================= */
+
+/* Ein Formular: heller Champagner-Look, flache Felder (§3) */
+#editor {
+    background: radial-gradient(90% 60% at 50% 115%, rgba(255,236,200,.14), transparent 70%),
+                linear-gradient(180deg, rgba(72,64,54,.94), rgba(30,26,22,.97));
+    border: 1px solid rgba(255,240,215,.3);
+}
+#editor input, #editor textarea, #editor select, #editor .placeholder {
+    border: 1px solid rgba(255,240,215,.2);
+    background: rgba(255,255,255,.05);
+    border-radius: 16px;
+}
+#editor select:disabled { color: rgba(244,237,228,.35); }
+.edit-kind {
+    font-family: var(--font-display); font-size: 12px; letter-spacing: .14em;
+    color: var(--muted); margin: 0 0 12px 4px;
+}
+.edit-hint { font-size: 13px; color: var(--amber-soft); margin: 0 0 10px; }
+.edit-hint[hidden] { display: none; }
+
+/* Feld mit × zum Leeren */
+.field-x { position: relative; display: flex; }
+.field-x > input, .field-x > .placeholder { flex: 1; min-width: 0; padding-right: 40px; }
+.field-x .x {
+    position: absolute; right: 6px; top: 6px; width: 32px; height: 32px;
+    border: none; background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 0;
+}
+.field-x .x[hidden], .field-x > [hidden] { display: none; }
+.placeholder {
+    width: 100%; text-align: left; padding: 12px 14px; margin-bottom: 10px;
+    color: rgba(244,237,228,.4); font-size: 16px; font-weight: 300;
+}
+
+/* Termin: Status ergibt sich aus dem Datum -> Knöpfe gedimmt */
+.status-buttons.locked button { opacity: .38; pointer-events: none; }
+.status-buttons.locked #edit-wide { font-family: var(--font-body); font-style: italic; letter-spacing: 0; font-size: 13px; }
+
+/* Proviant-Modus im Formular */
+.only-prov { display: none; }
+#editor.prov-mode .only-prov { display: block; }
+#editor.prov-mode .not-prov { display: none !important; }
+
+/* Proviant-Karten: kompakt, ohne Datum, Zahl, Glut (§4) */
+.card.prov { padding: 14px 20px; border-radius: 20px; }
+.card.bought { transition: opacity .45s, transform .45s, filter .45s; opacity: 0; transform: scale(.96); filter: blur(2px); }
+.prov-sep {
+    display: flex; align-items: center; gap: 10px; margin: 6px 4px 0;
+    font-family: var(--font-display); font-size: 11px; letter-spacing: .1em; color: #8E7E6E;
+}
+.prov-sep::before, .prov-sep::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.14); }
+
+/* Daumen-Wischzone unten (§7): horizontale Gesten bleiben bei uns */
+.marvin-line, #marvin-btn, main { touch-action: pan-y; }
