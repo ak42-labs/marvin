@@ -151,10 +151,10 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  **Umstellung ausführen** (Backend 1.0 + `migrateToV1Schema`), danach Live-Test UX v3 am Handy (Testliste im Chat vom 22.11.2026).
-2.  Nach erfolgreichem Test: `Tasks_alt` / `Config_alt` löschen, Funktion `migrateToV1Schema` aus `Code.gs` entfernen.
+1.  ~~Umstellung Schema v1~~ erledigt (22.11.2026); `migrateToV1Schema` entfernt (Backend 1.0.1). Alltagstest läuft.
+2.  `Tasks_alt` / `Config_alt` im Sheet löschen, sobald sicher nichts fehlt.
 3.  Kategorien aufräumen (z.B. „Verschiedenes“ in „Allerlei“ zusammenführen, „Einkaufen“ prüfen) – direkt in `categories`/`tasks`.
-4.  Rezept-Skill in Gemini anlegen (`docs/skill-shopping.md`).
+4.  ~~Rezept-Skill in Gemini~~ angelegt und getestet (`docs/skill-shopping.md`).
 5.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
 6.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
 7.  Fließende Augen-Übergänge (Design-Chat).

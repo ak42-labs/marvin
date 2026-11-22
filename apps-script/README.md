@@ -38,9 +38,9 @@ Status-Anzeigenamen (Planetenhirn, Hyperraum …) leben nur in der App (`STATUS_
    **Nicht** „Neue Bereitstellung“ – das erzeugt eine neue URL.
 3. Prüfen: Web-App-URL im Browser -> „Marvin Backend <Version> aktiv“.
 
-## Einmalige Umstellung auf Schema v1 (`migrateToV1Schema`)
+## Umstellung auf Schema v1
 
-Im Editor ausführen (vor dem Bereitstellen). Benennt `Tasks`/`Config` in `Tasks_alt`/`Config_alt` um, legt die neuen Tabellen an, übersetzt Status/Quellen ins Englische, ersetzt Kategorie-Namen durch IDs (unbekannte alte Kategorien bekommen eine eigene Zeile), trennt Begriffe in `term`/`hint`. Protokoll im Ausführungsprotokoll. Ein zweiter Lauf wird abgelehnt.
+Erledigt am 22.11.2026 (`migrateToV1Schema`, danach aus dem Code entfernt; steht bei Bedarf in der Git-Historie, Commit b095dcc).
 
 ## Token, Google Tasks, Kalender
 
