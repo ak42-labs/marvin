@@ -2,39 +2,44 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '3.0.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '3.1.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
-const INBOX_STATUS = 'Puffer'; // Eingangspuffer, kein sichtbarer Tab
-// Interne Status-Werte = was im Sheet steht (Config Typ "Status", UX v3 §6)
-const BACKLOG = 'Backlog';
-const PROVIANT = 'Proviant';
-const DONE_STATUS = 'Erledigt';
-const TARGET_STATUSES = ['Zu tun', BACKLOG, 'Pausiert'];
-// Alte Werte im Sheet -> aktueller interner Wert (nur beim Lesen; geschrieben wird der neue Wert)
-const STATUS_ALIASES = { 'Gedächtnis': BACKLOG };
+// Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
+const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
+const BACKLOG = 'backlog';
+const TODO = 'todo';
+const ON_HOLD = 'on_hold';
+const PROVIANT = 'shopping';
+const DONE_STATUS = 'done';
+const TARGET_STATUSES = [TODO, BACKLOG, ON_HOLD];
 
-// Anzeigenamen
 const STATUS_LABELS = {
-    [BACKLOG]:   { name: 'Planetenhirn', sub: 'GEDACHT' },
-    'Zu tun':    { name: 'Hyperraum',    sub: 'VOLLE FAHRT' },
-    'Pausiert':  { name: 'Anhalter',     sub: 'AM STRASSENRAND' },
-    [PROVIANT]:  { name: 'Proviant',     sub: 'EINKAUF' },
-    'Erledigt':  { name: '42',           sub: 'DIE ANTWORT' },
+    [BACKLOG]:     { name: 'Planetenhirn', sub: 'GEDACHT' },
+    [TODO]:        { name: 'Hyperraum',    sub: 'VOLLE FAHRT' },
+    [ON_HOLD]:     { name: 'Anhalter',     sub: 'AM STRASSENRAND' },
+    [PROVIANT]:    { name: 'Proviant',     sub: 'EINKAUF' },
+    [DONE_STATUS]: { name: '42',           sub: 'DIE ANTWORT' },
 };
-const WHEEL = [BACKLOG, 'Zu tun', 'Pausiert', PROVIANT]; // Drehrad links -> rechts
-const TASK_WHEEL = [BACKLOG, 'Zu tun', 'Pausiert'];      // Karten-Wischen nur zwischen diesen
-const EVENT_DAYS = 60;                                   // so weit liest das Backend Termine voraus
+const WHEEL = [BACKLOG, TODO, ON_HOLD, PROVIANT]; // Drehrad links -> rechts
+const TASK_WHEEL = [BACKLOG, TODO, ON_HOLD];      // Karten-Wischen nur zwischen diesen
 
-function normalizeTask(t) {
-    if (STATUS_ALIASES[t.Status]) t.Status = STATUS_ALIASES[t.Status];
-    return t;
-}
 // In welcher Ansicht erscheint eine Aufgabe? Unbekannte Status landen im Planetenhirn (nichts verschwindet)
 function viewOf(t) {
-    if ([...WHEEL, DONE_STATUS, INBOX_STATUS].includes(t.Status)) return t.Status;
+    if ([...WHEEL, DONE_STATUS, INBOX_STATUS].includes(t.status)) return t.status;
     return BACKLOG;
 }
-const isBoughtProviant = t => t.Status === DONE_STATUS && !!t.Abteilung;
+const catName = id => categories.find(c => c.id === id)?.name || id || '';
+const catIdFromName = name => {
+    if (!name) return '';
+    const n = String(name).trim().toLowerCase();
+    return (categories.find(c => c.name.toLowerCase() === n || c.id === n) || {}).id || '';
+};
+const aisleIdFromName = name => {
+    if (!name) return '';
+    const n = String(name).trim().toLowerCase();
+    return (aisles.find(a => a.name.toLowerCase() === n || a.id === n) || {}).id || '';
+};
+const isBoughtProviant = t => t.status === DONE_STATUS && !!t.aisle_id;
 
 // Marvins feste Sätze (zufällig gewählt, nie zweimal hintereinander derselbe)
 const LINES = {
@@ -92,12 +97,14 @@ let allEvents = [];
 let scrolling = false;
 let ignoreScrollUntil = 0;
 let overdueReacted = false; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
-let categories = [];
-let abteilungen = []; // [{name, separat}] in Laufweg-Reihenfolge (Config Typ "Abteilung")
-let artikelMap = {};  // gemerkte Abteilung je Artikel (Config Typ "Artikel"), Schlüssel klein geschrieben
-let terms = []; // eigenes Vokabular aus Config (Typ "Begriff")
-let currentStatus = 'Zu tun';
-let frist = 7; // Tage im Hyperraum, bevor eine Karte glüht (Config: Frist)
+let categories = [];  // [{id, name, sort}] (Tabelle categories)
+let aisles = [];      // [{id, name, sort, store}] Laufweg-Reihenfolge (Tabelle shop_aisles)
+let locale = 'de-AT'; // settings.locale (Spracherkennung, Datumsformat)
+let eventDays = 60;   // settings.event_days
+let shopItems = {};   // Artikelname (klein) -> aisle_id (Tabelle shop_items)
+let terms = [];       // [{term, hint}] eigenes Vokabular gegen Verhörer (Tabelle terms)
+let currentStatus = TODO;
+let frist = 7;        // settings.due_days: Tage im Hyperraum, bevor eine Karte glüht
 
 document.addEventListener('DOMContentLoaded', () => {
     initWheel();
@@ -249,15 +256,15 @@ async function callBackend(action, payload = {}) {
 // ---------- Laden ohne Warten (UX v3 §5) ----------
 // Sofort letzter Stand aus localStorage, dann still im Hintergrund synchronisieren.
 const CACHE_KEY = 'marvin.cache';
-const CACHE_V = 1; // bei Formatänderung erhöhen -> alter Cache wird ignoriert statt zu crashen
+const CACHE_V = 2; // bei Formatänderung erhöhen -> alter Cache wird ignoriert statt zu crashen
 
 function saveCache() {
     try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
             v: CACHE_V, at: Date.now(),
-            tasks: allTasks.filter(t => !String(t.ID).startsWith('pending-')),
+            tasks: allTasks.filter(t => !String(t.id).startsWith('pending-')),
             events: allEvents.filter(e => !String(e.id).startsWith('pending-')),
-            config: { categories, terms, frist, abteilungen, artikelMap },
+            config: { categories, terms, aisles, shopItems, settings: { due_days: frist, event_days: eventDays, locale } },
         }));
     } catch { /* voll/blockiert – egal */ }
 }
@@ -266,7 +273,7 @@ function loadCache() {
     try {
         const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
         if (!c || c.v !== CACHE_V || !Array.isArray(c.tasks)) return false;
-        allTasks = c.tasks.map(normalizeTask);
+        allTasks = c.tasks;
         allEvents = Array.isArray(c.events) ? c.events : [];
         applyConfig(c.config || {});
         return true;
@@ -274,11 +281,18 @@ function loadCache() {
 }
 
 function applyConfig(cfg) {
-    categories = cfg.categories || [];
-    terms = cfg.terms || [];
-    if (Number.isFinite(cfg.frist)) frist = cfg.frist;
-    abteilungen = Array.isArray(cfg.abteilungen) ? cfg.abteilungen : [];
-    artikelMap = cfg.artikel || cfg.artikelMap || {};
+    categories = Array.isArray(cfg.categories) ? cfg.categories : [];
+    terms = Array.isArray(cfg.terms) ? cfg.terms : [];
+    aisles = Array.isArray(cfg.aisles) ? cfg.aisles : Array.isArray(cfg.shop_aisles) ? cfg.shop_aisles : [];
+    if (cfg.shopItems) shopItems = cfg.shopItems;
+    else if (Array.isArray(cfg.shop_items)) {
+        shopItems = {};
+        cfg.shop_items.forEach(i => { if (i.name) shopItems[String(i.name).trim().toLowerCase()] = i.aisle_id; });
+    }
+    const st = cfg.settings || {};
+    if (Number(st.due_days) > 0) frist = Number(st.due_days);
+    if (Number(st.event_days) > 0) eventDays = Number(st.event_days);
+    if (st.locale) locale = String(st.locale);
 }
 
 let firstLoad = true;
@@ -295,13 +309,16 @@ async function loadAll() {
     say('Babelfisch übersetzt …');
     setMood('think');
 
-    const [cfgR, tasksR, evR] = await Promise.allSettled([
-        callBackend('getConfig'), callBackend('getTasks'), callBackend('getEvents', { days: EVENT_DAYS }),
-    ]);
+    // EIN Aufruf für alles (Google Sheets ist pro Anfrage langsam, nicht pro Datenmenge)
+    const [allR] = await Promise.allSettled([callBackend('getAll')]);
+    const cfgR = allR, tasksR = allR.status === 'fulfilled' ? { status: 'fulfilled', value: allR.value.tasks } : allR;
+    const evR = allR.status === 'fulfilled'
+        ? (allR.value.events_error ? { status: 'rejected', reason: new Error(allR.value.events_error) } : { status: 'fulfilled', value: allR.value.events })
+        : allR;
     if (cfgR.status === 'fulfilled') applyConfig(cfgR.value);
     if (tasksR.status === 'fulfilled') {
-        const pending = allTasks.filter(t => String(t.ID).startsWith('pending-'));
-        allTasks = [...pending, ...tasksR.value.map(normalizeTask)];
+        const pending = allTasks.filter(t => String(t.id).startsWith('pending-'));
+        allTasks = [...pending, ...tasksR.value];
     }
     if (evR.status === 'fulfilled') {
         const pending = allEvents.filter(e => String(e.id).startsWith('pending-'));
@@ -360,7 +377,7 @@ function updateMoodFace() {
 }
 
 function hotCount() {
-    return allTasks.filter(t => t.Status === 'Zu tun' && urgency(t).cls.includes('hot')).length;
+    return allTasks.filter(t => t.status === TODO && urgency(t).cls.includes('hot')).length;
 }
 
 // Beim Öffnen: viel Überfälliges -> Schock (A) bzw. Böse (B), abwechselnd
@@ -378,9 +395,9 @@ function reactToOverdue() {
 function countMove(task) {
     let moves = {};
     try { moves = JSON.parse(localStorage.getItem('marvin.moves') || '{}'); } catch {}
-    moves[task.ID] = (moves[task.ID] || 0) + 1;
+    moves[task.id] = (moves[task.id] || 0) + 1;
     try { localStorage.setItem('marvin.moves', JSON.stringify(moves)); } catch {}
-    return moves[task.ID];
+    return moves[task.id];
 }
 
 function setButtonState(state) {
@@ -455,7 +472,7 @@ function startListening() {
 
     const begin = () => {
         recognition = new SpeechRecognition();
-        recognition.lang = 'de-AT';
+        recognition.lang = locale;
         recognition.interimResults = true;
         recognition.continuous = true;
         recognition.onresult = (e) => {
@@ -514,19 +531,19 @@ function buildSystemPrompt() {
         `Heute ist ${todayInfo()} (Zeitzone Europe/Vienna). Löse relative Angaben ("morgen", "nächsten Freitag") in ein konkretes Datum YYYY-MM-DD auf.`,
         'Regeln:',
         '- type: "event" (Kalendertermin), wenn eine konkrete Uhrzeit genannt wird ("14 Uhr", "um halb drei") oder es eindeutig ein Termin mit Ort/Person zu fester Zeit ist.',
-        '  type: "einkauf", wenn etwas eingekauft werden soll ("Milch, Schinken und Pizza kaufen", "auf die Einkaufsliste"). Dann JEDEN Artikel einzeln in "items" (title = nur der Artikelname, z.B. "Milch", ohne "kaufen"; abteilung aus der Liste). title/status/category dann egal.',
+        '  type: "einkauf", wenn etwas eingekauft werden soll ("Milch, Schinken und Pizza kaufen", "auf die Einkaufsliste"). Dann JEDEN Artikel einzeln in "items" (title = nur der Artikelname, z.B. "Milch", ohne "kaufen"; aisle aus der Liste). title/status/category dann egal.',
         '  Sonst "task".',
-        ...(abteilungen.length ? ['- Abteilungen im Geschäft (für items.abteilung): ' + abteilungen.map(a => a.name).join(' | ')] : []),
+        ...(aisles.length ? ['- Abteilungen im Geschäft (für items.aisle): ' + aisles.map(a => a.name).join(' | ')] : []),
         '- time: nur bei type "event": Startzeit HH:MM (24h). Sonst null.',
         '- durationMinutes: nur bei type "event": genannte Dauer in Minuten, sonst 60.',
         '- title: kurz, prägnant, Deutsch. Aufgabe als Tätigkeit ("Mario anrufen"), Termin als Anlass ("Zahnarzt", "Treffen mit Robert"). Keine Datums- oder Uhrzeitangaben im Titel.',
-        `- status: "Zu tun" für konkrete Aufgaben, "${BACKLOG}" für Ideen/irgendwann/vielleicht, "Pausiert" nur wenn ausdrücklich gesagt.`,
+        `- status: "${TODO}" für konkrete Aufgaben, "${BACKLOG}" für Ideen/irgendwann/vielleicht, "${ON_HOLD}" nur wenn ausdrücklich pausiert.`,
         categories.length
             ? `- category: genau eine aus der erlaubten Liste. Wähle die passendste.`
             : '- category: ein kurzes, sinnvolles Wort.',
         ...(terms.length ? [
             'Eigene Begriffe des Users (die Spracherkennung verhört sie oft, z.B. als ähnlich klingende Alltagswörter). Wenn ein Wort ähnlich klingt und der Kontext passt, ersetze es durch den richtigen Begriff:',
-            ...terms.map(t => `  * ${t}`),
+            ...terms.map(t => `  * ${t.term}${t.hint ? ' – ' + t.hint : ''}`),
         ] : []),
         '- dueDate: IMMER setzen, sobald irgendein Tag erkennbar ist ("heute", "morgen", "Dienstag", "am 3."), als YYYY-MM-DD. Bei type "event" Pflicht (ohne Tagesangabe: heute, bzw. morgen falls die Uhrzeit heute schon vorbei ist). Sonst null.',
         '- notes: zusätzliche Details aus der Aussage, sonst leer.',
@@ -538,7 +555,7 @@ function buildSystemPrompt() {
 
 function buildSchema() {
     const category = { type: 'STRING' };
-    if (categories.length) category.enum = categories;
+    if (categories.length) category.enum = categories.map(c => c.name);
     return {
         type: 'OBJECT',
         properties: {
@@ -552,7 +569,7 @@ function buildSchema() {
                     type: 'OBJECT',
                     properties: {
                         title: { type: 'STRING' },
-                        abteilung: abteilungen.length ? { type: 'STRING', enum: abteilungen.map(a => a.name) } : { type: 'STRING' },
+                        aisle: aisles.length ? { type: 'STRING', enum: aisles.map(a => a.name) } : { type: 'STRING' },
                     },
                     required: ['title'],
                 },
@@ -628,24 +645,24 @@ async function handleInput(text) {
             return;
         }
         const task = {
-            Title: parsed.title,
-            Status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : 'Zu tun',
-            Category: parsed.category,
-            DueDate: dueDate,
-            Notes: [parsed.notes, `Original: "${text}"`].filter(Boolean).join('\n'),
-            Source: 'PWA',
+            title: parsed.title,
+            status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : TODO,
+            category_id: catIdFromName(parsed.category),
+            due_date: dueDate,
+            notes: [parsed.notes, `Original: "${text}"`].filter(Boolean).join('\n'),
+            source: 'app',
         };
 
         // Optimistisch anzeigen, dann speichern
-        const local = { ...task, ID: 'pending-' + Date.now(), Status_Since: new Date().toISOString() };
+        const local = { ...task, id: 'pending-' + Date.now(), status_since: new Date().toISOString() };
         allTasks.unshift(local);
-        switchTab(task.Status);
+        switchTab(task.status);
         const comment = parsed.comment || 'Notiert. Als ob es etwas ändern würde.';
         say(comment, { voice: true });
 
         try {
             const saved = await callBackend('addTask', { task });
-            local.ID = saved.id;
+            local.id = saved.id;
             renderTasks();
             setUndo(() => deleteTaskNow(local, pick(LINES.undo)));
         } catch (err) {
@@ -664,26 +681,25 @@ async function handleInput(text) {
 // ---------- Proviant (Einkauf, UX v3 §4) ----------
 
 // Gemerkte Abteilung vor Gemini-Vorschlag
-function abteilungFor(title, suggestion) {
-    return artikelMap[String(title).trim().toLowerCase()] || suggestion || '';
+function aisleFor(title, suggestionName) {
+    return shopItems[String(title).trim().toLowerCase()] || aisleIdFromName(suggestionName) || '';
 }
 
 async function addShopping(items, comment, originalText) {
     const tasks = items.map(it => ({
-        Title: it.title.trim(),
-        Status: PROVIANT,
-        Category: 'Einkaufen',
-        Abteilung: abteilungFor(it.title, it.abteilung),
-        Notes: `Original: "${originalText}"`,
-        Source: 'PWA',
+        title: it.title.trim(),
+        status: PROVIANT,
+        aisle_id: aisleFor(it.title, it.aisle),
+        notes: `Original: "${originalText}"`,
+        source: 'app',
     }));
-    const locals = tasks.map((t, k) => ({ ...t, ID: 'pending-' + Date.now() + '-' + k, Status_Since: new Date().toISOString() }));
+    const locals = tasks.map((t, k) => ({ ...t, id: 'pending-' + Date.now() + '-' + k, status_since: new Date().toISOString() }));
     allTasks.unshift(...locals);
     switchTab(PROVIANT);
     say(comment || 'Proviant notiert. Die Galaxis zittert vor Hunger.', { voice: true });
     try {
         const saved = await callBackend('addTasks', { tasks });
-        saved.forEach((r, k) => { locals[k].ID = r.id; });
+        saved.forEach((r, k) => { locals[k].id = r.id; });
         renderTasks();
         saveCache();
         setUndo(() => locals.forEach(l => deleteTaskNow(l, null, { quiet: true })));
@@ -700,7 +716,7 @@ let inboxRunning = false;
 // Alle Puffer-Einträge in EINEM Gemini-Aufruf einsortieren und in EINEM Backend-Aufruf speichern
 async function processInbox() {
     if (inboxRunning || !getSetting('geminiKey')) return;
-    const inbox = allTasks.filter(t => t.Status === INBOX_STATUS);
+    const inbox = allTasks.filter(t => t.status === INBOX_STATUS);
     if (!inbox.length) return;
 
     inboxRunning = true;
@@ -710,30 +726,30 @@ async function processInbox() {
         delete single.properties.comment; delete single.properties.type; delete single.properties.time; delete single.properties.durationMinutes; delete single.properties.items;
         single.properties.id = { type: 'STRING' };
         single.properties.status = { type: 'STRING', enum: [...TARGET_STATUSES, PROVIANT] };
-        single.properties.abteilung = abteilungen.length ? { type: 'STRING', enum: abteilungen.map(a => a.name), nullable: true } : { type: 'STRING', nullable: true };
+        single.properties.aisle = aisles.length ? { type: 'STRING', enum: aisles.map(a => a.name), nullable: true } : { type: 'STRING', nullable: true };
         single.required = ['id', 'title', 'status', 'category'];
         const schema = { type: 'OBJECT', properties: { items: { type: 'ARRAY', items: single } }, required: ['items'] };
-        const system = buildSystemPrompt() + `\nDu bekommst MEHRERE rohe Einträge (z.B. aus Google Home) als JSON-Liste. Gib für JEDEN Eintrag ein Objekt mit derselben id zurück. Kein comment, kein type. Einkaufsartikel bekommen status "${PROVIANT}", title = nur der Artikelname, dazu abteilung.`;
-        const input = JSON.stringify(inbox.map(t => ({ id: String(t.ID), text: t.Title, details: t.Notes || '', faellig: t.DueDate || null })));
+        const system = buildSystemPrompt() + `\nDu bekommst MEHRERE rohe Einträge (z.B. aus Google Home) als JSON-Liste. Gib für JEDEN Eintrag ein Objekt mit derselben id zurück. Kein comment, kein type. Einkaufsartikel bekommen status "${PROVIANT}", title = nur der Artikelname, dazu aisle.`;
+        const input = JSON.stringify(inbox.map(t => ({ id: String(t.id), text: t.title, details: t.notes || '', faellig: t.due_date || null })));
         const result = await parseWithGemini(input, { system, schema });
 
         const items = [];
         for (const r of result.items || []) {
-            const task = inbox.find(t => String(t.ID) === String(r.id));
+            const task = inbox.find(t => String(t.id) === String(r.id));
             if (!task) continue;
             const changes = {
-                Title: r.title || task.Title,
-                Status: [...TARGET_STATUSES, PROVIANT].includes(r.status) ? r.status : 'Zu tun',
-                Category: r.category || task.Category,
+                title: r.title || task.title,
+                status: [...TARGET_STATUSES, PROVIANT].includes(r.status) ? r.status : TODO,
+                category_id: catIdFromName(r.category) || task.category_id,
             };
-            if (changes.Status === PROVIANT) changes.Abteilung = abteilungFor(changes.Title, r.abteilung);
-            if (/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '') && !task.DueDate) changes.DueDate = r.dueDate;
+            if (changes.status === PROVIANT) changes.aisle_id = aisleFor(changes.title, r.aisle);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '') && !task.due_date) changes.due_date = r.dueDate;
             items.push({ task, changes });
         }
         if (items.length) {
-            await callBackend('updateTasks', { items: items.map(i => ({ id: i.task.ID, changes: i.changes })) });
+            await callBackend('updateTasks', { items: items.map(i => ({ id: i.task.id, changes: i.changes })) });
             const now = new Date().toISOString();
-            items.forEach(i => Object.assign(i.task, i.changes, { Status_Since: now }));
+            items.forEach(i => Object.assign(i.task, i.changes, { status_since: now }));
             say(`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer einsortiert. Niemand hat sich bedankt.`);
         }
     } catch (err) {
@@ -759,9 +775,9 @@ async function createEvent(parsed, dueDate, originalText) {
         title: parsed.title,
         start: start.toISOString(),
         end: new Date(start.getTime() + minutes * 60000).toISOString(),
-        allDay: false,
+        all_day: false,
         description: [parsed.notes, `Original: "${originalText}"`].filter(Boolean).join('\n'),
-        category: parsed.category || '',
+        category_id: catIdFromName(parsed.category),
     };
     const local = { ...event, id: 'pending-' + Date.now(), recurring: false };
     allEvents.push(local);
@@ -815,13 +831,13 @@ function eventLabel(ev) {
     const start = new Date(ev.start);
     const days = -daysSince(start); // 0 = heute, 1 = morgen
     const day = days <= 0 ? 'heute' : days === 1 ? 'morgen' : start.toLocaleDateString('de-AT', { weekday: 'short' }).replace('.', '');
-    if (ev.allDay) return day;
+    if (ev.all_day) return day;
     return day + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
 }
 
-// Termine haben keinen Status: innerhalb der Frist -> Hyperraum, weiter weg -> Planetenhirn (UX v3 §2)
+// Termine haben keinen status: innerhalb der Frist -> Hyperraum, weiter weg -> Planetenhirn (UX v3 §2)
 function eventView(ev) {
-    return -daysSince(new Date(ev.start)) > frist ? BACKLOG : 'Zu tun';
+    return -daysSince(new Date(ev.start)) > frist ? BACKLOG : TODO;
 }
 
 function eventUrgency(ev) {
@@ -848,9 +864,11 @@ function toInputDate(value) {
 const todayStr = () => toInputDate(new Date());
 const $ = id => document.getElementById(id);
 
-function fillSelect(sel, values, current, emptyLabel) {
-    const opts = [...new Set([...values, current].filter(Boolean))];
-    sel.replaceChildren(...(emptyLabel != null ? [new Option(emptyLabel, '')] : []), ...opts.map(v => new Option(v, v, false, v === current)));
+// options: [{id, name}]; unbekannter aktueller Wert bleibt als eigene Option erhalten
+function fillSelect(sel, options, current, emptyLabel) {
+    const list = options.slice();
+    if (current && !list.some(o => o.id === current)) list.push({ id: current, name: current });
+    sel.replaceChildren(...(emptyLabel != null ? [new Option(emptyLabel, '')] : []), ...list.map(o => new Option(o.name, o.id, false, o.id === current)));
     sel.value = current || '';
 }
 
@@ -887,20 +905,20 @@ function openForm(item, kind) {
         const start = new Date(item.start), end = new Date(item.end);
         $('edit-title').value = item.title || '';
         $('edit-notes').value = item.description || '';
-        fillSelect($('edit-category'), categories, item.category || '', 'Kategorie –');
+        fillSelect($('edit-category'), categories, item.category_id || '', 'Kategorie –');
         $('edit-due').value = toInputDate(start);
-        const minutes = item.allDay ? 'allday' : String(Math.round((end - start) / 60000));
+        const minutes = item.all_day ? 'allday' : String(Math.round((end - start) / 60000));
         const dur = $('edit-duration');
         if (![...dur.options].some(o => o.value === minutes)) dur.add(new Option(minutes + ' min', minutes));
         dur.value = minutes;
-        setTime(item.allDay ? '' : start.toTimeString().slice(0, 5));
+        setTime(item.all_day ? '' : start.toTimeString().slice(0, 5));
         document.querySelectorAll('#editor .status-buttons button').forEach(b => b.classList.toggle('active', b.dataset.status === eventView(item)));
     } else {
-        $('edit-title').value = item.Title || '';
-        $('edit-notes').value = item.Notes || '';
-        fillSelect($('edit-category'), categories, item.Category || '', 'Kategorie –');
-        fillSelect($('edit-abteilung'), abteilungen.map(a => a.name), item.Abteilung || '', 'Abteilung –');
-        $('edit-due').value = toInputDate(item.DueDate);
+        $('edit-title').value = item.title || '';
+        $('edit-notes').value = item.notes || '';
+        fillSelect($('edit-category'), categories, item.category_id || '', 'Kategorie –');
+        fillSelect($('edit-aisle'), aisles, item.aisle_id || '', 'Abteilung –');
+        $('edit-due').value = toInputDate(item.due_date);
         $('edit-duration').value = '';
         setTime('');
         document.querySelectorAll('#editor .status-buttons button').forEach(b => b.classList.toggle('active', b.dataset.status === viewOf(item)));
@@ -917,7 +935,7 @@ function formValues() {
         title: $('edit-title').value.trim(),
         notes: $('edit-notes').value,
         category: $('edit-category').value,
-        abteilung: $('edit-abteilung').value,
+        aisle: $('edit-aisle').value,
         date: $('edit-due').value,
         time: $('edit-time').value,
         duration: $('edit-duration').value,
@@ -931,11 +949,11 @@ function eventPayload(v, fallbackTitle) {
     const title = v.title || fallbackTitle;
     if (v.duration === 'allday' && !v.time) {
         const start = localDateTime(date, '00:00');
-        return { title, description, category: v.category, allDay: true, start: start.toISOString(), end: new Date(start.getTime() + 864e5).toISOString() };
+        return { title, description, category_id: v.category, all_day: true, start: start.toISOString(), end: new Date(start.getTime() + 864e5).toISOString() };
     }
     const start = localDateTime(date, v.time || '09:00');
     const minutes = Number(v.duration) > 0 ? Number(v.duration) : 60;
-    return { title, description, category: v.category, allDay: false, start: start.toISOString(), end: new Date(start.getTime() + minutes * 60000).toISOString() };
+    return { title, description, category_id: v.category, all_day: false, start: start.toISOString(), end: new Date(start.getTime() + minutes * 60000).toISOString() };
 }
 
 async function submitForm() {
@@ -944,14 +962,14 @@ async function submitForm() {
     const wantEvent = !!v.time || v.duration === 'allday';
 
     if (editKind === 'prov') {
-        const changes = { Title: v.title || item.Title, Abteilung: v.abteilung, Notes: v.notes };
-        if (v.abteilung !== (item.Abteilung || '')) rememberArtikel(changes.Title, v.abteilung);
+        const changes = { title: v.title || item.title, aisle_id: v.aisle, notes: v.notes };
+        if (v.aisle !== (item.aisle_id || '')) rememberArtikel(changes.title, v.aisle);
         saveTask(item, changes);
         return;
     }
     if (editKind === 'task' && !wantEvent) {
-        const changes = { Title: v.title || item.Title, Category: v.category, DueDate: v.date, Notes: v.notes, Status: v.status || item.Status };
-        if (changes.Status !== item.Status) setStatus(item, changes.Status, changes);
+        const changes = { title: v.title || item.title, category_id: v.category, due_date: v.date, notes: v.notes, status: v.status || item.status };
+        if (changes.status !== item.status) setStatus(item, changes.status, changes);
         else saveTask(item, changes);
         return;
     }
@@ -962,7 +980,7 @@ async function submitForm() {
 
 // Umwandeln: IMMER zuerst neu anlegen, erst nach bestätigtem Erfolg das Alte löschen (kein Datenverlust)
 async function convertTaskToEvent(task, v) {
-    const event = eventPayload(v, task.Title);
+    const event = eventPayload(v, task.title);
     setMood('think');
     let saved;
     try {
@@ -974,7 +992,7 @@ async function convertTaskToEvent(task, v) {
     }
     allEvents.push(saved);
     try {
-        await callBackend('deleteTask', { id: task.ID });
+        await callBackend('deleteTask', { id: task.id });
         allTasks = allTasks.filter(t => t !== task);
         say('Aus der Aufgabe wurde ein Termin. Zeit ist eben doch relativ.');
     } catch (err) {
@@ -987,7 +1005,7 @@ async function convertTaskToEvent(task, v) {
 
 async function convertEventToTask(ev, v) {
     if (ev.recurring) { say('Serientermine wandle ich nicht um. Das wäre selbst mir zu viel Verantwortung.'); return; }
-    const task = { Title: v.title || ev.title, Status: 'Zu tun', Category: v.category, DueDate: v.date, Notes: v.notes, Source: 'PWA' };
+    const task = { title: v.title || ev.title, status: TODO, category_id: v.category, due_date: v.date, notes: v.notes, source: 'app' };
     setMood('think');
     let saved;
     try {
@@ -997,7 +1015,7 @@ async function convertEventToTask(ev, v) {
         say('Umwandeln fehlgeschlagen. Alles bleibt, wie es war. ' + err.message);
         return;
     }
-    allTasks.unshift({ ...task, ID: saved.id, Status_Since: new Date().toISOString(), Created_At: new Date().toISOString() });
+    allTasks.unshift({ ...task, id: saved.id, status_since: new Date().toISOString(), created_at: new Date().toISOString() });
     try {
         await callBackend('deleteEvent', { id: ev.id });
         allEvents = allEvents.filter(e => e !== ev);
@@ -1011,20 +1029,20 @@ async function convertEventToTask(ev, v) {
 }
 
 // Abteilung eines Artikels merken (Config "Artikel"), künftig vor Gemini angewendet
-function rememberArtikel(name, abteilung) {
-    artikelMap[String(name).trim().toLowerCase()] = abteilung;
-    callBackend('setArtikel', { name, abteilung }).catch(err => debugLog('Artikel nicht gemerkt', err.message));
+function rememberArtikel(name, aisleId) {
+    shopItems[String(name).trim().toLowerCase()] = aisleId;
+    callBackend('setShopItem', { name, aisle_id: aisleId }).catch(err => debugLog('Artikel nicht gemerkt', err.message));
 }
 
 async function saveTask(task, changes) {
     const before = { ...task };
-    if ('Status' in changes && changes.Status !== task.Status) changes = { ...changes, Status_Since: new Date().toISOString() };
+    if ('Status' in changes && changes.status !== task.status) changes = { ...changes, status_since: new Date().toISOString() };
     Object.assign(task, changes);
     renderTasks();
     saveCache();
     try {
-        const { Status_Since, ...sent } = changes; // setzt das Backend selbst
-        await callBackend('updateTask', { id: task.ID, changes: sent });
+        const { status_since, ...sent } = changes; // setzt das Backend selbst
+        await callBackend('updateTask', { id: task.id, changes: sent });
     } catch (err) {
         Object.assign(task, before);
         renderTasks();
@@ -1059,7 +1077,7 @@ function initEditor() {
             deleteEventNow(item, pick(LINES.deleted));
             return;
         }
-        if (!confirm(`„${item.Title}“ endgültig löschen?`)) return;
+        if (!confirm(`„${item.title}“ endgültig löschen?`)) return;
         dialog.close('delete');
         deleteTaskNow(item, pick(LINES.deleted));
     });
@@ -1136,9 +1154,9 @@ function runUndo() {
 
 const lastMoveAt = new Map();
 function setStatus(task, status, extra = {}) {
-    const before = { Status: task.Status, Status_Since: task.Status_Since };
-    saveTask(task, { ...extra, Status: status });
-    if (status === DONE_STATUS && before.Status === PROVIANT) {
+    const before = { status: task.status, status_since: task.status_since };
+    saveTask(task, { ...extra, status: status });
+    if (status === DONE_STATUS && before.status === PROVIANT) {
         say(pick(LINES.bought), { voice: true });
         Face.react('done');
     } else if (status === DONE_STATUS) {
@@ -1150,10 +1168,10 @@ function setStatus(task, status, extra = {}) {
     } else {
         say(pick(LINES.move), { voice: true }); // vorerst jedes Mal Text + Stimme (später ggf. reduzieren, ux-v2 §6)
     }
-    lastMoveAt.set(task.ID, Date.now());
+    lastMoveAt.set(task.id, Date.now());
     setUndo(() => {
-        saveTask(task, { Status: before.Status });
-        task.Status_Since = before.Status_Since; // alte Verweildauer zurück
+        saveTask(task, { status: before.status });
+        task.status_since = before.status_since; // alte Verweildauer zurück
         renderTasks();
         say(pick(LINES.undo));
     });
@@ -1169,7 +1187,7 @@ async function deleteTaskNow(task, message, { quiet = false } = {}) {
     if (!quiet) Face.react('del');
     if (!quiet) setUndo(null);
     try {
-        await callBackend('deleteTask', { id: task.ID });
+        await callBackend('deleteTask', { id: task.id });
     } catch (err) {
         allTasks.splice(index, 0, task);
         renderTasks();
@@ -1251,7 +1269,7 @@ function rotateWheel(dir) {
     if (next) switchTab(next);
 }
 
-let previousStatus = 'Zu tun';
+let previousStatus = TODO;
 function toggleDone() {
     if (currentStatus === DONE_STATUS) switchTab(previousStatus);
     else { previousStatus = currentStatus; switchTab(DONE_STATUS); }
@@ -1281,9 +1299,9 @@ function formatDate(value) {
 
 // Glut + Zahl auf der Karte (nur im Hyperraum). "+" heißt überall "drüber".
 function urgency(task) {
-    if (task.Status !== 'Zu tun') return { cls: 'card', num: '', color: '#A39383', rank: 3 };
-    const over = daysSince(task.DueDate);               // >0 = überfällig, 0 = heute, -1 = morgen
-    const since = daysSince(task.Status_Since || task.Created_At) ?? 0;
+    if (task.status !== TODO) return { cls: 'card', num: '', color: '#A39383', rank: 3 };
+    const over = daysSince(task.due_date);               // >0 = überfällig, 0 = heute, -1 = morgen
+    const since = daysSince(task.status_since || task.created_at) ?? 0;
     // UX v2 §3: Heute = drüber = Maximum
     if (over !== null && over > 0)   return { cls: 'card hot', num: '+' + over, color: '#FFE6C8', rank: 0 };
     if (over === 0)                  return { cls: 'card hot', num: '0', color: '#FFE6C8', rank: 0 };
@@ -1296,7 +1314,7 @@ function urgency(task) {
 // ---------- UI: Liste ----------
 
 function renderInboxBadge() {
-    const count = allTasks.filter(t => t.Status === INBOX_STATUS).length;
+    const count = allTasks.filter(t => t.status === INBOX_STATUS).length;
     const badge = document.getElementById('inbox-badge');
     badge.hidden = count === 0;
     badge.textContent = inboxRunning || getSetting('geminiKey')
@@ -1313,14 +1331,14 @@ function renderTasks() {
     let list = allTasks.filter(t => viewOf(t) === view).map(t => ({ t, u: urgency(t) }));
     if (view === DONE_STATUS) list = list.filter(({ t }) => !isBoughtProviant(t)); // Gekauftes zählt nicht in „42“
     // Termine: innerhalb der Frist im Hyperraum, weiter weg im Planetenhirn (kein Status, aus dem Datum)
-    if (view === 'Zu tun' || view === BACKLOG) {
+    if (view === TODO || view === BACKLOG) {
         const evs = allEvents.filter(e => eventView(e) === view)
             .sort((a, b) => new Date(a.start) - new Date(b.start))
-            .map(e => ({ e, u: view === 'Zu tun' ? eventUrgency(e) : { cls: 'card ev', num: eventLabelFar(e), color: '#FFF3DC', rank: 2 } }));
+            .map(e => ({ e, u: view === TODO ? eventUrgency(e) : { cls: 'card ev', num: eventLabelFar(e), color: '#FFF3DC', rank: 2 } }));
         list = [...evs, ...list];
     }
     if (view === DONE_STATUS) {
-        list.sort((a, b) => String(b.t.Status_Since || b.t.Updated_At || '').localeCompare(String(a.t.Status_Since || a.t.Updated_At || '')));
+        list.sort((a, b) => String(b.t.status_since || b.t.updated_at || '').localeCompare(String(a.t.status_since || a.t.updated_at || '')));
         list = list.slice(0, 50);
     } else if (view === PROVIANT) {
         list.sort((a, b) => abtIndex(a.t) - abtIndex(b.t)); // Laufweg
@@ -1342,9 +1360,10 @@ function renderTasks() {
     list.forEach(({ t, e, u }) => {
         if (view === PROVIANT) {
             // Keine Überschriften – nur Trennlinie vor Abteilungen eines anderen Geschäfts ("separat")
-            const abt = abteilungen.find(a => a.name === t.Abteilung);
-            if (abt?.separat && !sepShown.has(abt.name)) {
-                sepShown.add(abt.name);
+            const abt = aisles.find(a => a.id === t.aisle_id);
+            const store = abt?.store || 'supermarket';
+            if (store !== (aisles[0]?.store || 'supermarket') && !sepShown.has(store)) {
+                sepShown.add(store);
                 const sep = document.createElement('div');
                 sep.className = 'prov-sep';
                 sep.textContent = abt.name;
@@ -1356,21 +1375,21 @@ function renderTasks() {
     updateMoodFace();
 
     const doneLink = document.getElementById('done-link');
-    const doneCount = allTasks.filter(t => t.Status === DONE_STATUS && !isBoughtProviant(t)).length;
+    const doneCount = allTasks.filter(t => t.status === DONE_STATUS && !isBoughtProviant(t)).length;
     doneLink.hidden = view === PROVIANT;
     doneLink.textContent = view === DONE_STATUS ? '← ZURÜCK' : `42 · ${doneCount}`;
 }
 
 function abtIndex(t) {
-    const i = abteilungen.findIndex(a => a.name === t.Abteilung);
-    return i < 0 ? abteilungen.length : i; // unbekannt ans Ende (vor nichts)
+    const i = aisles.findIndex(a => a.id === t.aisle_id);
+    return i < 0 ? aisles.length : i; // unbekannt ans Ende (vor nichts)
 }
 
 // Termin weit weg (Planetenhirn): Datum statt Wochentag
 function eventLabelFar(ev) {
     const start = new Date(ev.start);
     const d = start.toLocaleDateString('de-AT', { day: 'numeric', month: 'numeric' });
-    return ev.allDay ? d : d + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+    return ev.all_day ? d : d + ' ' + start.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
 }
 
 function cardShell(cls) {
@@ -1381,12 +1400,12 @@ function cardShell(cls) {
 }
 
 function buildCard(task, u) {
-    const prov = task.Status === PROVIANT;
+    const prov = task.status === PROVIANT;
     const card = cardShell(prov ? 'card prov' : u.cls);
 
     const title = document.createElement('span');
     title.className = 'card-title';
-    title.textContent = task.Title || '';
+    title.textContent = task.title || '';
     card.appendChild(title);
 
     if (u.num && !prov) {
@@ -1400,8 +1419,8 @@ function buildCard(task, u) {
     ring.className = 'ring';
     card.appendChild(ring);
 
-    if (String(task.ID).startsWith('pending-')) card.classList.add('pending');
-    else attachGestures(card, task, prov ? 'prov' : task.Status === DONE_STATUS ? 'done' : 'task');
+    if (String(task.id).startsWith('pending-')) card.classList.add('pending');
+    else attachGestures(card, task, prov ? 'prov' : task.status === DONE_STATUS ? 'done' : 'task');
     return card;
 }
 

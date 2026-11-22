@@ -1,62 +1,53 @@
-# Apps Script (Backend)
+# Apps Script (Backend) – Schema v1
 
 `Code.gs` ist eine 1:1-Kopie des Scripts am Sheet `Marvin_Database`.
-**Das Repo ist die Quelle der Wahrheit:** Änderungen hier machen, dann in den Apps-Script-Editor kopieren und neu deployen.
+**Das Repo ist die Quelle der Wahrheit:** Änderungen hier machen, dann in den Apps-Script-Editor kopieren und neu bereitstellen.
+Version prüfen: Web-App-URL im Browser öffnen -> „Marvin Backend <BACKEND_VERSION> aktiv“.
+
+## Datenmodell (jedes Blatt = eine Tabelle, Englisch, snake_case)
+
+| Tabelle | Spalten | Hinweise |
+|---|---|---|
+| `tasks` | `id`, `title`, `status`, `category_id`, `due_date`, `notes`, `aisle_id`, `source`, `created_at`, `updated_at`, `status_since` | `status` ∈ `inbox` · `backlog` · `todo` · `on_hold` · `shopping` · `done`. `due_date` = YYYY-MM-DD. `source` ∈ `app` · `google_tasks` · `sheet`. `status_since` nur bei echtem Statuswechsel. |
+| `categories` | `id`, `name`, `sort` | `tasks.category_id` → `categories.id`. Umbenennen = nur `name` ändern. |
+| `shop_aisles` | `id`, `name`, `sort`, `store` | Laufweg-Reihenfolge über `sort`. Wechselt `store` (z.B. `supermarket` → `drogerie`), zeigt die App eine Trennlinie. |
+| `shop_items` | `name`, `aisle_id` | Gemerkte Abteilung je Artikel (pflegt die App). |
+| `terms` | `term`, `hint` | Eigenes Vokabular gegen Verhörer (geht in den Gemini-Prompt). |
+| `settings` | `key`, `value` | `due_days` (7), `event_days` (60), `import_lists` (kommagetrennt, leer = alle), `locale` (de-AT). |
+
+Termine leben im **Google-Hauptkalender** (ohne Geburtstage); Kategorie unsichtbar per Tag `marvin_category_id`.
+Status-Anzeigenamen (Planetenhirn, Hyperraum …) leben nur in der App (`STATUS_LABELS`).
 
 ## Aktionen (`doPost`, JSON-Body mit `action` + `token`)
 
-| action      | Payload  | Rückgabe |
-|-------------|----------|----------|
-| `getTasks`  | –        | Importiert zuerst Google Tasks in den Puffer, dann Array aller Zeilen aus `Tasks` |
-| `addTask`   | `task`   | `{id, title}` – ID und Timestamps setzt der Server |
-| `updateTask`| `id`, `changes` | Ändert Title/Status/Category/DueDate/Notes, setzt Updated_At |
-| `deleteTask`| `id`     | Löscht die Zeile |
-| `addTasks` | `tasks: [task]` | Mehrere Tasks anlegen (Einkauf) |
-| `setArtikel` | `name`, `abteilung` | Merkt Abteilung eines Artikels (Config Typ `Artikel`) |
-| `updateTasks`| `items: [{id, changes}]` | Mehrere Tasks auf einmal (Puffer-Einsortierung) |
-| `getEvents` | `days` (Std. 7) | Termine im Hauptkalender ab heute bis heute + days (vorbei = weggelassen) |
-| `addEvent`  | `event: {title, start, end, allDay, description}` | Legt Termin an (Erinnerung = Kalender-Standard) |
-| `updateEvent` | `id`, `changes` | Ändert Titel/Zeit/Beschreibung (nicht bei Serienterminen) |
-| `deleteEvent` | `id`   | Löscht Termin (nicht bei Serienterminen) |
-| `getConfig` | –        | `{statuses, categories, terms}` aus `Config` |
-
-Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (automatisch angelegt; nur bei Statuswechsel gesetzt). Spalten werden über die Kopfzeile adressiert.
-`Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (eigenes Vokabular für die KI, z.B. `Vaget – Verein`), `Frist` (Tage im Hyperraum bis zur Glut, Standard 7), `Importliste` (optional: nur diese Google-Tasks-Listen importieren; ohne Eintrag = alle).
-
-## Google Tasks / Google Home
-
-Voraussetzung: Editor > *Dienste* (+) > **Google Tasks API** hinzufügen (Kennung `Tasks`). Danach einmal im Editor `testGoogleTasks` ausführen und die Berechtigung erteilen (Web-Apps fragen nicht selbst nach). Die Funktion liest nur und zeigt Listen + offene Einträge im Ausführungsprotokoll.
-Antwort von `getTasks` enthält `info.import` (importierte Titel, Listen, Filter, Fehler) – sichtbar im Debug-Modus der App.
-Bei jedem Laden der App werden offene Einträge aller (bzw. der erlaubten) Listen als `Puffer` ins Sheet übernommen. Danach werden sie in Google Tasks als erledigt markiert (Marvin ist zuständig); IDs in Script Property `IMPORTED_TASK_IDS` verhindern Doppelimporte.
-
-**Google Keep** (Einkaufsliste von Google Home) ist nicht angebunden: Die Keep-API steht privaten Google-Konten nicht zur Verfügung. Sprachbefehl für Marvin daher: „Hey Google, erinnere mich …“ (landet in Google Tasks). Die App lässt sie danach von Gemini einsortieren.
+| action | Payload | Rückgabe |
+|---|---|---|
+| `getAll` | – | `{tasks, categories, shop_aisles, shop_items, terms, settings, events}` – **ein** Aufruf; vorher Google-Tasks-Import + Vervollständigen von Hand eingetragener Zeilen |
+| `addTask` / `addTasks` | `task` / `tasks: [task]` | `{id}` bzw. Liste |
+| `updateTask` / `updateTasks` | `id, changes` / `items: [{id, changes}]` | `{id}` – unbekannte Status werden abgelehnt |
+| `deleteTask` | `id` | `{id}` |
+| `getEvents` | `days` | Termine |
+| `addEvent` / `updateEvent` / `deleteEvent` | `event` (`title, start, end, all_day, description, category_id`) / `id, changes` / `id` | Termin (Serientermine: nicht änderbar) |
+| `setShopItem` | `name, aisle_id` | merkt Abteilung je Artikel |
 
 ## Deploy-Ablauf
 
 0. `BACKEND_VERSION` in `Code.gs` erhöhen (Claude macht das bei Änderungen).
-
 1. Code aus `Code.gs` in den Editor kopieren, speichern.
 2. *Bereitstellen > Bereitstellungen verwalten > Bearbeiten (Stift) > Version: Neue Version > Bereitstellen.*
-   Die URL bleibt gleich. Ohne neue Version läuft der alte Code weiter.
-   **Nicht** „Neue Bereitstellung“ wählen – das erzeugt eine neue URL, die App spricht aber weiter mit der alten.
-3. Prüfen: Web-App-URL im Browser öffnen -> muss „Marvin Backend <Version> aktiv“ zeigen.
+   **Nicht** „Neue Bereitstellung“ – das erzeugt eine neue URL.
+3. Prüfen: Web-App-URL im Browser -> „Marvin Backend <Version> aktiv“.
 
-## Token einrichten (einmalig)
+## Einmalige Umstellung auf Schema v1 (`migrateToV1Schema`)
 
-1. Editor: *Projekteinstellungen (Zahnrad) > Skripteigenschaften > Eigenschaft hinzufügen*: `MARVIN_TOKEN` = langer Zufallswert (z.B. Passwort-Generator, 40 Zeichen).
-2. Denselben Wert in der App unter ⚙︎ > Backend-Token eintragen (Android und Mac je einmal).
-3. Ohne passenden Token antwortet das Backend mit `unauthorized`.
+Im Editor ausführen (vor dem Bereitstellen). Benennt `Tasks`/`Config` in `Tasks_alt`/`Config_alt` um, legt die neuen Tabellen an, übersetzt Status/Quellen ins Englische, ersetzt Kategorie-Namen durch IDs (unbekannte alte Kategorien bekommen eine eigene Zeile), trennt Begriffe in `term`/`hint`. Protokoll im Ausführungsprotokoll. Ein zweiter Lauf wird abgelehnt.
 
-## Google Kalender
+## Token, Google Tasks, Kalender
 
-Nur der **Hauptkalender** (CalendarApp.getDefaultCalendar), ohne Geburtstage (Termin-Typ BIRTHDAY). Nach dem ersten Deploy einmal `testCalendar` im Editor ausführen und die Berechtigung erteilen; die Funktion liest nur.
+- Token: Script Property `MARVIN_TOKEN` = Wert in der App (Einstellungen).
+- Google Tasks: Dienst „Google Tasks API“ (Kennung `Tasks`); einmal `testGoogleTasks` ausführen (Berechtigung).
+- Kalender: einmal `testCalendar` ausführen (Berechtigung).
 
 ## Zeilen von Hand / von anderen KIs eintragen
 
-Erlaubt: Zeile mit **Title** füllen, **ID leer lassen**, Status `Puffer` (oder leer). Beim nächsten Laden vergibt das Backend ID + Zeitstempel, die App sortiert Puffer-Einträge per Gemini ein.
-
-## UX v3 (Backend 0.12)
-
-- Neue Spalte `Abteilung` in `Tasks` (automatisch angelegt, bestehende Zeilen unverändert).
-- Config: `Abteilung` (Reihenfolge = Laufweg, Spalte C `separat` = Trennlinie), `Artikel` (Spalte B Name, C Abteilung – wird von der App gepflegt), `Status` `Proviant`.
-- Termine: Kategorie unsichtbar per Tag `marvinCategory`; Termine ohne Tag liefern `category: ''`.
+In `tasks` reicht `title` (+ optional `status`, `category_id`, `aisle_id`, `due_date`, `notes`); **`id` leer lassen**. Beim nächsten Laden ergänzt das Backend `id`, Zeitstempel, `source = sheet`; ohne gültigen Status -> `inbox` (Marvin sortiert ein). Für Einkäufe siehe `docs/skill-shopping.md`.

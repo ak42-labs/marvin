@@ -50,7 +50,6 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
-*   `docs/ux-v3.md`: UX v3 – Gestenregel, ein Formular für Aufgabe/Termin, Proviant, Laden ohne Warten.
 *   `docs/ux-v3.md`: Vorgabe UX v3 (Gestenregel, ein Formular, Proviant, Laden ohne Warten, Wischzone) – umgesetzt in 3.0.0.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
@@ -69,32 +68,34 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 4. GOOGLE SHEET
-**Name:** `Marvin_Database`
-**Speicherort:** Google Drive > Projekte > Marvin
+## 4. GOOGLE SHEET (Schema v1, seit App 3.1.0 / Backend 1.0)
+**Name:** `Marvin_Database` · **Speicherort:** Google Drive > Projekte > Marvin
 
-**Tabellenblätter & Datenmodell:**
-*   `Tasks`: Haupttabelle für alle Aufgaben.
-*   Spalten `Tasks`: ID, Title, Status, Category, DueDate, Notes, Source, Created_At, Updated_At, Status_Since (vom Backend automatisch angelegt; nur bei Statuswechsel gesetzt).
-*   `Config`: Spalte A = Typ, Spalte B = Wert. Typen: `Status`, `Category`, `Begriff` (Vokabular gegen Verhörer, geht in den Gemini-Prompt), `Importliste` (optional, welche Google-Tasks-Listen importiert werden), `Frist` (Tage im Hyperraum bis zur Glut; Standard 7).
-*   **Anzeigenamen** (nur UI, `STATUS_LABELS` in `app.js`): Backlog = Planetenhirn, Zu tun = Hyperraum, Pausiert = Anhalter, Proviant = Proviant, Erledigt = 42. Alter Wert `Gedächtnis` (noch in Altzeilen) wird beim Lesen als `Backlog` behandelt (`STATUS_ALIASES`); unbekannte Status erscheinen im Planetenhirn (nichts verschwindet).
-*   Spalte `Abteilung` (Proviant, vom Backend angelegt). Config `Abteilung` (Laufweg-Reihenfolge, Spalte C `separat` = Trennlinie), `Artikel` (gemerkte Abteilung, Spalte C).
-*   **Status-Modell:** `Puffer` (Inbox), `Backlog` (Ideen), `Zu tun` (Aktiv), `Pausiert` (On Hold), `Proviant` (Einkauf), `Erledigt` (Done; gekaufter Proviant = Erledigt mit Abteilung, zählt nicht in „42“).
-*   **`Puffer` ist kein Tab**, sondern ein technischer Eingangspuffer: Rohe Eingaben (v.a. Google Home) landen dort, bis die KI sie kategorisiert. In der UI nur als Zähler-Badge sichtbar, wenn etwas drin hängt.
+**Grundsatz:** Jedes Blatt = eine Tabelle (Vorbereitung für eine spätere echte Datenbank). Alle Systembegriffe Englisch, `snake_case`. Eigene Inhalte (Titel, Kategorie- und Abteilungsnamen) bleiben Deutsch. Details + Spalten: `apps-script/README.md`.
 
-**Beispielzeilen (Tabellenblatt "Tasks"):**
-*   *Row 1:* ID: `[UUID]`, Title: "Balkonkraftwerk Kabel verlegen", Status: "Zu tun", Category: "PV & Klima", DueDate: "2026-11-20", Source: "PWA", Created_At: `[Timestamp]`, Updated_At: `[Timestamp]`
-*   *Row 2:* ID: `[UUID]`, Title: "Physio-Übungen mit Flo abklären", Status: "Zu tun", Category: "Gesundheit", DueDate: "2026-11-18", Source: "PWA"
-*   *Row 3:* ID: `[UUID]`, Title: "Neue Winterreifen bestellen", Status: "Gedächtnis", Category: "Wohnung", Source: "Google Home"
+| Tabelle | Zweck |
+|---|---|
+| `tasks` | Aufgaben + Proviant. `status` ∈ `inbox` · `backlog` · `todo` · `on_hold` · `shopping` · `done`; `category_id` → `categories`; `aisle_id` → `shop_aisles` |
+| `categories` | `id`, `name`, `sort` |
+| `shop_aisles` | `id`, `name`, `sort`, `store` (Wechsel des Geschäfts = Trennlinie) |
+| `shop_items` | gemerkte Abteilung je Artikel |
+| `terms` | Vokabular gegen Verhörer (`term`, `hint`) |
+| `settings` | `due_days`, `event_days`, `import_lists`, `locale` |
+
+*   **Status sind feste Schlüssel im Code** (Verhalten hängt daran), keine Tabelle. Anzeige-Namen nur in `STATUS_LABELS` (`app.js`): backlog = Planetenhirn, todo = Hyperraum, on_hold = Anhalter, shopping = Proviant, done = 42. `inbox` unsichtbar (Puffer). Gekaufter Proviant = `done` mit `aisle_id`, zählt nicht in „42“.
+*   **IDs statt Namen** in `tasks` (Kategorie/Abteilung umbenennen bricht nichts).
+*   **App liest alles in einem Aufruf** (`getAll`) und hält es im Speicher + localStorage-Cache (`CACHE_V`); Nachschlagen ID → Name passiert nur im Speicher.
+*   Alte Blätter `Tasks_alt` / `Config_alt` nach der Umstellung nur als Sicherung; löschen, sobald alles passt.
+*   Einkäufe aus Rezepten per Gemini-Skill: `docs/skill-shopping.md`.
 
 ---
 
 ## 5. APPS SCRIPT
-*   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version deployen).
-*   **Endpunkte:** `doPost(e)` mit `{ action, token, ... }`. Aktionen: `getTasks` (inkl. Google-Tasks-Import), `addTask`, `updateTask`, `updateTasks`, `deleteTask`, `getEvents`, `addEvent`, `updateEvent`, `deleteEvent`, `getConfig` (Details: `apps-script/README.md`). Antwort: `{status: 'success', data}` bzw. `{status: 'error', message}`.
+*   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version bereitstellen). Version: `BACKEND_VERSION`.
+*   **Aktionen:** `getAll`, `addTask(s)`, `updateTask(s)`, `deleteTask`, `getEvents`, `addEvent`, `updateEvent`, `deleteEvent`, `setShopItem`. Antwort `{status, data, info}`. Details: `apps-script/README.md`.
 *   **Auth:** Jede Anfrage braucht `token` == Script Property `MARVIN_TOKEN`.
-*   **Deployment-Einstellungen:** Web-App, Ausführen als: "Ich (armin...)", Zugriff: "Jeder".
-*   **Externe APIs/Schlüssel:** Google Sheets API (als Dienst im Script aktiviert, um CORS zu vermeiden).
+*   **Deployment:** Web-App, Ausführen als „Ich“, Zugriff „Jeder“.
+*   **Dienste:** Google Tasks API (Import Google Home), Kalender (Hauptkalender).
 
 ---
 
@@ -118,6 +119,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   2.0.2: Spracheingabe Ende nach 2 s Stille, 5 s bis zum ersten Wort. Leerlauf-Gags alle 10–16 s, Pixel-Gags doppelt gewichtet. Neigungs-Glas ca. 3× stärker (Glut ±18 %, Glanz ±40 px, Karten-Verlauf ±20°).
 *   2.0.3: Leerlauf-Gags: erster nach 4–6 s Ruhe, dann alle 6–10 s. Neu „Blick“: Augen schauen beim Scrollen nach oben/unten und beim Drehrad-Wechsel in Drehrichtung (ohne Klick). Neigungs-Glas auf 1,5× Original (Glut ±9 %, Glanz ±21 px, Karten ±9°).
 *   **3.0.0 (Backend 0.12, 22.11.2026): UX v3** nach `docs/ux-v3.md`: Gesten überall gleich (Tipp ohne Bewegung = erledigt/gekauft, lange drücken 0,45 s = bearbeiten, Wischen = Nachbar-Spalte; Termin-Tipp = Spruch). Ein Formular für Aufgabe/Termin („Die Uhrzeit entscheidet“): Umwandeln legt IMMER zuerst neu an und löscht das Alte erst nach Erfolg; Serientermine nicht umwandelbar; kein Auto-Fokus. Termine 60 Tage voraus, > Frist im Planetenhirn; Kategorie am Termin per Tag `marvinCategory`. Proviant als 4. Drehrad-Position (Laufweg-Sortierung, Trennlinie bei „separat“, Tippen = verglüht/gekauft, Abteilung merken, Gemini `type:"einkauf"` mit mehreren Artikeln). Laden ohne Warten (Cache `marvin.cache`, Format-Version `CACHE_V`, „Babelfisch übersetzt …“, offline „Kein Netz. Wie erwartet.“). Daumen-Wischzone unten (freie Listenfläche, Marvin-Zeile, Marvin-Knopf; Entscheidung erst beim Loslassen).
+*   **3.1.0 (Backend 1.0, 22.11.2026): Schema v1** – englische Status-Schlüssel, eigene Tabellen (`tasks`, `categories`, `shop_aisles`, `shop_items`, `terms`, `settings`), IDs statt Namen, ein Ladeaufruf `getAll`, Umstellungsfunktion `migrateToV1Schema` (mit Armins echten Daten in einer Sheets-Nachbildung getestet). Keine Altlasten: alte deutsche Werte werden nicht mehr verstanden.
 *   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
@@ -149,8 +151,10 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin):
-1.  **Live-Test UX v3** am Handy (Testliste im Chat vom 22.11.2026).
-2.  Config: Zeile `Status | Proviant` ergänzen (Doku-Zweck; die App braucht sie nicht).
-3.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
-4.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
-5.  Fließende Augen-Übergänge (Design-Chat).
+1.  **Umstellung ausführen** (Backend 1.0 + `migrateToV1Schema`), danach Live-Test UX v3 am Handy (Testliste im Chat vom 22.11.2026).
+2.  Nach erfolgreichem Test: `Tasks_alt` / `Config_alt` löschen, Funktion `migrateToV1Schema` aus `Code.gs` entfernen.
+3.  Kategorien aufräumen (z.B. „Verschiedenes“ in „Allerlei“ zusammenführen, „Einkaufen“ prüfen) – direkt in `categories`/`tasks`.
+4.  Rezept-Skill in Gemini anlegen (`docs/skill-shopping.md`).
+5.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
+6.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
+7.  Fließende Augen-Übergänge (Design-Chat).

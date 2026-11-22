@@ -319,8 +319,8 @@ dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
     font-family: var(--font-display); font-size: 11px; letter-spacing: .04em;
 }
 .status-buttons button.active { background: rgba(255,150,50,.3); border-color: rgba(255,176,96,.8); color: #FFF3E6; }
-.status-buttons button[data-status="Erledigt"] { grid-column: 1 / -1; }
-.status-buttons button[data-status="Erledigt"].active { background: rgba(255,200,120,.35); border-color: var(--amber-soft); }
+.status-buttons button[data-status="done"] { grid-column: 1 / -1; }
+.status-buttons button[data-status="done"].active { background: rgba(255,200,120,.35); border-color: var(--amber-soft); }
 
 /* Termin-Modus */
 .event-only { display: none; }

@@ -60,7 +60,7 @@
             <p id="edit-recurring" class="edit-hint" hidden>Serientermin – Umwandeln und Zeit bitte im Google Kalender ändern.</p>
             <div class="edit-row">
                 <select id="edit-category" class="not-prov" aria-label="Kategorie"></select>
-                <select id="edit-abteilung" class="only-prov" aria-label="Abteilung"></select>
+                <select id="edit-aisle" class="only-prov" aria-label="Abteilung"></select>
                 <div class="field-x not-prov">
                     <input type="date" id="edit-due" aria-label="Datum">
                     <button type="button" class="x" id="edit-due-clear" aria-label="Datum leeren">×</button>
@@ -85,10 +85,10 @@
             </div>
             <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>
             <div class="status-buttons not-prov">
-                <button type="button" data-status="Backlog"></button>
-                <button type="button" data-status="Zu tun"></button>
-                <button type="button" data-status="Pausiert"></button>
-                <button type="button" data-status="Erledigt" id="edit-wide"></button>
+                <button type="button" data-status="backlog"></button>
+                <button type="button" data-status="todo"></button>
+                <button type="button" data-status="on_hold"></button>
+                <button type="button" data-status="done" id="edit-wide"></button>
             </div>
             <div class="dialog-actions">
                 <button type="button" id="edit-delete" class="pill danger">Löschen</button>
