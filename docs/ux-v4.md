@@ -49,5 +49,23 @@ Referenz: Mockup-Karte „Arcade-Augen“ (Seite UX v3.1), Datei `V31Arcade.dc.h
 - **Extra Life:** Augen werden zu Pixel-Herzen, jedes schlägt aus seiner Mitte (3×), weicher Herzschlag-Ton, „EXTRA LIFE“. Anlass: Hyperraum leer.
 - **Loading:** Rahmen-Balken mit Blöcken, „LOADING...“ darüber, Prozent direkt darunter. Zählt hoch, bleibt bei 42 % hängen: „42%“ allein (~0,9 s) → „42% HÄNGT…“ → „42% IMMER NOCH“ → „42% WIE ERWARTET“ → 100 %. Anlass: Babelfisch-Abgleich/Sync.
 
+# Teil 3 – Ablauf beider Welten (Autopilot)
+
+Referenz: Mockup-Karte „Autopilot: beide Welten“ (`V4Autopilot.dc.html`). Dort zählen **nur Ablauf und Tore**. Die runden Bewegungen in der Demo sind vereinfacht (Pupillen wandern z. B. über die Brauen) – verbindlich bleiben die runden Abläufe aus Teil 1 (`V31Augen.dc.html`), die Pixel-Abläufe aus Teil 2 (`V31Arcade.dc.html`).
+
+- **App-Start:** immer Aufwachen (rund, aus geschlossenen Augen).
+- **Phasen statt Hin und Her:** rund 3–5 Gags, Pixel 2–3 Gags, dazwischen 1,5–3 s Ruhe. Gags zufällig, nie zweimal derselbe hintereinander.
+- **Gemeinsame Pose „Bogen offen“** (runde Augen ohne Pupille = Pixel-Bogen): nur aus dieser Pose wird gewechselt. Alle Gags enden dort.
+- **Tore rund → Pixel** (zufällig, nie zweimal dasselbe):
+  - Verwandlung: runder Bogen blendet in Stufen aus, Pixel-Bogen baut sich Block für Block auf (~1,4 s).
+  - Blick nach oben → Blockregen.
+  - Augen zur Linie → Röhre an.
+  - Snake: runde Augen mit Pupillen (geradeaus) verwandeln sich in Pixel-Augen **mit** Pixel-Pupillen, kurze Pause (~1 s), dann startet die Schlange.
+- **Tore Pixel → rund:** Verwandlung zurück · Game Over → Aufwachen.
+- **Ereignisse haben Vorrang** (unterbrechen den Gag, falls nötig über „Verwandlung“ kurz in die passende Welt und danach zurück):
+  - Sync → Loading (Pixel).
+  - Erledigt → La-Ola oder Extra Life (Pixel).
+  - Verschoben → Augenrollen (rund).
+
 ## Später
 Space Invaders (evtl. ganzer Bildschirm, Karten als Invaders), Lunar Lander, Defender.
