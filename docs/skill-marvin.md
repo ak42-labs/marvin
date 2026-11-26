@@ -34,6 +34,7 @@ Ein Satz kann mehrere Einträge enthalten ("Milch kaufen und morgen 15 Uhr Rober
 ## Weg AUFGABE
 1. Lies `tasks`. Gibt es schon einen offenen Eintrag mit gleicher Bedeutung (Status nicht `done`) → nichts anlegen, mir das sagen.
 2. Sonst neue Zeile mit `status = inbox`. Marvin ordnet Kategorie und Spalte selbst zu.
+   **Ausnahme – nur wenn ich die Spalte ausdrücklich nenne:** Planetenhirn → `backlog`, Hyperraum → `todo`, Anhalter → `on_hold`. Dann setzt du diesen `status` und zusätzlich `category_id` = passende `id` aus dem Blatt `categories` (vorher lesen; nur dort vorhandene `id`s). Sage ich keine Spalte, IMMER `inbox` – auch beim Sammel-Auftrag.
 3. `title`: kurz, als Tätigkeit (z.B. "Reifen wechseln", "Steuerberater anrufen").
 4. `due_date`: nur wenn ein Tag erkennbar ist, Format `YYYY-MM-DD` (z.B. "nächsten Dienstag" → konkretes Datum). Sonst leer.
 5. `notes`: optional Kontext in einem Satz.
@@ -45,15 +46,15 @@ Ein Satz kann mehrere Einträge enthalten ("Milch kaufen und morgen 15 Uhr Rober
 
 ## Neue Zeile in `tasks` – Spalten in genau dieser Reihenfolge
 `id | title | status | category_id | due_date | notes | aisle_id | source | created_at | updated_at | status_since`
-- `id`: leer (vergibt Marvin)
+- `id`: **IMMER leer.** Niemals selbst eine id oder UUID erfinden – Marvin vergibt sie beim nächsten Laden.
 - `title`: siehe oben
-- `status`: `shopping` (Einkauf) oder `inbox` (Aufgabe) – keine anderen Werte
-- `category_id`: leer
+- `status`: `shopping` (Einkauf) oder `inbox` (Aufgabe). `backlog` / `todo` / `on_hold` NUR, wenn ich die Spalte ausdrücklich genannt habe (siehe Weg AUFGABE). Keine anderen Werte.
+- `category_id`: leer – außer bei ausdrücklich genannter Spalte (dann `id` aus `categories`)
 - `due_date`: nur bei Aufgaben mit erkennbarem Tag, sonst leer
 - `notes`: optional
 - `aisle_id`: nur bei Einkauf, sonst leer
 - `source`: `gemini`
-- `created_at`, `updated_at`, `status_since`: leer (ergänzt Marvin)
+- `created_at`, `updated_at`, `status_since`: **IMMER leer** (ergänzt Marvin)
 - Neue Zeilen immer ganz unten anhängen.
 
 ## Verboten
@@ -67,4 +68,4 @@ Kurz, gruppiert nach Weg, z.B.:
 "Einkauf: Mozzarella → Molkerei, Basilikum → Obst & Gemüse · Aufgabe: Reifen wechseln (Di 1.12.) · Termin: Robert, Mo 15:00"
 ```
 
-**Hinweis für Marvin (Code):** `inbox`-Zeilen mit `source = gemini` werden wie Google-Home-Einträge beim Start von Gemini einsortiert (Kategorie + Spalte). Ein vorhandenes `due_date` bleibt erhalten.
+**Hinweis für Marvin (Code):** `inbox`-Zeilen mit `source = gemini` werden wie Google-Home-Einträge beim Start von Gemini einsortiert (Kategorie + Spalte). Ein vorhandenes `due_date` bleibt erhalten. ✔ geprüft 26.11.2026 (`processInbox` übernimmt `due_date` nur, wenn leer; Zeilen ohne `id` ergänzt das Backend).
