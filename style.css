@@ -309,10 +309,9 @@ dialog.sheet textarea, dialog.sheet select, dialog.sheet input { margin-bottom: 
 dialog select option { background: #221a15; }
 dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
 
-.edit-row { display: flex; gap: 8px; }
-.edit-row > * { flex: 1; min-width: 0; }
-.edit-row > .field-x:has(#edit-due), .edit-row > .field-x:has(#edit-time) { flex: 1.5; }
-#edit-due, #edit-time { padding-right: 30px; }
+.edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } /* alle Felder gleich breit */
+.edit-row > * { min-width: 0; }
+#edit-due, #edit-time { padding-right: 46px; } /* Abstand: Kalender-/Uhr-Symbol ↔ × */
 
 .status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 16px; }
 .status-buttons button {

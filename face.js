@@ -58,8 +58,8 @@ const Face = (() => {
     let nextAt = Infinity;
     let left, lastR = '', lastP = '', lastIn = '';
     let roundEy = 0;
-    let syncing = false, pendingSync = false, wakeStart = 0;
-    let tiltTimer = null, tiltRaf = false, tiltRest = null;
+    let syncing = false, pendingSync = false;
+    let tiltTimer = null, tiltRaf = false, tiltRest = null, tiltLast = null;
     let ps = {};                 // Pixel-Zustand
 
     const at = (ms, f) => { timers.push(setTimeout(f, ms)); };
@@ -303,25 +303,28 @@ const Face = (() => {
     function loadRun(done) {
         ps.hide = true; ps.bar = true; ps.barW = 0; ps.barTxt = '0%';
         drawBlocks(); drawBar();
-        let w = 0, jokesOver = false;
+        let w = 0, reached = false, over = false;
         const finish = () => {
+            if (over) return; over = true;
             loadRun.onSynced = null;
             ps.barW = 94; ps.barTxt = '100%'; drawBar(); beep([784, 1047], .08);
             at(1100, done);
         };
-        const tryFinish = () => { if (jokesOver && !syncing) finish(); };
+        const joke = (t) => { if (!over) { ps.barTxt = t; drawBar(); } };
+        const tryFinish = () => { if (reached && !syncing) finish(); }; // fertig geladen -> sofort 100 %
         interval = setInterval(() => {
             w += Math.random() < .3 ? 0 : 3 + Math.round(Math.random() * 5);
             if (w >= 39) {
                 w = 39; clearInterval(interval); interval = null;
-                ps.barW = w; ps.barTxt = '42%'; drawBar();
-                at(900, () => { ps.barTxt = '42% HÄNGT…'; drawBar(); });
-                at(2400, () => { ps.barTxt = '42% IMMER NOCH'; drawBar(); });
-                at(3900, () => { ps.barTxt = '42% WIE ERWARTET'; drawBar(); });
-                at(5400, () => { jokesOver = true; tryFinish(); });
+                ps.barW = w; ps.barTxt = '42%'; drawBar(); reached = true;
+                // hängt bei 42 %, solange der Abgleich läuft
+                at(900, () => joke('42% HÄNGT…'));
+                at(2400, () => joke('42% IMMER NOCH'));
+                at(3900, () => joke('42% WIE ERWARTET'));
+                at(600, tryFinish);
             } else { ps.barW = w; ps.barTxt = Math.round(w / 94 * 100) + '%'; drawBar(); }
         }, 160);
-        loadRun.onSynced = tryFinish;
+        loadRun.onSynced = () => at(400, tryFinish);
     }
 
     // Snake + 42 (Pupillen vorher sichtbar; Pause ~1 s)
@@ -503,14 +506,7 @@ const Face = (() => {
     function sync(on) {
         syncing = !!on;
         if (on) {
-            if (running && running.name === 'wake') {
-                // Aufwachen dauert ~12 s – Laden hat Vorrang, sobald die Augen offen sind (~3 s nach Start)
-                pendingSync = true;
-                at(Math.max(0, 3000 - (Date.now() - wakeStart)), () => {
-                    if (syncing && running?.name === 'wake') { pendingSync = false; finish(); startSync(); }
-                });
-                return;
-            }
+            if (running && running.name === 'start') return; // Start-Ablauf zeigt das Laden selbst
             if (running && running.kind === 'event') { pendingSync = true; return; }
             startSync();
         } else {
@@ -616,7 +612,21 @@ const Face = (() => {
             // App-Start: immer Aufwachen (rund, aus geschlossenen Augen)
             world = 'round'; showWorld('round');
             R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
-            if (funEnabled()) { wakeStart = Date.now(); begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); schedule(4000, 6000); }); }
+            if (funEnabled()) {
+                // App-Start: Marvin schläft, solange geladen wird (Loading 42 %), danach wacht er auf
+                begin('start', 'event');
+                const wake = () => { begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); schedule(4000, 6000); }); };
+                at(150, () => {
+                    if (!syncing) { wake(); return; }
+                    showWorld('pixel');
+                    px('load', () => {
+                        pixReset(); world = 'round'; showWorld('round');
+                        R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
+                        at(500, wake);
+                    }, { start: true });
+                    world = 'pixel';
+                });
+            }
             else { R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); nextAt = Infinity; }
             setInterval(tick, 500);
         },
@@ -640,23 +650,29 @@ const Face = (() => {
     function tiltFollow(tx, ty) {
         if (!funEnabled() || world !== 'round') return;
         if (!tiltRest) tiltRest = { tx, ty };
+        const moved = !tiltLast || Math.abs(tx - tiltLast.tx) > .03 || Math.abs(ty - tiltLast.ty) > .03;
+        tiltLast = { tx, ty };
         const dx = tx - tiltRest.tx, dy = ty - tiltRest.ty;
-        const strong = Math.abs(dx) > .35 || Math.abs(dy) > .35;
-        if (!strong && running?.name !== 'tilt') { tiltRest.tx += dx * .05; tiltRest.ty += dy * .05; return; } // Ruhelage gleitet mit
-        if (running && running.name !== 'tilt') { if (running.kind !== 'gag' && running.kind !== 'glance') return; snapToBase(false); }
-        if (!running) begin('tilt', 'glance');
+        const strong = Math.hypot(dx, dy) > .3;
+        if (running?.name !== 'tilt') {
+            if (!strong) { tiltRest.tx += dx * .05; tiltRest.ty += dy * .05; return; } // Ruhelage gleitet mit
+            if (running) { if (running.kind !== 'gag' && running.kind !== 'glance') return; snapToBase(false); }
+            begin('tilt', 'glance');
+        }
         if (!tiltRaf) { tiltRaf = true; requestAnimationFrame(() => {
             tiltRaf = false;
-            const x = Math.max(-11, Math.min(11, dx * 14)), y = Math.max(-5, Math.min(5, dy * 8));
+            // alle Richtungen, begrenzt: links/rechts ±10, oben/unten ±5
+            const x = Math.max(-10, Math.min(10, dx * 16)), y = Math.max(-5, Math.min(5, dy * 12));
             R({ s: 'LID', p: 1, x, y, pd: .15, d: .3 });
         }); }
+        if (!moved) return; // Zittern am Tisch hält den Modus nicht offen
         clearTimeout(tiltTimer);
         tiltTimer = setTimeout(() => {
             if (running?.name !== 'tilt') return;
-            tiltRest = null;
+            tiltRest = tiltLast ? { ...tiltLast } : null; // neue Lage = Ruhelage
             R({ s: 'OPEN', p: 0, ey: 0, d: .6, od: .4 });
             setTimeout(() => { if (running?.name === 'tilt') { finish(); schedule(4000, 6000); } }, 700);
-        }, strong ? 1500 : 1500);
+        }, 1500);
     }
 
     // ---------- v3 Neigungs-Glas ----------
@@ -672,7 +688,7 @@ const Face = (() => {
                 pending = null;
             });
             pending = { tx, ty };
-            tiltFollow(tx, ty);
+            tiltFollow(Math.max(-2, Math.min(2, e.gamma / 30)), Math.max(-2, Math.min(2, (e.beta - 45) / 30))); // ungekappt: auch flach am Tisch reagiert oben/unten
         });
     }
 })();

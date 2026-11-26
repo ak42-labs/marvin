@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.0.1'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.0.2'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -859,7 +859,7 @@ const $ = id => document.getElementById(id);
 // options: [{id, name}]; unbekannter aktueller Wert bleibt als eigene Option erhalten
 function fillSelect(sel, options, current, emptyLabel) {
     const list = options.slice();
-    if (current && !list.some(o => o.id === current)) list.push({ id: current, name: current });
+    if (current && !list.some(o => o.id === current)) current = ''; // verwaiste ID (z.B. alte Kategorie am Termin) -> leer
     sel.replaceChildren(...(emptyLabel != null ? [new Option(emptyLabel, '')] : []), ...list.map(o => new Option(o.name, o.id, false, o.id === current)));
     sel.value = current || '';
 }
