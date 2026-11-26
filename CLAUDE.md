@@ -86,7 +86,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   **IDs statt Namen** in `tasks` (Kategorie/Abteilung umbenennen bricht nichts).
 *   **App liest alles in einem Aufruf** (`getAll`) und hält es im Speicher + localStorage-Cache (`CACHE_V`); Nachschlagen ID → Name passiert nur im Speicher.
 *   Alte Blätter `Tasks_alt` / `Config_alt` nach der Umstellung nur als Sicherung; löschen, sobald alles passt.
-*   Einkäufe aus Rezepten per Gemini-Skill: `docs/skill-shopping.md`.
+*   Eingang über Gemini (Einkauf, Aufgaben, Termine): `docs/skill-marvin.md`.
 
 ---
 
@@ -154,7 +154,7 @@ Backlog (Priorisierung durch Armin):
 1.  ~~Umstellung Schema v1~~ erledigt (22.11.2026); `migrateToV1Schema` entfernt (Backend 1.0.1). Alltagstest läuft.
 2.  `Tasks_alt` / `Config_alt` im Sheet löschen, sobald sicher nichts fehlt.
 3.  Kategorien aufräumen (z.B. „Verschiedenes“ in „Allerlei“ zusammenführen, „Einkaufen“ prüfen) – direkt in `categories`/`tasks`.
-4.  ~~Rezept-Skill in Gemini~~ angelegt und getestet (`docs/skill-shopping.md`).
+4.  ~~Rezept-Skill in Gemini~~ angelegt und getestet (`docs/skill-marvin.md`, erweitert 26.11.: Aufgaben → inbox, Termine → Kalender, Sammel-Auftrag mit Bestätigung).
 5.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
 6.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
 7.  Fließende Augen-Übergänge (Design-Chat).
