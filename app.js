@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '3.1.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.0.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -96,7 +96,6 @@ let allTasks = [];
 let allEvents = [];
 let scrolling = false;
 let ignoreScrollUntil = 0;
-let overdueReacted = false; // Termine aus dem Google-Hauptkalender (live, nicht im Sheet)
 let categories = [];  // [{id, name, sort}] (Tabelle categories)
 let aisles = [];      // [{id, name, sort, store}] Laufweg-Reihenfolge (Tabelle shop_aisles)
 let locale = 'de-AT'; // settings.locale (Spracherkennung, Datumsformat)
@@ -129,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderWheel();
     Face.init({
         say: (text) => say(text),                         // Gag-Sprüche: Text ja, Stimme nein
+        soundOn: () => getSetting('voice') === 'on',      // 8-Bit-Piepser hängen an „Marvin spricht“
         canIdle: () => mood === 'doze' && !recognition && !busy && !document.querySelector('dialog[open]') && !scrolling,
     });
     // Jede Berührung / jedes Scrollen bricht Leerlauf-Gags ab
@@ -308,6 +308,7 @@ async function loadAll() {
 
     say('Babelfisch übersetzt …');
     setMood('think');
+    Face.sync(true); // Pixel-Welt: Loading … 42 %
 
     // EIN Aufruf für alles (Google Sheets ist pro Anfrage langsam, nicht pro Datenmenge)
     const [allR] = await Promise.allSettled([callBackend('getAll')]);
@@ -328,6 +329,7 @@ async function loadAll() {
     }
     setMood('doze');
     syncing = false;
+    Face.sync(false);
 
     const offline = [cfgR, tasksR, evR].every(r => r.status === 'rejected' && r.reason instanceof TypeError);
     if (tasksR.status === 'rejected') {
@@ -348,7 +350,6 @@ async function loadAll() {
     loading.style.display = 'none';
     renderTasks();
     saveCache();
-    reactToOverdue();
     processInbox();
 }
 
@@ -380,16 +381,6 @@ function hotCount() {
     return allTasks.filter(t => t.status === TODO && urgency(t).cls.includes('hot')).length;
 }
 
-// Beim Öffnen: viel Überfälliges -> Schock (A) bzw. Böse (B), abwechselnd
-function reactToOverdue() {
-    if (overdueReacted || hotCount() < 3) return;
-    overdueReacted = true;
-    let last = '';
-    try { last = localStorage.getItem('marvin.overdueFace') || ''; } catch {}
-    const kind = last === 'shock' ? 'frown' : 'shock';
-    try { localStorage.setItem('marvin.overdueFace', kind); } catch {}
-    setTimeout(() => Face.react(kind), 600);
-}
 
 // Wie oft wurde eine Aufgabe verschoben? (pro Gerät, für die hängenden Augen)
 function countMove(task) {
@@ -1156,16 +1147,19 @@ const lastMoveAt = new Map();
 function setStatus(task, status, extra = {}) {
     const before = { status: task.status, status_since: task.status_since };
     saveTask(task, { ...extra, status: status });
+    // Hyperraum leer (keine offenen Aufgaben, keine Termine innerhalb der Frist) -> Extra Life
+    const hyperspaceEmpty = !allTasks.some(t => t.status === TODO) && !allEvents.some(e => eventView(e) === TODO);
     if (status === DONE_STATUS && before.status === PROVIANT) {
         say(pick(LINES.bought), { voice: true });
-        Face.react('done');
+        Face.react('done', { hyperspaceEmpty: false });
     } else if (status === DONE_STATUS) {
         say(pick(LINES.done), { voice: true });
-        Face.react('done');
+        Face.react('done', { hyperspaceEmpty });
     } else if (countMove(task) === 5) {
-        Face.flash('hang');
+        Face.react('move');
         say(pick(LINES.moveAgain), { voice: true });
     } else {
+        Face.react('move');
         say(pick(LINES.move), { voice: true }); // vorerst jedes Mal Text + Stimme (später ggf. reduzieren, ux-v2 §6)
     }
     lastMoveAt.set(task.id, Date.now());
