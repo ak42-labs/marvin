@@ -158,6 +158,7 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin, Stand 26.11.2026):
+**Plan 27.11.2026:** (1) Offline-Modus = ux-v3.1 §3 Warteschlange inkl. Sprache ohne Netz + Wettlauf-Bug (Laden überschreibt laufende Änderung, z.B. „Mutter anrufen“ kurz weg/wieder da) + eigene Offline-Test-Suite. (2) Jahreszahl im Datumsfeld (ux-v3.1 §7). (3) Einstellungsdialog optisch aufwerten (Funktion steht seit 4.2.0).
 1.  **UX v3.1 Rest** nach `docs/ux-v3.1.md` (§1, §2, §4, §5, §8 erledigt in 4.1.0/4.2.0): **Offline-Modus** = §3 Warteschlange inkl. Sprache ohne Netz + eigene Offline-Test-Suite; §7 Jahreszahl im Datumsfeld (zurückgestellt). Alt: bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
 2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
 3.  ~~UX v4 Teil 1–3~~ erledigt in 4.0.0. Ursprünglich: **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Danach **Teil 2 Arcade-Welt** nach `docs/ux-v4.md` (Röhre an, Blockregen, La-Ola, Snake + 42, Game Over, Zwinkern, Extra Life, Loading 42 %), dann **Teil 3 Ablauf** (Phasen, Tore, Ereignisse).
