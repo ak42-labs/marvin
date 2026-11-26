@@ -156,7 +156,7 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin, Stand 26.11.2026):
-1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md`: Sprach-Ende 1,5 s + Tipp beendet, Ziehen zum Aktualisieren, Datenalter `STAND hh:mm`, Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
+1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md`: Sprach-Ende 1,5 s + Tipp beendet, Ziehen zum Aktualisieren, Datenalter relativ (`STAND 2H 15M`, nur wenn veraltet – siehe §2), Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
 2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
 3.  ~~UX v4 Teil 1–3~~ erledigt in 4.0.0. Ursprünglich: **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Danach **Teil 2 Arcade-Welt** nach `docs/ux-v4.md` (Röhre an, Blockregen, La-Ola, Snake + 42, Game Over, Zwinkern, Extra Life, Loading 42 %), dann **Teil 3 Ablauf** (Phasen, Tore, Ereignisse).
 4.  **Design-Chat: Space Invaders** (evtl. ganzer Bildschirm, Karten als Invaders), danach Lunar Lander / Defender – zuletzt.
