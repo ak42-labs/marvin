@@ -311,6 +311,8 @@ dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
 
 .edit-row { display: flex; gap: 8px; }
 .edit-row > * { flex: 1; min-width: 0; }
+.edit-row > .field-x:has(#edit-due), .edit-row > .field-x:has(#edit-time) { flex: 1.5; }
+#edit-due, #edit-time { padding-right: 30px; }
 
 .status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 16px; }
 .status-buttons button {

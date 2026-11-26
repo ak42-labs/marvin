@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.0.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.0.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -234,6 +234,7 @@ function initSettings() {
 // ---------- Backend ----------
 
 async function callBackend(action, payload = {}) {
+    const started = Date.now();
     const response = await fetch(SCRIPT_URL, {
         method: 'POST',
         // text/plain umgeht den CORS-Preflight von Apps Script
@@ -241,7 +242,7 @@ async function callBackend(action, payload = {}) {
         body: JSON.stringify({ action, token: getSetting('token'), ...payload }),
     });
     const result = await response.json();
-    debugLog(`Backend ${action}`, result.status === 'success'
+    debugLog(`Backend ${action} · ${Date.now() - started} ms gesamt`, result.status === 'success'
         ? { info: result.info, data: Array.isArray(result.data) ? `${result.data.length} Einträge` : result.data }
         : result.message);
     if (result.info?.import) reportImport(result.info.import);

@@ -58,7 +58,8 @@ const Face = (() => {
     let nextAt = Infinity;
     let left, lastR = '', lastP = '', lastIn = '';
     let roundEy = 0;
-    let syncing = false, pendingSync = false;
+    let syncing = false, pendingSync = false, wakeStart = 0;
+    let tiltTimer = null, tiltRaf = false, tiltRest = null;
     let ps = {};                 // Pixel-Zustand
 
     const at = (ms, f) => { timers.push(setTimeout(f, ms)); };
@@ -502,7 +503,15 @@ const Face = (() => {
     function sync(on) {
         syncing = !!on;
         if (on) {
-            if (running && (running.name === 'wake' || running.kind === 'event')) { pendingSync = true; return; }
+            if (running && running.name === 'wake') {
+                // Aufwachen dauert ~12 s – Laden hat Vorrang, sobald die Augen offen sind (~3 s nach Start)
+                pendingSync = true;
+                at(Math.max(0, 3000 - (Date.now() - wakeStart)), () => {
+                    if (syncing && running?.name === 'wake') { pendingSync = false; finish(); startSync(); }
+                });
+                return;
+            }
+            if (running && running.kind === 'event') { pendingSync = true; return; }
             startSync();
         } else {
             loadRun.onSynced?.();
@@ -607,7 +616,7 @@ const Face = (() => {
             // App-Start: immer Aufwachen (rund, aus geschlossenen Augen)
             world = 'round'; showWorld('round');
             R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
-            if (funEnabled()) { begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); schedule(4000, 6000); }); }
+            if (funEnabled()) { wakeStart = Date.now(); begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); schedule(4000, 6000); }); }
             else { R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); nextAt = Infinity; }
             setInterval(tick, 500);
         },
@@ -627,6 +636,29 @@ const Face = (() => {
         _state: () => ({ world, running: running && running.name, auto, left }),
     };
 
+    // Starkes Neigen (runde Welt): Ablauf pausiert, Augen folgen; nach 1,5 s Ruhe geht es weiter
+    function tiltFollow(tx, ty) {
+        if (!funEnabled() || world !== 'round') return;
+        if (!tiltRest) tiltRest = { tx, ty };
+        const dx = tx - tiltRest.tx, dy = ty - tiltRest.ty;
+        const strong = Math.abs(dx) > .35 || Math.abs(dy) > .35;
+        if (!strong && running?.name !== 'tilt') { tiltRest.tx += dx * .05; tiltRest.ty += dy * .05; return; } // Ruhelage gleitet mit
+        if (running && running.name !== 'tilt') { if (running.kind !== 'gag' && running.kind !== 'glance') return; snapToBase(false); }
+        if (!running) begin('tilt', 'glance');
+        if (!tiltRaf) { tiltRaf = true; requestAnimationFrame(() => {
+            tiltRaf = false;
+            const x = Math.max(-11, Math.min(11, dx * 14)), y = Math.max(-5, Math.min(5, dy * 8));
+            R({ s: 'LID', p: 1, x, y, pd: .15, d: .3 });
+        }); }
+        clearTimeout(tiltTimer);
+        tiltTimer = setTimeout(() => {
+            if (running?.name !== 'tilt') return;
+            tiltRest = null;
+            R({ s: 'OPEN', p: 0, ey: 0, d: .6, od: .4 });
+            setTimeout(() => { if (running?.name === 'tilt') { finish(); schedule(4000, 6000); } }, 700);
+        }, strong ? 1500 : 1500);
+    }
+
     // ---------- v3 Neigungs-Glas ----------
     function initTilt() {
         if (reducedMotion()) return;
@@ -640,6 +672,7 @@ const Face = (() => {
                 pending = null;
             });
             pending = { tx, ty };
+            tiltFollow(tx, ty);
         });
     }
 })();

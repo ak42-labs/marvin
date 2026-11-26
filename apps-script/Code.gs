@@ -1,5 +1,5 @@
 // Marvin Backend – Schema v1 (englisch, snake_case; jedes Blatt = eine Tabelle). Siehe apps-script/README.md.
-const BACKEND_VERSION = '1.0.1'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '1.0.2'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 // Tabellen und ihre Spalten (Reihenfolge = Spaltenreihenfolge im Blatt)
 const SCHEMA = {
@@ -136,8 +136,11 @@ function settings_() {
 // ================= Lesen: alles auf einmal =================
 
 function getAll_(info) {
-  info.import = importGoogleTasks_();   // Google Home / Google Tasks -> inbox
-  info.fixed = fillMissing_();          // von Hand / anderen KIs eingetragene Zeilen vervollständigen
+  const ms = {}; let t0 = Date.now();
+  const lap = (k) => { const n = Date.now(); ms[k] = n - t0; t0 = n; };
+  info.ms = ms;                          // Zeitmessung je Schritt (im Debug-Modus sichtbar)
+  info.import = importGoogleTasks_(); lap('google_tasks');   // Google Home / Google Tasks -> inbox
+  info.fixed = fillMissing_(); lap('fill_missing');           // von Hand / anderen KIs eingetragene Zeilen vervollständigen
   const settings = settings_();
   const out = {
     tasks: readTable_('tasks'),
@@ -148,11 +151,13 @@ function getAll_(info) {
     settings: settings,
     events: [],
   };
+  lap('sheet');
   try {
     out.events = getEvents_(Number(settings.event_days) || 60);
   } catch (err) {
     out.events_error = String(err);
   }
+  lap('calendar');
   return out;
 }
 
