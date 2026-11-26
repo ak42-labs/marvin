@@ -94,73 +94,37 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 5. APPS SCRIPT
 *   **Code:** `apps-script/Code.gs` (im Repo pflegen, in den Editor kopieren, neue Version bereitstellen). Version: `BACKEND_VERSION`.
-*   **Aktionen:** `getAll`, `addTask(s)`, `updateTask(s)`, `deleteTask`, `getEvents`, `addEvent`, `updateEvent`, `deleteEvent`, `setShopItem`. Antwort `{status, data, info}`. Details: `apps-script/README.md`.
+*   **Aktionen:** `getAll`, `importTasks`, `addTask(s)`, `updateTask(s)`, `deleteTask`, `getEvents`, `addEvent`, `updateEvent`, `deleteEvent`, `setShopItem`. Antwort `{status, data, info}`. Details: `apps-script/README.md`.
 *   **Auth:** Jede Anfrage braucht `token` == Script Property `MARVIN_TOKEN`.
 *   **Deployment:** Web-App, Ausführen als „Ich“, Zugriff „Jeder“.
-*   **Dienste:** Google Tasks API (Import Google Home), Kalender (Hauptkalender).
+*   **Dienste:** Google Sheets API (schnelles Lesen), Google Tasks API (Import Google Home), Kalender (Hauptkalender).
 
 ---
 
-## 6. STATUS
-**Was funktioniert bereits:**
-*   Repository-Struktur, GitHub Pages Live-Hosting (HTTPS).
-*   UI-Rendering (Dark Mode, Tabs, Glas-Duplo-Karten).
-*   Anbindung ans Backend: `fetch`-Call zieht erfolgreich die Live-Daten aus dem Google Sheet und rendert sie nach Status gefiltert.
-*   Settings-Dialog (⚙︎) speichert Gemini-Key und Backend-Token lokal im `localStorage`.
-*   Backend-Auth per Token ist live (Script Property gesetzt, neue Version deployt, Mac eingerichtet).
-*   v0.2: Sprache -> Gemini (JSON per `responseSchema`) -> `addTask`. Task erscheint sofort im passenden Tab, Marvins Kommentar als Toast. Originalsatz landet in `Notes`. Live getestet am 17.11.2026 (Android/Mac), funktioniert. Toast bleibt 15 s, Antippen schließt.
-*   PWA installierbar (Manifest, Icons, Service Worker). Neue App-Version lädt sich selbst (controllerchange -> reload). Beim Zurückholen der App (>30 s im Hintergrund) werden Daten + Puffer neu geladen. `APP_VERSION` in `app.js` steht im Einstellungsdialog – bei Releases erhöhen, ebenso `CACHE` in `sw.js`.
+## 6. STATUS (Stand 26.11.2026: App 4.2.0, Backend 1.1.0)
+*   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`).
+*   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
+*   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).
+*   Releases: `APP_VERSION` (`app.js`) + `CACHE` (`sw.js`) erhöhen; Backend: `BACKEND_VERSION` erhöhen und Armin die Deploy-Schritte nennen (`apps-script/README.md`).
 
-*   v0.3 (19.11.2026): Karte antippen -> Bearbeiten (Titel, Kategorie, Datum, Notizen; Tastatur inkl. Tastatur-Spracheingabe). Status-Buttons wählen nur aus, „Speichern“ übernimmt. Löschen mit Rückfrage. Google Tasks (Google Home) -> Puffer -> Gemini sortiert beim App-Start ein. Eigenes Vokabular (`Begriff`) im Prompt.
+**Arbeitsweise:**
+*   Claude Code committet direkt auf `main` (Single-Dev; Pages deployt automatisch). Riskante Umbauten: Branch + Rückfrage.
+*   **Ein Chat pro Thema**, Design + Umsetzung im selben Chat. Am Themenende: Stand hier + `docs/changelog.md` eintragen, committen, dann neuer Chat.
+*   Vorgaben in `docs/` gelten vor dieser Datei; Widersprüche melden und veraltete Stellen in `docs/` mit Verweis auf die gültige Stelle markieren.
+*   Vor jedem Commit im simulierten Handy testen (Playwright), inkl. langsamem Netz; nichts als „fertig“ melden, was nicht geprüft ist.
+*   Antworten an Armin auf Deutsch, einfach erklärt.
 
-*   UX v1 (App 1.0.0, Backend 0.8, 19.11.2026): Amber-Glas, Drehrad, Dringlichkeit (Glut + Zahl), Gesten (Tippen = Bearbeiten, Wischen = Nachbar-Spalte, lange drücken = 42), Undo nach Anlegen/Verschieben/Erledigen, neues App-Icon.
-*   1.0.1: Drehrad per Wischen drehbar, aktiver Knopf durchscheinend, „rückgängig“ verschwindet nach 10 s, Marvin-Sätze stark erweitert (keine direkte Wiederholung). Offen: Soll Marvin bei jeder Aktion sprechen? (Sprechtempo 0.95 passt.)
-*   1.1.0 (Backend 0.9, 20.11.2026): **Google Kalender** (nur Hauptkalender ohne Geburtstage – Backend 0.10 –, live, nicht im Sheet): Termine der nächsten `Frist` Tage als Karten im Hyperraum, Klartext statt Zahl (`heute 14:00`, `morgen 14:00`, `Di 14:00`, ganztägig ohne Uhrzeit); heute = glüht, morgen = warm. Gemini erkennt Termin vs. Aufgabe (`type`, `time`, `durationMinutes`; Termin nur mit Uhrzeit) und legt Termine im Kalender an (Erinnerung = Kalender-Standard). Antippen -> Bearbeiten im Termin-Modus (Datum, Uhrzeit, Dauer) -> ändert/löscht im Kalender; Serientermine nur im Google Kalender änderbar. Puffer: 1 Gemini-Aufruf + 1 Backend-Aufruf (`updateTasks`) für alle Einträge. Prompt: `dueDate` immer setzen, sobald ein Tag erkennbar ist. **Situative Augen:** Termin heute = B3 (Brauen), ≥3 glühende Aufgaben = D3 (Skeptiker), 5. Verschieben derselben Aufgabe = B2 (hängend) + eigener Spruch; Wartemodus: zufällig Augenrollen, Blinzeln, Umschauen, Seufzen (D1).
-*   **2.0.0 (21.11.2026): UX v2** nach `docs/ux-v2.md` umgesetzt: mehr Raum (8er-Raster), Amber nur Steuerung, Karten Rauchglas, Termine Champagner, „heute = Maximum“, flacher Bearbeiten-Dialog, Sprechregeln §6, „Keine Panik ↺“, Cursor ruht nach 2 s, Gemini-Ton ohne „Nicht.“-Muster, neue Augen + Gags + Reaktionen + Arkanoid, Einstellung „Spaß-Modus“, Neigungs-Glas. Situativ: Termin heute = Blick zur Uhr, ≥3 glühend = Langeweile-Pose + beim Öffnen Schock/Böse abwechselnd, 5. Verschieben = hängende Augen.
-*   2.0.1: Bearbeiten-Dialog zurück auf den flachen Stand 1.1.0 (Armin: Dateneingabe zählt, kein Fancy; ux-v2 §5 damit überholt). Termine ganzflächig leicht Champagner getönt. Verschieben: vorerst jedes Mal Text + Stimme (Vorführmodus). Spracheingabe: durchgehend zuhören, Ende erst nach 3 s Stille (8 s bis zum ersten Wort) oder Tipp; vom Browser beendete Sitzungen werden nahtlos fortgesetzt. Arkanoid: abgeräumte Steine kollidieren nicht mehr, Ball nutzt volle Höhe.
-*   2.0.2: Spracheingabe Ende nach 2 s Stille, 5 s bis zum ersten Wort. Leerlauf-Gags alle 10–16 s, Pixel-Gags doppelt gewichtet. Neigungs-Glas ca. 3× stärker (Glut ±18 %, Glanz ±40 px, Karten-Verlauf ±20°).
-*   2.0.3: Leerlauf-Gags: erster nach 4–6 s Ruhe, dann alle 6–10 s. Neu „Blick“: Augen schauen beim Scrollen nach oben/unten und beim Drehrad-Wechsel in Drehrichtung (ohne Klick). Neigungs-Glas auf 1,5× Original (Glut ±9 %, Glanz ±21 px, Karten ±9°).
-*   **3.0.0 (Backend 0.12, 22.11.2026): UX v3** nach `docs/ux-v3.md`: Gesten überall gleich (Tipp ohne Bewegung = erledigt/gekauft, lange drücken 0,45 s = bearbeiten, Wischen = Nachbar-Spalte; Termin-Tipp = Spruch). Ein Formular für Aufgabe/Termin („Die Uhrzeit entscheidet“): Umwandeln legt IMMER zuerst neu an und löscht das Alte erst nach Erfolg; Serientermine nicht umwandelbar; kein Auto-Fokus. Termine 60 Tage voraus, > Frist im Planetenhirn; Kategorie am Termin per Tag `marvinCategory`. Proviant als 4. Drehrad-Position (Laufweg-Sortierung, Trennlinie bei „separat“, Tippen = verglüht/gekauft, Abteilung merken, Gemini `type:"einkauf"` mit mehreren Artikeln). Laden ohne Warten (Cache `marvin.cache`, Format-Version `CACHE_V`, „Babelfisch übersetzt …“, offline „Kein Netz. Wie erwartet.“). Daumen-Wischzone unten (freie Listenfläche, Marvin-Zeile, Marvin-Knopf; Entscheidung erst beim Loslassen).
-*   **3.1.0 (Backend 1.0, 22.11.2026): Schema v1** – englische Status-Schlüssel, eigene Tabellen (`tasks`, `categories`, `shop_aisles`, `shop_items`, `terms`, `settings`), IDs statt Namen, ein Ladeaufruf `getAll`, Umstellungsfunktion `migrateToV1Schema` (mit Armins echten Daten in einer Sheets-Nachbildung getestet). Keine Altlasten: alte deutsche Werte werden nicht mehr verstanden.
-*   **4.0.0 (26.11.2026): UX v4 Teil 1–3** nach `docs/ux-v4.md`, Bewegungen 1:1 aus V31Augen/V31Arcade, Ablauf aus V4Autopilot. Snake-Weg per Simulation geprüft; einzige Abweichung vom Mockup: Ausgang in Zeile y 56 statt 50 (sonst läuft die Schlange über sich selbst). Situative Posen (Termin heute, Überfällig-Schock) entfallen laut v4. Gag-Schalter kommt mit UX v3.1; bis dahin Spaß-Modus.
-*   4.0.1 (Backend 1.0.2): Loading kommt jetzt auch beim Start (Aufwachen wird nach ~3 s für das Laden unterbrochen). Starkes Neigen in der runden Welt = Augen folgen, Ablauf pausiert. Datum/Uhrzeit im Bearbeiten-Dialog nicht mehr abgeschnitten. Zeitmessung beim Laden (Debug: `ms` je Schritt google_tasks/fill_missing/sheet/calendar + Gesamtzeit).
-*   4.0.2: Start = erst Laden (Marvin schläft, Pixel-Loading; fertig geladen -> sofort 100 %), dann Aufwachen. Neigen in alle Richtungen (flach am Tisch ok), Zittern hält den Modus nicht mehr offen. Bearbeiten-Dialog: alle Felder gleich breit (Grid), × mit Abstand zum Symbol. Verwaiste Kategorie-IDs (z.B. alte `verschiedenes` an Kalender-Terminen) werden als „Kategorie –“ angezeigt.
-*   4.1.0: ux-v3.1 §2 umgesetzt: „Deep Thought rechnet …“ statt Babelfisch, Erfolg „Antwort: 42. Wie überraschend.“ (2 s), Fehlschlag/kein Netz „Deep Thought rechnet noch. Seit 2H 15M.“ (Datenalter seit letztem erfolgreichem Abgleich, `marvin.lastSync`, läuft mit). Ziehen zum Aktualisieren (Amber-Ring, ~70 px). Neigen: zu sich neigen = Augen nach oben.
-*   **4.2.0 (Backend 1.1.0):** Laden: alle Tabellen in einem Rutsch (Sheets API, Fallback je Blatt), Google-Tasks-Import aus `getAll` gelöst – eigener Aufruf `importTasks` im Hintergrund, höchstens 1×/Stunde, Ziehen erzwingt ihn. ux-v3.1 §1 (Sprach-Ende 1,5 s), §4/§8 als **Spaß-Regler** 0–5 (0 = aus, 3 = v3.1-Takt 8–12 s/15–25 s, 5 = Vorführmodus; Rückmeldungen bleiben auch bei aus), §5 Einstellungen + eigener Schlüssel-Dialog (maskiert, leer speichert nie), Verschieben nur Text. Erfolg abwechselnd La-Ola / Extra Life / Game Over. Großer Lade-Ring mit „42“. Ohne Netz: „Kein Netz. Wie erwartet.“ statt „Failed to fetch“.
-*   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
-
-**Was ist halb fertig / offen:**
-*   v0.3 nur mit simulierten APIs getestet; Live-Test + Backend-Deploy (inkl. Dienst „Google Tasks API“) ausstehend.
-*   Kein Undo direkt nach dem Anlegen (Löschen über Bearbeiten).
-*   Google Home: Einkaufsliste landet in Google Keep (keine API für private Konten) -> bleibt bewusst dort. Für Marvin: „Hey Google, erinnere mich …“ -> Google Tasks -> Import (Backend 0.5: nach Import in Google Tasks abgehakt, kein Doppelimport). Sprach-Weg für Einkäufe zu Marvin/Bring: offen, siehe Backlog.
-*   v0.3.2: Gemini-Überlastung (429/503) -> automatisch erneut versuchen / anderes Modell. Optionale Sprachausgabe (Einstellungen: „Marvin spricht“, Browser-TTS, tief + langsam).
-*   Erledigt: kein Tab, sondern dezenter Link „✓ Erledigt (n)“ am Listenende (letzte 50, neueste zuerst).
-*   Debug-Modus (Einstellungen): Protokoll aller Backend-/Gemini-Antworten unter der Liste; Backend liefert `info` (Version, Import-Bericht). Import-Fehler erscheinen auch ohne Debug als Toast.
-*   Backend 0.11: Zeilen ohne ID (von Hand oder von anderen KIs ins Sheet geschrieben) bekommen beim Laden automatisch ID/Zeitstempel, ohne Status -> Puffer.
-*   Backend-Version prüfen: Web-App-URL im Browser öffnen -> „Marvin Backend <BACKEND_VERSION> aktiv“.
-
-**Bekannte Bugs/Probleme (Gelöst):**
-*   Anfängliche CORS-Fehler durch lokale Ausführung (`file://`) und fehlende Freigabe der Sheets-API. Behoben durch HTTPS-Hosting auf Pages und korrektes "Anyone"-Deployment im Apps Script.
-
-**Getroffene Entscheidungen + Begründung:**
-*   **Arbeitsweise:** Produkt-/Usability-Diskussion findet außerhalb statt; Claude Code arbeitet am Repo (Architektur, Umsetzung), committet direkt auf `main` (Single-Dev-Projekt; Pages deployt automatisch). Größere/riskante Umbauten auf einem Branch mit Rückfrage. Ergebnisse der Produktdiskussion landen als Entscheidung in dieser Datei.
-*   **Backend-Auth:** Shared Token (Script Property `MARVIN_TOKEN`), da Web-App öffentlich erreichbar sein muss.
-*   **Infrastruktur:** Public Repo auf GitHub genutzt, um kostenloses GitHub Pages Hosting zu ermöglichen (da Secrets rein clientseitig im LocalStorage leben, ist der Public-Status unkritisch).
-
-**Verworfene Ansätze + Warum:**
-*   Arbeiten mit Code im Google Drive Ordner verworfen (Git vs. Drive Sync-Konflikte, CORS-Probleme).
+**Entscheidungen:** Backend-Auth per Shared Token (`MARVIN_TOKEN`). Public Repo für kostenloses Pages-Hosting (Secrets nur im localStorage). Kein Code im Google-Drive-Ordner (Sync-/CORS-Probleme). Bearbeiten-Dialog bleibt flach (kein Fancy). Google-Home-Einkaufsliste bleibt in Google Keep (keine API).
 
 ---
 
 ## 7. NÄCHSTE SCHRITTE
-Erkenntnisse aus dem ersten Live-Test (17.11.2026):
-*   Spracherkennung verhört Eigennamen (z.B. Verein "Vaget" -> "Baguette"). Falsche Einträge lassen sich aktuell nicht korrigieren.
-*   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
+**Plan 27.11.2026:**
+1.  **Offline-Modus** = `docs/ux-v3.1.md` §3: Warteschlange (Abhaken, Verschieben, Anlegen, Bearbeiten) inkl. Sprache ohne Netz (Text merken, später an Gemini), Zeitlimit 8 s, `⟳ n`. Dabei **Wettlauf-Bug** beheben (Laden überschreibt laufende Änderung, z.B. „Mutter anrufen“ kurz weg/wieder da). Eigene **Offline-Test-Suite**.
+2.  **Jahreszahl im Datumsfeld** (ux-v3.1 §7).
+3.  **Einstellungsdialog optisch aufwerten** (Funktion steht seit 4.2.0).
 
-Backlog (Priorisierung durch Armin, Stand 26.11.2026):
-**Plan 27.11.2026:** (1) Offline-Modus = ux-v3.1 §3 Warteschlange inkl. Sprache ohne Netz + Wettlauf-Bug (Laden überschreibt laufende Änderung, z.B. „Mutter anrufen“ kurz weg/wieder da) + eigene Offline-Test-Suite. (2) Jahreszahl im Datumsfeld (ux-v3.1 §7). (3) Einstellungsdialog optisch aufwerten (Funktion steht seit 4.2.0).
-1.  **UX v3.1 Rest** nach `docs/ux-v3.1.md` (§1, §2, §4, §5, §8 erledigt in 4.1.0/4.2.0): **Offline-Modus** = §3 Warteschlange inkl. Sprache ohne Netz + eigene Offline-Test-Suite; §7 Jahreszahl im Datumsfeld (zurückgestellt). Alt: bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
-2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
-3.  ~~UX v4 Teil 1–3~~ erledigt in 4.0.0. Ursprünglich: **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Danach **Teil 2 Arcade-Welt** nach `docs/ux-v4.md` (Röhre an, Blockregen, La-Ola, Snake + 42, Game Over, Zwinkern, Extra Life, Loading 42 %), dann **Teil 3 Ablauf** (Phasen, Tore, Ereignisse).
-4.  **Design-Chat: Arcade-Spiele** gemeinsam klären: Arkanoid als Demo-Gag im Autopilot (Augen-Pixel = Steine, sanfter Übergang wie Snake) und spielbare Spiele per Doppeltipp (Space Invaders, evtl. ganzer Bildschirm, Karten als Invaders; danach Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist. Regeln dafür (Vorrang, Ein-/Ausgang über Game Over) dort festlegen.
-Erledigt: Schema v1, `Tasks_alt`/`Config_alt` gelöscht, Kategorien aufgeräumt (26.11.), Gemini-Skill „Marvin-Eingang“. Business Case verworfen.
+**Danach / geparkt:**
+*   Arcade-Spiele gemeinsam designen: Arkanoid als Demo-Gag im Autopilot, spielbare Spiele per Doppeltipp (Space Invaders, evtl. Vollbild, Karten als Invaders; später Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist.
+
+Erledigt: Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
