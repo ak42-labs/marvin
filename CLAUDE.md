@@ -50,6 +50,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
+*   `docs/ux-v3.1.md`: Alltags-Feinschliff (Sprach-Ende, Aktualisieren, Netz-Warteschlange, Gags, Einstellungen).
 *   `docs/ux-v3.md`: Vorgabe UX v3 (Gestenregel, ein Formular, Proviant, Laden ohne Warten, Wischzone) – umgesetzt in 3.0.0.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
 *   `apps-script/Code.gs`: Backend (Kopie des Scripts am Sheet, Repo = Quelle der Wahrheit). Aktionen & Deploy-Ablauf: `apps-script/README.md`.
@@ -150,11 +151,9 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   Spracherkennung verhört Eigennamen (z.B. Verein "Vaget" -> "Baguette"). Falsche Einträge lassen sich aktuell nicht korrigieren.
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
-Backlog (Priorisierung durch Armin):
-1.  ~~Umstellung Schema v1~~ erledigt (22.11.2026); `migrateToV1Schema` entfernt (Backend 1.0.1). Alltagstest läuft.
-2.  `Tasks_alt` / `Config_alt` im Sheet löschen, sobald sicher nichts fehlt.
-3.  Kategorien aufräumen (z.B. „Verschiedenes“ in „Allerlei“ zusammenführen, „Einkaufen“ prüfen) – direkt in `categories`/`tasks`.
-4.  ~~Rezept-Skill in Gemini~~ angelegt und getestet (`docs/skill-marvin.md`, erweitert 26.11.: Aufgaben → inbox, Termine → Kalender, Sammel-Auftrag mit Bestätigung).
-5.  Vorführmodus zurückdrehen, wenn's nervt: Verschieben spricht jedes Mal, Gags alle 6–10 s.
-6.  Weitere Leerlauf-Spiele (Space Invaders, Lunar Lander, Defender) – erst Mockup im Design-Chat.
-7.  Fließende Augen-Übergänge (Design-Chat).
+Backlog (Priorisierung durch Armin, Stand 26.11.2026):
+1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md`: Sprach-Ende 1,5 s + Tipp beendet, Ziehen zum Aktualisieren, Datenalter `STAND hh:mm`, Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
+2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
+3.  **Design-Chat: Fließende Augen-Übergänge** (nächstes Design-Thema).
+4.  **Design-Chat: Space Invaders** (evtl. ganzer Bildschirm, Karten als Invaders), danach Lunar Lander / Defender – zuletzt.
+Erledigt: Schema v1, `Tasks_alt`/`Config_alt` gelöscht, Kategorien aufgeräumt (26.11.), Gemini-Skill „Marvin-Eingang“. Business Case verworfen.

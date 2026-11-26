@@ -1,0 +1,39 @@
+# Marvin – UX v3.1 (Alltags-Feinschliff, freigegeben 26.11.2026)
+
+Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein, was gerade passiert oder eben nicht.
+
+## 1. Spracheingabe
+- Ende nach **1,5 s Stille** (bisher 2 s). 5 s bis zum ersten Wort bleiben.
+- **Tippen auf Marvin während des Zuhörens beendet sofort** und schickt ab.
+
+## 2. Aktualisieren (Ziehen + beim Öffnen)
+- **Liste oben nach unten ziehen** (eigene Geste, da die installierte PWA keine hat): oben erscheint ein kleiner Amber-Ring, füllt sich mit dem Zug (Auslöse-Schwelle ~70 px), Loslassen startet den Abgleich. Augen schauen nach oben. Nur auslösen, wenn die Liste ganz oben steht.
+- **Marvin-Zeile während des Abgleichs:** „Babelfisch übersetzt …“ (Augen „grübeln“).
+- **Abschluss eindeutig:** „Übersetzt. Ich verstehe jetzt alles. Leider.“ (2 s), dann Zeile frei.
+- **Fehlschlag:** „Natürlich kein Netz.“ – bleibt stehen, bis der nächste Versuch klappt.
+- **Datenalter sichtbar:** Statuszeile rechts klein `STAND 12:40`, solange die Daten aus dem Speicher kommen oder der letzte Abgleich fehlschlug (beim Öffnen sofort sichtbar). Nach erfolgreichem Abgleich verschwindet es (wieder Anzahl).
+- Beim Öffnen gleicher Ablauf automatisch (Cache sofort, dann Abgleich).
+
+## 3. Schlechtes Netz abfedern
+- **Nie blockieren:** jede Aktion wirkt sofort lokal.
+- **Warteschlange:** Abhaken, Verschieben, Anlegen, Bearbeiten werden im Speicher gemerkt (`localStorage`) und gesendet, sobald Netz da ist; Wiederholung mit wachsendem Abstand.
+- **Zeitlimit:** Abgleich bricht nach ~8 s ohne Antwort ab → Fehlschlag-Anzeige (§2), letzter Stand bleibt.
+- **Sichtbar:** Statuszeile `⟳ 2`, solange 2 Aktionen auf Netz warten. Wenn alles raus ist: weg.
+- **Sprache ohne Netz:** der erkannte Text wird gemerkt („Gemerkt. Ich kümmere mich, wenn die Welt wieder online ist.“) und bei Netz an Gemini geschickt.
+- Konflikte: beim Abgleich gewinnt die neuere Änderung (`updated_at`).
+
+## 4. Weniger Gags (Vorführmodus aus)
+- Leerlauf-Gags: erster nach **8–12 s**, dann alle **15–25 s**.
+- Sprechregeln wieder nach `ux-v2.md` §6: **Verschieben nur Text, keine Stimme.** Stimme nur bei Anlegen, Löschen, Erledigt, Dauerverschieber.
+
+## 5. Einstellungen neu ordnen
+- Oben: **Marvin spricht** (an/aus) · **Spaß-Modus** (an/aus) · App-Version.
+- **Schlüssel** nicht mehr offen im Dialog, sondern hinter einem eigenen Knopf **„🔑 Schlüssel“** → eigener kleiner Dialog:
+  - Gemini-Key und Backend-Token **maskiert** (`••••••3f9a`, nur letzte 4 Zeichen).
+  - Ändern nur per Knopf „Ändern“ je Feld → leeres Eingabefeld → Speichern. Leeres Feld speichert **nie** (Schlüssel kann nicht versehentlich gelöscht werden).
+- Debug-Modus ganz unten, klein.
+
+## 6. Kategorien (im Sheet bereits erledigt, 26.11.)
+- `categories` jetzt alphabetisch: Allerlei, Einkaufen, Finanzen, Gesundheit, Wohnung (`sort` 1–5).
+- `verschiedenes` → `allerlei`, `pv_klima` → `wohnung` in `tasks` umgehängt; beide Kategorien gelöscht.
+- Code: leere Zeilen in `categories` ignorieren; Gemini-Prompt nimmt die Liste aus dem Sheet (keine fest eingebauten Kategorien).
