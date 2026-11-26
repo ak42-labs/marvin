@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.0.2'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.1.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -135,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('pointerdown', () => Face.touch(), true);
     let scrollTimer = null;
     let lastScrollTop = 0;
+    initPullRefresh();
     document.getElementById('content').addEventListener('scroll', (e) => {
         const st = e.target.scrollTop, d = st - lastScrollTop;
         lastScrollTop = st;
@@ -296,6 +297,62 @@ function applyConfig(cfg) {
     if (st.locale) locale = String(st.locale);
 }
 
+// Datenalter (ux-v3.1 §2): seit dem letzten erfolgreichen Abgleich, größte Einheit zuerst, Null-Einheiten weg
+function formatAge(ms) {
+    const m = Math.max(1, Math.floor(ms / 60000));
+    const parts = [[Math.floor(m / 1440), 'T'], [Math.floor(m / 60) % 24, 'H'], [m % 60, 'M']].filter(([n]) => n > 0);
+    return parts.slice(0, 3).map(([n, u]) => n + u).join(' ');
+}
+let staleTimer = null;
+function staleText() {
+    const last = Number(localStorage.getItem('marvin.lastSync')) || 0;
+    return last ? `Deep Thought rechnet noch. Seit ${formatAge(Date.now() - last)}.` : 'Deep Thought rechnet noch.';
+}
+// Fehlschlag / kein Netz: Zeile bleibt stehen, Zeit läuft mit, bis der nächste Abgleich klappt
+function showStale() {
+    say(staleText());
+    clearInterval(staleTimer);
+    staleTimer = setInterval(() => {
+        const el = document.getElementById('marvin-text');
+        if (el.textContent.startsWith('Deep Thought rechnet noch')) el.textContent = staleText();
+    }, 30000);
+}
+
+// Ziehen zum Aktualisieren (ux-v3.1 §2): nur wenn die Liste ganz oben steht, Schwelle ~70 px
+function initPullRefresh() {
+    const content = document.getElementById('content');
+    const ring = document.createElement('div');
+    ring.id = 'pull-ring';
+    content.prepend(ring);
+    const TH = 70;
+    let y0 = null, x0 = 0, dy = 0, active = false;
+    content.addEventListener('touchstart', (e) => {
+        if (content.scrollTop > 0 || e.touches.length !== 1 || syncing) { y0 = null; return; }
+        y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; dy = 0; active = false;
+    }, { passive: true });
+    content.addEventListener('touchmove', (e) => {
+        if (y0 === null) return;
+        const t = e.touches[0];
+        dy = t.clientY - y0;
+        if (!active) {
+            if (Math.abs(t.clientX - x0) > Math.abs(dy) || dy < 8) { if (Math.abs(t.clientX - x0) > 12) y0 = null; return; }
+            active = true;
+        }
+        const p = Math.min(1, dy / TH);
+        ring.style.setProperty('--p', p.toFixed(3));
+        ring.classList.add('on');
+        ring.classList.toggle('ready', p >= 1);
+        Face.glance(0, -5); // Augen schauen nach oben
+    }, { passive: true });
+    content.addEventListener('touchend', () => {
+        if (y0 === null) return;
+        const go = active && dy >= TH;
+        y0 = null; active = false;
+        ring.classList.remove('on', 'ready');
+        if (go) loadAll();
+    });
+}
+
 let firstLoad = true;
 let syncing = false;
 async function loadAll() {
@@ -307,7 +364,7 @@ async function loadAll() {
     const wasFirst = firstLoad;
     firstLoad = false;
 
-    say('Babelfisch übersetzt …');
+    say('Deep Thought rechnet …'); // ux-v3.1 §2
     setMood('think');
     Face.sync(true); // Pixel-Welt: Loading … 42 %
 
@@ -334,8 +391,8 @@ async function loadAll() {
 
     const offline = [cfgR, tasksR, evR].every(r => r.status === 'rejected' && r.reason instanceof TypeError);
     if (tasksR.status === 'rejected') {
-        const msg = offline ? 'Kein Netz. Wie erwartet.' : 'Fehler beim Laden. ' + tasksR.reason.message;
-        say(msg);
+        debugLog('Abgleich fehlgeschlagen', offline ? 'kein Netz' : tasksR.reason.message);
+        showStale();
         if (!fromCache && wasFirst) {
             loading.style.display = '';
             loading.textContent = offline ? 'Marvin ist offline (Netzwerkfehler).' : 'Fehler beim Laden der Daten. Antippen für Einstellungen.';
@@ -343,10 +400,14 @@ async function loadAll() {
         }
         return;
     }
+    try { localStorage.setItem('marvin.lastSync', String(Date.now())); } catch {}
+    clearInterval(staleTimer); staleTimer = null;
     if (evR.status === 'rejected' && /Berechtigung|permission|Calendar/i.test(evR.reason?.message || '')) {
         say('Kalender: Berechtigung fehlt. In Apps Script einmal testCalendar ausführen.');
     } else {
-        say(wasFirst ? pick(LINES.hello) : '');
+        const answer = 'Antwort: 42. Wie überraschend.';
+        say(answer);
+        setTimeout(() => { if (document.getElementById('marvin-text').textContent === answer) say(''); }, 2000 + answer.length * 38);
     }
     loading.style.display = 'none';
     renderTasks();

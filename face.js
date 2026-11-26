@@ -662,7 +662,7 @@ const Face = (() => {
         if (!tiltRaf) { tiltRaf = true; requestAnimationFrame(() => {
             tiltRaf = false;
             // alle Richtungen, begrenzt: links/rechts ±10, oben/unten ±5
-            const x = Math.max(-10, Math.min(10, dx * 16)), y = Math.max(-5, Math.min(5, dy * 12));
+            const x = Math.max(-10, Math.min(10, dx * 16)), y = Math.max(-5, Math.min(5, -dy * 12)); // zu sich neigen = nach oben schauen
             R({ s: 'LID', p: 1, x, y, pd: .15, d: .3 });
         }); }
         if (!moved) return; // Zittern am Tisch hält den Modus nicht offen

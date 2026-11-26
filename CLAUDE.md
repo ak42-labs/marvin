@@ -125,6 +125,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   **4.0.0 (26.11.2026): UX v4 Teil 1–3** nach `docs/ux-v4.md`, Bewegungen 1:1 aus V31Augen/V31Arcade, Ablauf aus V4Autopilot. Snake-Weg per Simulation geprüft; einzige Abweichung vom Mockup: Ausgang in Zeile y 56 statt 50 (sonst läuft die Schlange über sich selbst). Situative Posen (Termin heute, Überfällig-Schock) entfallen laut v4. Gag-Schalter kommt mit UX v3.1; bis dahin Spaß-Modus.
 *   4.0.1 (Backend 1.0.2): Loading kommt jetzt auch beim Start (Aufwachen wird nach ~3 s für das Laden unterbrochen). Starkes Neigen in der runden Welt = Augen folgen, Ablauf pausiert. Datum/Uhrzeit im Bearbeiten-Dialog nicht mehr abgeschnitten. Zeitmessung beim Laden (Debug: `ms` je Schritt google_tasks/fill_missing/sheet/calendar + Gesamtzeit).
 *   4.0.2: Start = erst Laden (Marvin schläft, Pixel-Loading; fertig geladen -> sofort 100 %), dann Aufwachen. Neigen in alle Richtungen (flach am Tisch ok), Zittern hält den Modus nicht mehr offen. Bearbeiten-Dialog: alle Felder gleich breit (Grid), × mit Abstand zum Symbol. Verwaiste Kategorie-IDs (z.B. alte `verschiedenes` an Kalender-Terminen) werden als „Kategorie –“ angezeigt.
+*   4.1.0: ux-v3.1 §2 umgesetzt: „Deep Thought rechnet …“ statt Babelfisch, Erfolg „Antwort: 42. Wie überraschend.“ (2 s), Fehlschlag/kein Netz „Deep Thought rechnet noch. Seit 2H 15M.“ (Datenalter seit letztem erfolgreichem Abgleich, `marvin.lastSync`, läuft mit). Ziehen zum Aktualisieren (Amber-Ring, ~70 px). Neigen: zu sich neigen = Augen nach oben.
 *   1.0.2: `#app` fix am Viewport (position: fixed) – behebt „Marvin rutscht nach unten“ nach Tastatur/Laden.
 
 **Was ist halb fertig / offen:**
@@ -156,7 +157,7 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 *   KI-Einträge direkt zu übernehmen ist im Alltag riskant – Korrekturmöglichkeit nötig.
 
 Backlog (Priorisierung durch Armin, Stand 26.11.2026):
-1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md`: Sprach-Ende 1,5 s + Tipp beendet, Ziehen zum Aktualisieren, Abgleich-Texte + Datenalter in der Marvin-Zeile (Deep Thought, siehe §2), Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
+1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md` (§2 erledigt in 4.1.0): Sprach-Ende 1,5 s + Tipp beendet, Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
 2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
 3.  ~~UX v4 Teil 1–3~~ erledigt in 4.0.0. Ursprünglich: **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Danach **Teil 2 Arcade-Welt** nach `docs/ux-v4.md` (Röhre an, Blockregen, La-Ola, Snake + 42, Game Over, Zwinkern, Extra Life, Loading 42 %), dann **Teil 3 Ablauf** (Phasen, Tore, Ereignisse).
 4.  **Design-Chat: Arcade-Spiele** gemeinsam klären: Arkanoid als Demo-Gag im Autopilot (Augen-Pixel = Steine, sanfter Übergang wie Snake) und spielbare Spiele per Doppeltipp (Space Invaders, evtl. ganzer Bildschirm, Karten als Invaders; danach Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist. Regeln dafür (Vorrang, Ein-/Ausgang über Game Over) dort festlegen.

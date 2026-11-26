@@ -384,3 +384,17 @@ dialog.event-mode .task-only { display: none !important; }
 
 /* Daumen-Wischzone unten (§7): horizontale Gesten bleiben bei uns */
 .marvin-line, #marvin-btn, main { touch-action: pan-y; }
+
+/* Ziehen zum Aktualisieren: Amber-Ring füllt sich mit dem Zug (ux-v3.1 §2) */
+#pull-ring {
+    --p: 0; position: sticky; top: 0; height: 0; margin: 0 auto; width: 28px; z-index: 5;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+#pull-ring::before {
+    content: ''; position: absolute; left: 0; top: calc(var(--p) * 24px); width: 28px; height: 28px; border-radius: 50%;
+    background: conic-gradient(var(--amber-soft, #FFB060) calc(var(--p) * 360deg), rgba(255,200,150,.15) 0);
+    -webkit-mask: radial-gradient(circle, transparent 9px, #000 10px); mask: radial-gradient(circle, transparent 9px, #000 10px);
+    filter: drop-shadow(0 0 6px rgba(255,150,50,.6));
+}
+#pull-ring.on { opacity: 1; }
+#pull-ring.ready::before { filter: drop-shadow(0 0 10px rgba(255,150,50,.95)); }
