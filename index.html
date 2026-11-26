@@ -101,20 +101,38 @@
 
     <dialog id="settings">
         <form method="dialog">
-            <h2>Einstellungen</h2>
-            <label>Gemini API-Key
-                <input type="password" id="gemini-key" autocomplete="off">
+            <h2>Einstellungen <span id="app-version" class="ver"></span></h2>
+            <label class="check"><input type="checkbox" id="voice-on"> Marvin spricht</label>
+            <label class="slider">Spaß <span id="gags-label" class="slider-val"></span>
+                <input type="range" id="gags" min="0" max="5" step="1">
+                <span class="slider-ends"><span>aus</span><span>Vorführmodus</span></span>
             </label>
-            <label>Backend-Token
-                <input type="password" id="backend-token" autocomplete="off">
-            </label>
-            <label class="check"><input type="checkbox" id="voice-on"> Marvin spricht (Kommentare vorlesen)</label>
-            <label class="check"><input type="checkbox" id="fun-on"> Spaß-Modus (Marvins Augen spielen herum)</label>
-            <label class="check"><input type="checkbox" id="debug-on"> Debug-Modus (Protokoll unter der Liste)</label>
-            <p class="hint">Bleibt nur in diesem Browser (localStorage). Wieder öffnen: Marvin-Knopf lange drücken. <span id="app-version"></span></p>
+            <button type="button" id="open-keys" class="pill keys-btn">🔑 Schlüssel</button>
             <div class="dialog-actions">
                 <button value="cancel" class="pill">Abbrechen</button>
                 <button value="save" id="settings-save" class="pill accent">Speichern</button>
+            </div>
+            <label class="check small"><input type="checkbox" id="debug-on"> Debug-Modus</label>
+            <p class="hint">Wieder öffnen: Marvin-Knopf lange drücken.</p>
+        </form>
+    </dialog>
+    <dialog id="keys">
+        <form method="dialog">
+            <h2>Schlüssel</h2>
+            <div class="key-row" data-key="geminiKey">
+                <span class="key-name">Gemini-Key</span><span class="key-mask"></span>
+                <button type="button" class="pill key-change">Ändern</button>
+                <input type="password" class="key-input" autocomplete="off" placeholder="neuen Schlüssel einfügen" hidden>
+            </div>
+            <div class="key-row" data-key="token">
+                <span class="key-name">Backend-Token</span><span class="key-mask"></span>
+                <button type="button" class="pill key-change">Ändern</button>
+                <input type="password" class="key-input" autocomplete="off" placeholder="neues Token einfügen" hidden>
+            </div>
+            <p class="hint">Bleibt nur in diesem Browser. Ein leeres Feld speichert nie.</p>
+            <div class="dialog-actions">
+                <button value="cancel" class="pill">Abbrechen</button>
+                <button value="save" class="pill accent">Speichern</button>
             </div>
         </form>
     </dialog>

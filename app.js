@@ -2,8 +2,8 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.1.0'; // sichtbar in den Einstellungen
-const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun' };
+const APP_VERSION = '4.2.0'; // sichtbar in den Einstellungen
+const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
 const BACKLOG = 'backlog';
@@ -178,7 +178,7 @@ function renderDebug() {
 // Probleme beim Google-Tasks-Import auch ohne Debug-Modus melden
 function reportImport(rep) {
     if (rep.error) showToast('Google-Import: ' + rep.error);
-    else if (rep.lists?.length && rep.skippedLists?.length === rep.lists.length) {
+    else if (rep.lists?.length && rep.skipped_lists?.length === rep.lists.length) {
         showToast(`Google-Import: Alle Listen (${rep.lists.join(', ')}) durch „Importliste“ im Config-Blatt ausgeschlossen.`);
     }
 }
@@ -208,35 +208,75 @@ function setSetting(name, value) {
     } catch { /* Storage blockiert – ignorieren */ }
 }
 
+const GAG_LABELS = ['aus', 'kaum', 'selten', 'normal', 'oft', 'Vorführmodus'];
+function gagLevelSetting() {
+    const v = getSetting('gags');
+    if (v === '') return getSetting('fun') === 'off' ? 0 : 3;
+    return Number(v);
+}
 function openSettings() {
-    document.getElementById('gemini-key').value = getSetting('geminiKey');
-    document.getElementById('backend-token').value = getSetting('token');
     document.getElementById('voice-on').checked = getSetting('voice') === 'on';
-    document.getElementById('fun-on').checked = getSetting('fun') !== 'off';
+    const g = document.getElementById('gags');
+    g.value = gagLevelSetting();
+    document.getElementById('gags-label').textContent = GAG_LABELS[g.value];
     document.getElementById('debug-on').checked = getSetting('debug') === 'on';
     document.getElementById('settings').showModal();
 }
 
+// Schlüssel: maskiert (nur letzte 4 Zeichen), ändern nur per Knopf, leeres Feld speichert nie (ux-v3.1 §5)
+const maskKey = (v) => v ? '••••••' + v.slice(-4) : 'fehlt';
+function openKeys() {
+    document.querySelectorAll('#keys .key-row').forEach(row => {
+        row.querySelector('.key-mask').textContent = maskKey(getSetting(row.dataset.key));
+        const input = row.querySelector('.key-input');
+        input.value = ''; input.hidden = true;
+        row.querySelector('.key-change').hidden = false;
+    });
+    document.getElementById('keys').showModal();
+}
+
 function initSettings() {
     const dialog = document.getElementById('settings');
+    document.getElementById('gags').addEventListener('input', (e) => {
+        document.getElementById('gags-label').textContent = GAG_LABELS[e.target.value];
+    });
+    document.getElementById('open-keys').addEventListener('click', openKeys);
     dialog.addEventListener('close', () => {
         if (dialog.returnValue !== 'save') return;
-        setSetting('geminiKey', document.getElementById('gemini-key').value.trim());
-        setSetting('token', document.getElementById('backend-token').value.trim());
         setSetting('voice', document.getElementById('voice-on').checked ? 'on' : '');
-        setSetting('fun', document.getElementById('fun-on').checked ? '' : 'off');
-        if (!Face.funEnabled()) Face.abort();
+        setSetting('gags', String(document.getElementById('gags').value));
+        setSetting('fun', '');
+        Face.abort(); // neuer Gag-Takt gilt sofort
         setSetting('debug', document.getElementById('debug-on').checked ? 'on' : '');
         renderDebug();
-        loadAll();
+    });
+    const keys = document.getElementById('keys');
+    keys.querySelectorAll('.key-change').forEach(btn => btn.addEventListener('click', () => {
+        const input = btn.parentElement.querySelector('.key-input');
+        btn.hidden = true; input.hidden = false; input.focus();
+    }));
+    keys.addEventListener('close', () => {
+        if (keys.returnValue !== 'save') return;
+        let changed = false;
+        keys.querySelectorAll('.key-row').forEach(row => {
+            const v = row.querySelector('.key-input').value.trim();
+            if (v) { setSetting(row.dataset.key, v); changed = true; } // leer = nie speichern
+        });
+        if (changed) loadAll();
     });
 }
 
 // ---------- Backend ----------
 
+// fetch mit verständlicher Meldung ohne Netz statt „Failed to fetch“
+async function netFetch(url, opts) {
+    try { return await fetch(url, opts); }
+    catch (err) { const e = new Error('Kein Netz. Wie erwartet.'); e.offline = true; throw e; }
+}
+
 async function callBackend(action, payload = {}) {
     const started = Date.now();
-    const response = await fetch(SCRIPT_URL, {
+    const response = await netFetch(SCRIPT_URL, {
         method: 'POST',
         // text/plain umgeht den CORS-Preflight von Apps Script
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -247,6 +287,7 @@ async function callBackend(action, payload = {}) {
         ? { info: result.info, data: Array.isArray(result.data) ? `${result.data.length} Einträge` : result.data }
         : result.message);
     if (result.info?.import) reportImport(result.info.import);
+    if (action === 'getAll') lastAllInfo = result.info || {};
     if (result.status !== 'success') {
         const msg = result.message || 'Backend-Fehler';
         if (/Unbekannte Aktion/.test(msg)) throw new Error('Backend ist veraltet – neue Version in Apps Script bereitstellen.');
@@ -349,13 +390,29 @@ function initPullRefresh() {
         const go = active && dy >= TH;
         y0 = null; active = false;
         ring.classList.remove('on', 'ready');
-        if (go) loadAll();
+        if (go) loadAll({ forceImport: true });
     });
+}
+
+// Google Tasks (Google Home): eigener Aufruf im Hintergrund, Backend entscheidet „höchstens 1× pro Stunde“;
+// Ziehen zum Aktualisieren erzwingt ihn. Neue Einträge erscheinen einfach in der Liste (über den Puffer).
+let lastAllInfo = {};
+async function importInBackground(force) {
+    if (!force && !lastAllInfo.import_due) return;
+    try {
+        const rep = await callBackend('importTasks', { force: !!force });
+        if (rep?.error) reportImport(rep);
+        if (rep?.tasks?.length) {
+            allTasks.push(...rep.tasks);
+            saveCache();
+            processInbox();
+        }
+    } catch (err) { debugLog('Google-Import im Hintergrund', err.message); }
 }
 
 let firstLoad = true;
 let syncing = false;
-async function loadAll() {
+async function loadAll({ forceImport = false } = {}) {
     if (syncing) return;
     syncing = true;
     const loading = document.getElementById('loading');
@@ -389,14 +446,14 @@ async function loadAll() {
     syncing = false;
     Face.sync(false);
 
-    const offline = [cfgR, tasksR, evR].every(r => r.status === 'rejected' && r.reason instanceof TypeError);
+    const offline = [cfgR, tasksR, evR].every(r => r.status === 'rejected' && (r.reason instanceof TypeError || r.reason?.offline));
     if (tasksR.status === 'rejected') {
         debugLog('Abgleich fehlgeschlagen', offline ? 'kein Netz' : tasksR.reason.message);
         showStale();
         if (!fromCache && wasFirst) {
             loading.style.display = '';
             loading.textContent = offline ? 'Marvin ist offline (Netzwerkfehler).' : 'Fehler beim Laden der Daten. Antippen für Einstellungen.';
-            loading.onclick = openSettings;
+            loading.onclick = openKeys;
         }
         return;
     }
@@ -413,6 +470,7 @@ async function loadAll() {
     renderTasks();
     saveCache();
     processInbox();
+    importInBackground(forceImport);
 }
 
 // ---------- Spracheingabe ----------
@@ -491,7 +549,7 @@ function initMarvinButton() {
 
 function onMarvinTap() {
     {
-        if (!getSetting('geminiKey')) { openSettings(); return; }
+        if (!getSetting('geminiKey')) { openKeys(); return; }
         if (busy) return;
         Face.abort();
 
@@ -506,7 +564,7 @@ function onMarvinTap() {
 
 // Länger zuhören: Aufnahme läuft durchgehend und endet erst nach SILENCE_MS ohne neue Wörter
 // (oder per Tipp). Chrome beendet "continuous" teils selbst – dann wird nahtlos neu gestartet.
-const SILENCE_MS = 2000;
+const SILENCE_MS = 1500; // ux-v3.1 §1
 const FIRST_WORD_MS = 5000;
 function startListening() {
     let finalText = '';
@@ -654,7 +712,7 @@ async function parseWithGemini(text, { system = buildSystemPrompt(), schema = bu
     for (const [i, model] of attempts.entries()) {
         if (i > 0 && lastError?.retryable) await new Promise(r => setTimeout(r, 1500));
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-        const response = await fetch(url, {
+        const response = await netFetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-goog-api-key': getSetting('geminiKey') },
             body,
@@ -1222,7 +1280,7 @@ function setStatus(task, status, extra = {}) {
         say(pick(LINES.moveAgain), { voice: true });
     } else {
         Face.react('move');
-        say(pick(LINES.move), { voice: true }); // vorerst jedes Mal Text + Stimme (später ggf. reduzieren, ux-v2 §6)
+        say(pick(LINES.move)); // ux-v3.1 §4: Verschieben nur Text, keine Stimme
     }
     lastMoveAt.set(task.id, Date.now());
     setUndo(() => {

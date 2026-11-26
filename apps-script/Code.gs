@@ -1,5 +1,5 @@
 // Marvin Backend – Schema v1 (englisch, snake_case; jedes Blatt = eine Tabelle). Siehe apps-script/README.md.
-const BACKEND_VERSION = '1.0.2'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
+const BACKEND_VERSION = '1.1.0'; // bei jeder Änderung erhöhen; sichtbar über die Web-App-URL im Browser
 
 // Tabellen und ihre Spalten (Reihenfolge = Spaltenreihenfolge im Blatt)
 const SCHEMA = {
@@ -25,6 +25,7 @@ function doPost(e) {
 
     switch (action) {
       case 'getAll':      data = getAll_(info); break;                       // EIN Aufruf für alles (schnell)
+      case 'importTasks': data = importIfDue_(payload.force); break;         // Google Tasks, im Hintergrund nach dem Laden
       case 'getEvents':   data = getEvents_(payload.days); break;
       case 'addTask':     data = addTask_(payload.task); break;
       case 'addTasks':    data = (payload.tasks || []).map(addTask_); break;
@@ -139,53 +140,113 @@ function getAll_(info) {
   const ms = {}; let t0 = Date.now();
   const lap = (k) => { const n = Date.now(); ms[k] = n - t0; t0 = n; };
   info.ms = ms;                          // Zeitmessung je Schritt (im Debug-Modus sichtbar)
-  info.import = importGoogleTasks_(); lap('google_tasks');   // Google Home / Google Tasks -> inbox
-  info.fixed = fillMissing_(); lap('fill_missing');           // von Hand / anderen KIs eingetragene Zeilen vervollständigen
-  const settings = settings_();
+  const t = readAllTables_(); lap('sheet');      // ALLE Tabellen in einem Rutsch, danach nur noch im Speicher
+  info.read = t.mode;
+  info.fixed = fillMissingFrom_(t.raw.tasks); lap('fill_missing');   // nur Schreibzugriff, wenn wirklich etwas fehlt
+  if (info.fixed) t.tables.tasks = readTable_('tasks');                // selten: ergänzte Zeilen gleich mitliefern
+  const settings = {};
+  t.tables.settings.forEach(r => { if (r.key) settings[String(r.key)] = r.value; });
   const out = {
-    tasks: readTable_('tasks'),
-    categories: readTable_('categories').sort(bySort_),
-    shop_aisles: readTable_('shop_aisles').sort(bySort_),
-    shop_items: readTable_('shop_items'),
-    terms: readTable_('terms'),
+    tasks: t.tables.tasks.filter(r => r.id),
+    categories: t.tables.categories.filter(r => r.id).sort(bySort_),
+    shop_aisles: t.tables.shop_aisles.filter(r => r.id).sort(bySort_),
+    shop_items: t.tables.shop_items,
+    terms: t.tables.terms,
     settings: settings,
     events: [],
   };
-  lap('sheet');
   try {
     out.events = getEvents_(Number(settings.event_days) || 60);
   } catch (err) {
     out.events_error = String(err);
   }
   lap('calendar');
+  info.import_due = importDue_();        // App startet den Google-Tasks-Import danach selbst im Hintergrund
   return out;
 }
 
+// Alle Tabellen auf einmal lesen. Mit Dienst „Google Sheets API“ (Kennung Sheets): EIN Aufruf (batchGet);
+// ohne: ein Aufruf je Blatt. Ergebnis: Rohwerte (für fillMissing) + Objekte je Tabelle.
+function readAllTables_() {
+  const names = Object.keys(SCHEMA);
+  const ss = ss_();
+  const tz = ss.getSpreadsheetTimeZone();
+  const raw = {};
+  let mode = 'sheets_api';
+  try {
+    if (typeof Sheets === 'undefined') throw new Error('kein Dienst');
+    const res = Sheets.Spreadsheets.Values.batchGet(ss.getId(), {
+      ranges: names.map(n => "'" + n + "'"),
+      valueRenderOption: 'UNFORMATTED_VALUE',
+      dateTimeRenderOption: 'SERIAL_NUMBER',
+    });
+    (res.valueRanges || []).forEach((vr, i) => { raw[names[i]] = vr.values || []; });
+  } catch (err) {
+    mode = 'spreadsheet_app';
+    names.forEach(n => {
+      const sheet = ss.getSheetByName(n) || table_(n);
+      raw[n] = sheet.getDataRange().getValues();
+    });
+  }
+  const tables = {};
+  names.forEach(n => {
+    const rows = (raw[n] || []).slice();
+    const headers = (rows.shift() || []).map(String);
+    tables[n] = rows
+      .filter(r => r.some(v => v !== '' && v !== null))
+      .map(r => {
+        const o = {};
+        headers.forEach((h, i) => {
+          if (!h) return;
+          let v = r[i] === undefined ? '' : r[i];
+          if (h === 'due_date' && typeof v === 'number') v = serialToDate_(v);   // Datumszelle (Sheets API)
+          if (v instanceof Date) v = h === 'due_date' ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : v.toISOString();
+          o[h] = v;
+        });
+        return o;
+      });
+  });
+  return { raw: raw, tables: tables, mode: mode };
+}
+
+// Tabellen-Seriennummer (Tage seit 30.12.1899) -> Datum
+function serialToDate_(n) { return new Date(Math.round((n - 25569) * 864e5)); }
+
 function bySort_(a, b) { return (Number(a.sort) || 999) - (Number(b.sort) || 999); }
 
-// Zeilen ohne id (z.B. direkt ins Sheet geschrieben) bekommen id + Zeitstempel; ohne status -> inbox
-function fillMissing_() {
-  const sheet = table_('tasks');
-  const last = sheet.getLastRow();
-  if (last < 2) return 0;
-  const headers = headers_(sheet);
-  const range = sheet.getRange(2, 1, last - 1, headers.length);
-  const rows = range.getValues();
+// Zeilen ohne id (z.B. direkt ins Sheet geschrieben) bekommen id + Zeitstempel; ohne status -> inbox.
+// Arbeitet auf den bereits gelesenen Werten; schreibt nur, wenn etwas fehlt (dann ändert es auch die Objekte nicht –
+// die ergänzten Zeilen kommen beim nächsten Laden mit id; bis dahin zeigt die App sie nicht doppelt).
+function fillMissingFrom_(values) {
+  if (!values || values.length < 2) return 0;
+  const headers = values[0].map(String);
   const c = name => headers.indexOf(name);
+  if (c('id') < 0 || c('title') < 0) return 0;
   const now = new Date().toISOString();
-  let fixed = 0;
-  rows.forEach(r => {
+  const todo = [];
+  values.slice(1).forEach((r, i) => {
     if (!String(r[c('title')] || '').trim() || String(r[c('id')] || '').trim()) return;
-    r[c('id')] = Utilities.getUuid();
-    if (STATUSES.indexOf(String(r[c('status')]).trim()) < 0) r[c('status')] = 'inbox';
-    if (!r[c('source')]) r[c('source')] = 'sheet';
-    if (!r[c('created_at')]) r[c('created_at')] = now;
-    if (!r[c('updated_at')]) r[c('updated_at')] = now;
-    if (!r[c('status_since')]) r[c('status_since')] = now;
-    fixed++;
+    todo.push(i + 2);
   });
-  if (fixed) range.setValues(rows);
-  return fixed;
+  if (!todo.length) return 0;
+  // selten: dann klassisch mit voller Zeilenbreite schreiben
+  const sheet = table_('tasks');
+  const hs = headers_(sheet);
+  const range = sheet.getRange(2, 1, sheet.getLastRow() - 1, hs.length);
+  const rows = range.getValues();
+  const k = name => hs.indexOf(name);
+  todo.forEach(rowNo => {
+    const r = rows[rowNo - 2];
+    if (!r || String(r[k('id')] || '').trim()) return;
+    r[k('id')] = Utilities.getUuid();
+    if (STATUSES.indexOf(String(r[k('status')]).trim()) < 0) r[k('status')] = 'inbox';
+    if (!r[k('source')]) r[k('source')] = 'sheet';
+    if (!r[k('created_at')]) r[k('created_at')] = now;
+    if (!r[k('updated_at')]) r[k('updated_at')] = now;
+    if (!r[k('status_since')]) r[k('status_since')] = now;
+  });
+  range.setValues(rows);
+  return todo.length;
 }
 
 // ================= Tasks =================
@@ -207,7 +268,7 @@ function addTask_(task) {
     status_since: now,
   };
   appendRow_('tasks', row);
-  return { id: row.id, status_since: now };
+  return row; // ganze Zeile (App ergänzt damit z.B. importierte Einträge ohne Neuladen)
 }
 
 function updateTask_(id, changes) {
@@ -308,6 +369,20 @@ function deleteEvent_(id) {
 // Voraussetzung: Dienst "Google Tasks API" (Kennung Tasks). settings.import_lists = Listennamen, kommagetrennt (leer = alle).
 // Importierte Einträge werden in Google Tasks abgehakt; IDs in Script Property IMPORTED_TASK_IDS gegen Doppelimporte.
 
+const IMPORT_EVERY_MS = 60 * 60 * 1000; // Google Tasks höchstens einmal pro Stunde
+function importDue_() {
+  const last = Number(PropertiesService.getScriptProperties().getProperty('LAST_TASKS_IMPORT')) || 0;
+  return Date.now() - last > IMPORT_EVERY_MS;
+}
+function importIfDue_(force) {
+  if (!force && !importDue_()) return { skipped: true };
+  const t0 = Date.now();
+  const report = importGoogleTasks_();
+  if (!report.error) PropertiesService.getScriptProperties().setProperty('LAST_TASKS_IMPORT', String(Date.now()));
+  report.ms = Date.now() - t0;
+  return report;
+}
+
 function importGoogleTasks_() {
   const report = { imported: [], skipped_lists: [], lists: [] };
   if (typeof Tasks === 'undefined') { report.error = 'Dienst „Google Tasks API“ fehlt im Apps-Script-Editor.'; return report; }
@@ -327,11 +402,12 @@ function importGoogleTasks_() {
         (res.items || []).forEach(t => {
           const title = (t.title || '').trim();
           if (!title || seen.indexOf(t.id) >= 0) return;
-          addTask_({
+          report.tasks = report.tasks || [];
+          report.tasks.push(addTask_({
             title: title, status: 'inbox', source: 'google_tasks',
             due_date: t.due ? t.due.substring(0, 10) : '',
             notes: 'Liste: ' + list.title + (t.notes ? '\n' + t.notes : ''),
-          });
+          }));
           seen.push(t.id);
           report.imported.push(title);
           Tasks.Tasks.patch({ status: 'completed' }, list.id, t.id);

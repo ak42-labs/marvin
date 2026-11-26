@@ -22,7 +22,8 @@ Status-Anzeigenamen (Planetenhirn, Hyperraum …) leben nur in der App (`STATUS_
 
 | action | Payload | Rückgabe |
 |---|---|---|
-| `getAll` | – | `{tasks, categories, shop_aisles, shop_items, terms, settings, events}` – **ein** Aufruf; vorher Google-Tasks-Import + Vervollständigen von Hand eingetragener Zeilen |
+| `getAll` | – | `{tasks, categories, shop_aisles, shop_items, terms, settings, events}` – **ein** Aufruf; alle Tabellen in einem Rutsch (mit Dienst „Google Sheets API“ = 1 Zugriff, sonst 1 je Blatt), Vervollständigen von Hand eingetragener Zeilen. `info.ms` = Zeit je Schritt, `info.import_due` = Google-Tasks-Import fällig |
+| `importTasks` | `force` | Google-Tasks-Import, höchstens 1× pro Stunde (`force` = sofort, z.B. Ziehen zum Aktualisieren); liefert neue Zeilen in `tasks` |
 | `addTask` / `addTasks` | `task` / `tasks: [task]` | `{id}` bzw. Liste |
 | `updateTask` / `updateTasks` | `id, changes` / `items: [{id, changes}]` | `{id}` – unbekannte Status werden abgelehnt |
 | `deleteTask` | `id` | `{id}` |
@@ -47,6 +48,7 @@ Erledigt am 22.11.2026 (`migrateToV1Schema`, danach aus dem Code entfernt; steht
 - Token: Script Property `MARVIN_TOKEN` = Wert in der App (Einstellungen).
 - Google Tasks: Dienst „Google Tasks API“ (Kennung `Tasks`); einmal `testGoogleTasks` ausführen (Berechtigung).
 - Kalender: einmal `testCalendar` ausführen (Berechtigung).
+- Schnelles Laden: Dienst „Google Sheets API“ (Kennung `Sheets`) hinzufügen. Ohne ihn läuft alles weiter, nur etwas langsamer (`info.read` zeigt `sheets_api` bzw. `spreadsheet_app`).
 
 ## Zeilen von Hand / von anderen KIs eintragen
 

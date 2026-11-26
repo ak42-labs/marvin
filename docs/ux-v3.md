@@ -50,7 +50,7 @@ Gleiches Aussehen (heller Champagner-Look des bisherigen Termin-Dialogs) und **i
 
 ## 5. Laden ohne Warten
 - Beim Start **sofort letzter Stand aus `localStorage`** (Tasks, Termine, Config), danach im Hintergrund `getTasks`/`getEvents`; Liste wird still ersetzt.
-- Kein dominanter Ladezustand mehr. Statt dessen Marvin-Zeile kurz: **„Babelfisch übersetzt …“**, Augen „grübeln“. Fertig → Zeile wieder frei (oder Begrüßung). Offline: letzter Stand bleibt sichtbar, Zeile „Kein Netz. Wie erwartet.“
+- Kein dominanter Ladezustand mehr. Statt dessen Marvin-Zeile kurz: ~~„Babelfisch übersetzt …“~~ → **überholt, gilt `ux-v3.1.md` §2 (Deep Thought)**, Augen „grübeln“. Fertig → Zeile wieder frei (oder Begrüßung). Offline: letzter Stand bleibt sichtbar, Zeile „Kein Netz. Wie erwartet.“
 - Aktionen während des Ladens erlaubt (gehen normal ans Backend).
 
 ## 6. Status-Namen intern

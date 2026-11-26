@@ -387,14 +387,38 @@ dialog.event-mode .task-only { display: none !important; }
 
 /* Ziehen zum Aktualisieren: Amber-Ring füllt sich mit dem Zug (ux-v3.1 §2) */
 #pull-ring {
-    --p: 0; position: sticky; top: 0; height: 0; margin: 0 auto; width: 28px; z-index: 5;
+    --p: 0; position: sticky; top: 0; height: 0; margin: 0 auto; width: 64px; z-index: 5;
     opacity: 0; transition: opacity .2s; pointer-events: none;
 }
+/* großer glühender Amber-Ring, füllt sich mit dem Zug; voll = pulsiert + „42“ in der Mitte */
 #pull-ring::before {
-    content: ''; position: absolute; left: 0; top: calc(var(--p) * 24px); width: 28px; height: 28px; border-radius: 50%;
-    background: conic-gradient(var(--amber-soft, #FFB060) calc(var(--p) * 360deg), rgba(255,200,150,.15) 0);
-    -webkit-mask: radial-gradient(circle, transparent 9px, #000 10px); mask: radial-gradient(circle, transparent 9px, #000 10px);
-    filter: drop-shadow(0 0 6px rgba(255,150,50,.6));
+    content: ''; position: absolute; left: 0; top: calc(var(--p) * 40px - 8px); width: 64px; height: 64px; border-radius: 50%;
+    background: conic-gradient(from -90deg, #FFD08A, #FF9A3C calc(var(--p) * 360deg), rgba(255,200,150,.12) 0);
+    -webkit-mask: radial-gradient(circle, transparent 23px, #000 24px); mask: radial-gradient(circle, transparent 23px, #000 24px);
+    filter: drop-shadow(0 0 10px rgba(255,150,50,.8));
+    transform: rotate(calc(var(--p) * 200deg)) scale(calc(.6 + var(--p) * .4));
+}
+#pull-ring::after {
+    content: '42'; position: absolute; left: 0; width: 64px; top: calc(var(--p) * 40px - 8px); line-height: 64px; text-align: center;
+    font-family: var(--font-display); font-size: 18px; color: #FFF3E6; text-shadow: 0 0 10px #FF9A3C;
+    opacity: 0; transform: scale(.5); transition: opacity .15s, transform .25s cubic-bezier(.2,1.6,.4,1);
 }
 #pull-ring.on { opacity: 1; }
-#pull-ring.ready::before { filter: drop-shadow(0 0 10px rgba(255,150,50,.95)); }
+#pull-ring.ready::before { animation: ringPulse .6s ease-in-out infinite alternate; }
+#pull-ring.ready::after { opacity: 1; transform: scale(1); }
+@keyframes ringPulse { from { filter: drop-shadow(0 0 10px rgba(255,150,50,.8)); } to { filter: drop-shadow(0 0 22px rgba(255,170,70,1)) brightness(1.25); } }
+
+/* Einstellungen (ux-v3.1 §5) */
+dialog h2 .ver { font-family: var(--font-body, inherit); font-size: 11px; letter-spacing: 0; color: var(--muted-2); margin-left: 8px; }
+dialog label.slider { display: flex; flex-direction: column; gap: 6px; color: var(--text); margin: 6px 0 16px; }
+dialog label.slider .slider-val { color: var(--amber-soft); font-size: 13px; }
+dialog label.slider input[type="range"] { width: 100%; padding: 0; accent-color: var(--amber); background: none; border: none; margin: 4px 0 0; }
+.slider-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted-2); }
+.keys-btn { width: 100%; margin: 0 0 16px; }
+dialog label.check.small { font-size: 12px; color: var(--muted-2); margin-top: 16px; }
+dialog label.check.small input { width: 16px; height: 16px; }
+.key-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; margin-bottom: 14px; }
+.key-name { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.key-mask { font-family: monospace; font-size: 15px; letter-spacing: .05em; }
+.key-row .key-input { grid-column: 1 / -1; margin: 0; }
+.key-row [hidden] { display: none; }

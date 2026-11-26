@@ -59,17 +59,29 @@ const Face = (() => {
     let left, lastR = '', lastP = '', lastIn = '';
     let roundEy = 0;
     let syncing = false, pendingSync = false;
+    let lastDone = '';
     let tiltTimer = null, tiltRaf = false, tiltRest = null, tiltLast = null;
     let ps = {};                 // Pixel-Zustand
 
     const at = (ms, f) => { timers.push(setTimeout(f, ms)); };
     function clearAll() { timers.forEach(clearTimeout); timers = []; clearInterval(interval); interval = null; loadRun.onSynced = null; }
 
-    function funEnabled() {
-        let v = '';
-        try { v = localStorage.getItem('marvin.fun') || ''; } catch {}
-        return v !== 'off' && !reducedMotion();
+    // Gag-Regler (Einstellungen): 0 = aus … 5 = Vorführmodus. Pausen [erster Gag nach Ruhe, zwischen Gags] in ms.
+    // Stufe 3 = ux-v3.1 §4 (erster nach 8–12 s, dann 15–25 s).
+    const GAP = { 1: [[40e3, 60e3], [50e3, 70e3]], 2: [[20e3, 30e3], [30e3, 40e3]], 3: [[8e3, 12e3], [15e3, 25e3]],
+                  4: [[6e3, 10e3], [6e3, 10e3]], 5: [[4e3, 6e3], [1.5e3, 3e3]] };
+    function gagLevel() {
+        let v = null;
+        try { v = localStorage.getItem('marvin.gags'); if (v === null && localStorage.getItem('marvin.fun') === 'off') v = '0'; } catch {}
+        const n = v === null ? 3 : Number(v);
+        return n >= 0 && n <= 5 ? n : 3;
     }
+    // Spaß (Gags, Spiele, Neigen) – aus bei Regler 0
+    function funEnabled() { return gagLevel() > 0 && !reducedMotion(); }
+    // Rückmeldungen (Laden, Erledigt, Verschieben …) bleiben auch ohne Spaß (ux-v3.1 §8)
+    function feedbackOn() { return !reducedMotion(); }
+    const scheduleFirst = () => { const g = GAP[gagLevel()]; if (g) schedule(g[0][0], g[0][1]); else nextAt = Infinity; };
+    const gapBetween = () => { const g = GAP[gagLevel()] || GAP[3]; return rnd(g[1][0], g[1][1]); };
 
     // 8-Bit-Piepser (WebAudio) – nur wenn "Marvin spricht" an ist
     let ac = null;
@@ -427,14 +439,13 @@ const Face = (() => {
     // Autopilot: Phasen statt Hin und Her (rund 3–5, Pixel 2–3 Gags), Wechsel nur über Tore aus „Bogen offen“
     function nextAuto() {
         if (!auto) return;
-        const rest = (a, b) => at(rnd(a, b), nextAuto);
         if (world === 'round') {
             if (left > 0) {
                 left--;
                 const g = pickOther(['curious', 'roll', 'blink', 'sleep'], lastR); lastR = g;
                 begin(g, 'gag');
                 if (g === 'sleep') hooks.say?.(pick(LINES.sleep));
-                steps(SEQ[g](), () => { finish(); auto = true; rest(1500, 3000); });
+                steps(SEQ[g](), () => { finish(); auto = true; at(gapBetween(), nextAuto); });
             } else {
                 const t = pickOther(['morph', 'rain', 'crt', 'snake'], lastIn); lastIn = t;
                 begin('gate-' + t, 'gate');
@@ -446,7 +457,7 @@ const Face = (() => {
                 const g = pickOther(['wave', 'snake', 'wink'], lastP); lastP = g;
                 begin(g, 'gag');
                 if (g === 'wink') hooks.say?.(pick(LINES.wink));
-                px(g, () => { pixReset(); finish(); auto = true; rest(1500, 2500); });
+                px(g, () => { pixReset(); finish(); auto = true; at(gapBetween(), nextAuto); });
             } else {
                 const t = Math.random() < .5 ? 'morph' : 'over';
                 begin('gate-' + t, 'gate');
@@ -467,19 +478,19 @@ const Face = (() => {
     // Berührung bricht Leerlauf-Gags ab (Ereignisse laufen weiter)
     function touch() {
         if (auto || (running && running.kind === 'gag')) snapToBase(false);
-        schedule(4000, 6000);
+        scheduleFirst();
     }
 
     // ---------- Ereignisse (Vorrang; ggf. kurz über „Verwandlung“ in die passende Welt und zurück) ----------
     function event(name, need, playFn) {
-        if (!funEnabled()) return;
+        if (!feedbackOn()) return;
         if (running?.kind === 'game') return;
         clearAll(); fx.innerHTML = '';
         auto = false;
         const back = world;
         begin('ev-' + name, 'event');
         const after = () => {
-            const end = () => { finish(); schedule(4000, 6000); };
+            const end = () => { finish(); scheduleFirst(); };
             if (world !== back) gate('morph', end); else end();
         };
         // Aus laufendem Ablauf zuerst in die Grundpose der aktuellen Welt
@@ -490,8 +501,18 @@ const Face = (() => {
 
     function react(kind, opts = {}) {
         if (kind === 'done') {
-            const g = opts.hyperspaceEmpty ? 'hearts' : 'wave'; // Extra Life, wenn der Hyperraum leer ist
-            event('done', 'pixel', k => px(g, () => { pixReset(); k(); }));
+            // Erfolg: abwechselnd La-Ola, Extra Life, Game Over (Hyperraum leer = immer Extra Life)
+            const g = opts.hyperspaceEmpty ? 'hearts' : pickOther(['wave', 'hearts', 'over'], lastDone);
+            lastDone = g;
+            event('done', 'pixel', k => px(g, () => {
+                pixReset();
+                if (g !== 'over') { k(); return; }
+                // nach Game Over kurz rund auftauchen (statt langem Aufwachen)
+                world = 'round'; showWorld('round');
+                R({ s: 'CLOSED', p: 0, ey: 0, d: .01, ed: .01 });
+                at(250, () => R({ s: 'OPEN', p: 0, ey: 0, d: .7 }));
+                at(1000, k);
+            }));
         } else if (kind === 'move') {
             event('move', 'round', k => steps(SEQ.roll(), k));
         } else if (kind === 'del') {
@@ -527,7 +548,7 @@ const Face = (() => {
             R({ s: 'OPEN', p: 0, ey: 0, d: .5, pd: .3 });
             setTimeout(() => { if (running?.kind === 'glance') finish(); }, 500);
         }, 1100);
-        schedule(4000, 6000);
+        scheduleFirst();
     }
 
     const LINES = {
@@ -565,7 +586,7 @@ const Face = (() => {
             fx.innerHTML = '';
             // Augen sortieren sich neu: Pixel-Bogen baut sich auf, weiter in der Pixel-Welt
             world = 'pixel'; left = rnd(2, 3); pixReset(); setAnim('pop'); showWorld('pixel');
-            at(1500, () => { setAnim(''); finish(); schedule(4000, 6000); });
+            at(1500, () => { setAnim(''); finish(); scheduleFirst(); });
         };
         const step = (t) => {
             const dt = Math.min(.033, (t - last) / 1000); last = t;
@@ -612,10 +633,10 @@ const Face = (() => {
             // App-Start: immer Aufwachen (rund, aus geschlossenen Augen)
             world = 'round'; showWorld('round');
             R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
-            if (funEnabled()) {
+            if (feedbackOn()) {
                 // App-Start: Marvin schläft, solange geladen wird (Loading 42 %), danach wacht er auf
                 begin('start', 'event');
-                const wake = () => { begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); schedule(4000, 6000); }); };
+                const wake = () => { begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); scheduleFirst(); }); };
                 at(150, () => {
                     if (!syncing) { wake(); return; }
                     showWorld('pixel');
@@ -635,7 +656,7 @@ const Face = (() => {
         glance,
         touch,
         // Abbruch (z.B. Zuhören startet): immer zurück in die runde Grundpose, damit die Zustands-Animationen greifen
-        abort() { arkanoid.stop?.(); snapToBase(true); schedule(4000, 6000); },
+        abort() { arkanoid.stop?.(); snapToBase(true); scheduleFirst(); },
         arkanoid() { if (funEnabled()) arkanoid(); },
         isBusy: () => !!running,
         isGame: () => running?.kind === 'game',
@@ -671,7 +692,7 @@ const Face = (() => {
             if (running?.name !== 'tilt') return;
             tiltRest = tiltLast ? { ...tiltLast } : null; // neue Lage = Ruhelage
             R({ s: 'OPEN', p: 0, ey: 0, d: .6, od: .4 });
-            setTimeout(() => { if (running?.name === 'tilt') { finish(); schedule(4000, 6000); } }, 700);
+            setTimeout(() => { if (running?.name === 'tilt') { finish(); scheduleFirst(); } }, 700);
         }, 1500);
     }
 

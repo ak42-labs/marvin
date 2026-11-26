@@ -47,7 +47,7 @@ Referenz: Mockup-Karte „Arcade-Augen“ (Seite UX v3.1), Datei `V31Arcade.dc.h
 - **Game Over:** Augen → X, Pixel fallen einzeln gestaffelt lang nach unten raus (vor dem Schriftzug), absteigende Töne, „GAME OVER“ blinkt.
 - **Zwinkern:** ein Auge klappt zur Linie, kurzer Doppelpiep. Für freche Sprüche.
 - **Extra Life:** Augen werden zu Pixel-Herzen, jedes schlägt aus seiner Mitte (3×), weicher Herzschlag-Ton, „EXTRA LIFE“. Anlass: Hyperraum leer.
-- **Loading:** Rahmen-Balken mit Blöcken, „LOADING...“ darüber, Prozent direkt darunter. Zählt hoch, bleibt bei 42 % hängen: „42%“ allein (~0,9 s) → „42% HÄNGT…“ → „42% IMMER NOCH“ → „42% WIE ERWARTET“ → 100 %. Anlass: Babelfisch-Abgleich/Sync.
+- **Loading:** Rahmen-Balken mit Blöcken, „LOADING...“ darüber, Prozent direkt darunter. Zählt hoch, bleibt bei 42 % hängen: „42%“ allein (~0,9 s) → „42% HÄNGT…“ → „42% IMMER NOCH“ → „42% WIE ERWARTET“ → 100 %. Anlass: Abgleich/Sync (Texte: `ux-v3.1.md` §2, Deep Thought).
 
 # Teil 3 – Ablauf beider Welten (Autopilot)
 
