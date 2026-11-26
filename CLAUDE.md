@@ -50,7 +50,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
-*   `docs/ux-v4.md`: Augenwelten – Teil 1 runde Welt (fließende Abläufe); Teil 2 Arcade folgt.
+*   `docs/ux-v4.md`: Augenwelten – Teil 1 runde Welt (fließende Abläufe), Teil 2 Arcade-Welt (Pixel, Ton, Scanlines).
 *   `docs/ux-v3.1.md`: Alltags-Feinschliff (Sprach-Ende, Aktualisieren, Netz-Warteschlange, Gags, Einstellungen).
 *   `docs/ux-v3.md`: Vorgabe UX v3 (Gestenregel, ein Formular, Proviant, Laden ohne Warten, Wischzone) – umgesetzt in 3.0.0.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
@@ -155,6 +155,6 @@ Erkenntnisse aus dem ersten Live-Test (17.11.2026):
 Backlog (Priorisierung durch Armin, Stand 26.11.2026):
 1.  **UX v3.1 umsetzen** nach `docs/ux-v3.1.md`: Sprach-Ende 1,5 s + Tipp beendet, Ziehen zum Aktualisieren, Datenalter `STAND hh:mm`, Warteschlange bei schlechtem Netz, weniger Gags, Einstellungen mit eigenem Schlüssel-Dialog.
 2.  Gemini-Skill-Hinweis prüfen: `inbox`-Zeilen mit `source = gemini` einsortieren, `due_date` behalten (`docs/skill-marvin.md`).
-3.  **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Teil 2 (Pixel/Arcade-Welt) im Design-Chat in Arbeit.
+3.  **UX v4 Teil 1 umsetzen:** runde Augenwelt nach `docs/ux-v4.md` (fließende Abläufe). Danach **Teil 2 Arcade-Welt** nach `docs/ux-v4.md` (Röhre an, Blockregen, La-Ola, Snake + 42, Game Over, Zwinkern, Extra Life, Loading 42 %).
 4.  **Design-Chat: Space Invaders** (evtl. ganzer Bildschirm, Karten als Invaders), danach Lunar Lander / Defender – zuletzt.
 Erledigt: Schema v1, `Tasks_alt`/`Config_alt` gelöscht, Kategorien aufgeräumt (26.11.), Gemini-Skill „Marvin-Eingang“. Business Case verworfen.

@@ -25,3 +25,29 @@ Transitions: Lid `d .9s cubic-bezier(.45,.05,.25,1)` (je Schritt überschreibbar
 - **Einschlafen:** OPEN → HALF, Augen sinken 3 px (1,6–1,8 s) → CLOSED, Augen 7 px tiefer, Schnarchen: Augen atmen ±2,5 px (2,6 s), drei Z (10/13/16) steigen zwischen den Augen auf.
 
 Tempo: lieber gemächlich – Marvin ist nicht der Schnellste.
+
+---
+
+# Teil 2 – Arcade-Welt (Pixel)
+
+Referenz: Mockup-Karte „Arcade-Augen“ (Seite UX v3.1), Datei `V31Arcade.dc.html` – Timings/Keyframes dort 1:1 übernehmen.
+
+## Grundlagen
+- Augen = 2 × 6 Blöcke 8×8 px (amber `#FFB25C`, Glow `drop-shadow(0 0 5px #FF9A3C)`), `shape-rendering: crispEdges`, Bewegung nur in harten Schritten (`steps()`).
+- Schrift: Press Start 2P. Texte im Glas **unter den Augen**, alle gleich (16 px, blinkend). Keine Texte unter dem Glas.
+- **Röhrenstreifen (Scanlines) nur bei Schriftzug-Momenten:** Röhre an, Game Over, Extra Life. Alle anderen ohne.
+- **Ton:** eigene 8-Bit-Piepser (WebAudio, Square/Triangle, leise). Hängt an der Einstellung „Marvin spricht“ (an = Piepser, aus = still). Häufigkeit über den Gag-Schalter (ux-v3.1).
+- Pixel-Text mit wechselndem Inhalt als HTML-Ebene über dem SVG (nicht SVG-`<text>`).
+
+## Animationen
+- **Röhre an:** Bild klappt aus einer Linie auf (CRT), Sägezahn-Anstieg, dann „PRESS START“ blinkt + Start-Jingle (Tonleiter + heller Doppelton).
+- **Blockregen:** ~45 Tropfen fallen verstreut ca. 3,5 s über das ganze Glas durch; die Augen-Pixel fallen senkrecht zu zufälligen Zeitpunkten und bleiben an ihrem Platz stecken.
+- **La-Ola:** eine einzige Animation je Pixel (3,3 s, 3 Wellen, Versatz 0,08 s je Pixel, über beide Augen). Welle 1 hebt aus dem Bogen und landet auf einer leicht zufällig versetzten Linie (±2 px), Welle 2 läuft auf der Linie, Welle 3 landet jeder Pixel wieder an seinem Bogenplatz. Keine Pause, kein Umschalten dazwischen.
+- **Snake + 42:** Beide Augen bekommen Pupillen (6×6, beige). Schlange auf 6-px-Raster (Pupillen liegen auf dem Raster!), fährt nie durch Augen-Pixel und nie auf sich selbst zurück. Weg (Start links, zufällig gespiegelt von rechts): oben rein → Ecke runter → Ecke zur unteren Zeile → von unten zur 1. Pupille (frisst, Ton, +3 Länge) → Haken raus → zwischen den Augen hoch → oben über das andere Auge → außen runter → von unten zur 2. Pupille (frisst, +42 steigt auf, Fanfare) → Haken raus → unten aus dem Bild.
+- **Game Over:** Augen → X, Pixel fallen einzeln gestaffelt lang nach unten raus (vor dem Schriftzug), absteigende Töne, „GAME OVER“ blinkt.
+- **Zwinkern:** ein Auge klappt zur Linie, kurzer Doppelpiep. Für freche Sprüche.
+- **Extra Life:** Augen werden zu Pixel-Herzen, jedes schlägt aus seiner Mitte (3×), weicher Herzschlag-Ton, „EXTRA LIFE“. Anlass: Hyperraum leer.
+- **Loading:** Rahmen-Balken mit Blöcken, „LOADING...“ darüber, Prozent direkt darunter. Zählt hoch, bleibt bei 42 % hängen: „42%“ allein (~0,9 s) → „42% HÄNGT…“ → „42% IMMER NOCH“ → „42% WIE ERWARTET“ → 100 %. Anlass: Babelfisch-Abgleich/Sync.
+
+## Später
+Space Invaders (evtl. ganzer Bildschirm, Karten als Invaders), Lunar Lander, Defender.
