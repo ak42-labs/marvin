@@ -8,10 +8,11 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 
 ## 2. Aktualisieren (Ziehen + beim Öffnen)
 - **Liste oben nach unten ziehen** (eigene Geste, da die installierte PWA keine hat): oben erscheint ein kleiner Amber-Ring, füllt sich mit dem Zug (Auslöse-Schwelle ~70 px), Loslassen startet den Abgleich. Augen schauen nach oben. Nur auslösen, wenn die Liste ganz oben steht.
-- **Marvin-Zeile während des Abgleichs:** „Babelfisch übersetzt …“ (Augen „grübeln“).
-- **Abschluss eindeutig:** „Alles übersetzt! Ich weiß jetzt alles. Leider.“ (2 s), dann Zeile frei.
-- **Fehlschlag:** „Natürlich kein Netz.“ – bleibt stehen, bis der nächste Versuch klappt.
-- **Datenalter sichtbar, relativ (wie `−3` bei Aufgaben):** Statuszeile rechts klein, größte Einheit zuerst, Null-Einheiten weglassen: `STAND 3M` · `STAND 2H 15M` · `STAND 1T 12H 3M` · `STAND 23T 4H` – solange die Daten aus dem Speicher kommen oder der letzte Abgleich fehlschlug (beim Öffnen sofort sichtbar). Nach erfolgreichem Abgleich verschwindet es (wieder Anzahl). Keine Uhrzeit/kein Datum.
+- **Alles in der Marvin-Zeile (Zeile über dem Marvin-Knopf), ein Ort, Deep-Thought-Thema:**
+  - Während des Abgleichs: „Deep Thought rechnet …“ (Augen: Loading 42 %).
+  - Erfolg: „Antwort: 42. Wie überraschend.“ (2 s), dann Zeile frei.
+  - Fehlschlag / kein Netz: „Deep Thought rechnet noch. Seit 2H 15M.“ – bleibt stehen, bis der nächste Abgleich klappt. Die Zeit ist das **Datenalter** (seit dem letzten erfolgreichen Abgleich), läuft mit, größte Einheit zuerst, Null-Einheiten weg: `3M` · `2H 15M` · `1T 12H 3M` · `23T 4H`. Keine Uhrzeit/kein Datum.
+  - Kein eigenes `STAND` in der Statuszeile (ersetzt durch obige Zeile).
 - Beim Öffnen gleicher Ablauf automatisch (Cache sofort, dann Abgleich).
 
 ## 3. Schlechtes Netz abfedern
