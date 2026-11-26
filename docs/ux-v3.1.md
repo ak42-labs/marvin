@@ -11,14 +11,14 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 - **Marvin-Zeile während des Abgleichs:** „Babelfisch übersetzt …“ (Augen „grübeln“).
 - **Abschluss eindeutig:** „Alles übersetzt! Ich weiß jetzt alles. Leider.“ (2 s), dann Zeile frei.
 - **Fehlschlag:** „Natürlich kein Netz.“ – bleibt stehen, bis der nächste Versuch klappt.
-- **Datenalter sichtbar, relativ (wie `−3` bei Aufgaben):** Statuszeile rechts klein `STAND 5 MIN` · `STAND 3 H` · `STAND 23 T` – solange die Daten aus dem Speicher kommen oder der letzte Abgleich fehlschlug (beim Öffnen sofort sichtbar). Nach erfolgreichem Abgleich verschwindet es (wieder Anzahl). Keine Uhrzeit/kein Datum.
+- **Datenalter sichtbar, relativ (wie `−3` bei Aufgaben):** Statuszeile rechts klein, größte Einheit zuerst, Null-Einheiten weglassen: `STAND 3M` · `STAND 2H 15M` · `STAND 1T 12H 3M` · `STAND 23T 4H` – solange die Daten aus dem Speicher kommen oder der letzte Abgleich fehlschlug (beim Öffnen sofort sichtbar). Nach erfolgreichem Abgleich verschwindet es (wieder Anzahl). Keine Uhrzeit/kein Datum.
 - Beim Öffnen gleicher Ablauf automatisch (Cache sofort, dann Abgleich).
 
 ## 3. Schlechtes Netz abfedern
 - **Nie blockieren:** jede Aktion wirkt sofort lokal.
 - **Warteschlange:** Abhaken, Verschieben, Anlegen, Bearbeiten werden im Speicher gemerkt (`localStorage`) und gesendet, sobald Netz da ist; Wiederholung mit wachsendem Abstand.
 - **Zeitlimit:** Abgleich bricht nach ~8 s ohne Antwort ab → Fehlschlag-Anzeige (§2), letzter Stand bleibt.
-- **Sichtbar:** Statuszeile `⟳ 2`, solange 2 Aktionen auf Netz warten (dezent pulsierend). Beim ersten Eintrag in die Warteschlange einmal Marvin-Zeile: „In der Warteschlange. Wie ich.“ Wenn alles raus ist: Symbol weg.
+- **Sichtbar:** Statuszeile `⟳ 2`, solange 2 Aktionen auf Netz warten (dezent pulsierend). Beim ersten Eintrag in die Warteschlange einmal Marvin-Zeile: „Und wieder mal warten …“ Wenn alles raus ist: Symbol weg.
 - **Sprache ohne Netz:** der erkannte Text wird gemerkt („Gemerkt. Ich kümmere mich, wenn die Welt wieder online ist.“) und bei Netz an Gemini geschickt.
 - Konflikte: beim Abgleich gewinnt die neuere Änderung (`updated_at`).
 
@@ -39,7 +39,8 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 - Code: leere Zeilen in `categories` ignorieren; Gemini-Prompt nimmt die Liste aus dem Sheet (keine fest eingebauten Kategorien).
 
 ## 7. Bug
-- **Datumsauswahl im Formular:** seit dem letzten Update ist das Jahr abgeschnitten („…2“ statt „2026“). Datumsfeld breit genug machen bzw. kürzeres Anzeigeformat (`Di 24.11.26`).
+- **Datumsfeld im Formular (Detailansicht):** Jahr abgeschnitten („…2“ statt „2026“). Ursache vermutlich: der ×-Knopf (Datum leeren) liegt über dem Text – Overflow/Containergröße. Platz ist da: Feld bekommt `padding-right` in Breite des ×-Knopfs, × absolut am rechten Rand, Text nie darunter.
 
 ## 8. Spaß-Modus = Gag-Schalter
-- Der Schalter „Spaß-Modus“ in den Einstellungen ist der Gag an/aus-Schalter (aus = nur Grundzustände, keine Gags, keine Spiele). Untertitel aus: „Nur Grundzustände. Marvin ist ernst. Fast.“
+- **Spaß-Modus** = Gag-Schalter. **Aus:** keine Leerlauf-Gags, keine Spiele/Easter Eggs. **Bleibt:** Grundzustände (dösen, zuhören, grübeln, sprechen) und Reaktionen auf Aktionen (Erledigt-Sterne, Gelöscht-X, Schock/Böse) – die sind Rückmeldung, kein Gag.
+- **Marvin spricht** = nur die Stimme. Aus: Sprüche stehen weiter als Text in der Marvin-Zeile.
