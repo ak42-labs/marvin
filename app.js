@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.8.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.9.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -682,6 +682,7 @@ async function loadAll({ forceImport = false } = {}) {
         setTimeout(() => { if (document.getElementById('marvin-text').textContent === answer) say(''); }, 2000 + answer.length * 38);
     }
     loading.style.display = 'none';
+    promoteDue();
     renderTasks();
     saveCache();
     processInbox();
@@ -860,7 +861,7 @@ function buildSystemPrompt() {
         '- time: nur bei type "event": Startzeit HH:MM (24h). Sonst null.',
         '- durationMinutes: nur bei type "event": genannte Dauer in Minuten, sonst 60.',
         '- title: kurz, prägnant, Deutsch. Aufgabe als Tätigkeit ("Mario anrufen"), Termin als Anlass ("Zahnarzt", "Treffen mit Robert"). Keine Datums- oder Uhrzeitangaben im Titel.',
-        `- status: "${TODO}" für konkrete Aufgaben, "${BACKLOG}" für Ideen/irgendwann/vielleicht, "${ON_HOLD}" nur wenn ausdrücklich pausiert.`,
+        `- status: "${ON_HOLD}" nur wenn ausdrücklich pausiert/wartend, sonst "${BACKLOG}". (Die App sortiert selbst nach Datum: fällig in den nächsten ${frist} Tagen = Hyperraum, sonst Planetenhirn.)`,
         categories.length
             ? `- category: genau eine aus der erlaubten Liste. Wähle die passendste.`
             : '- category: ein kurzes, sinnvolles Wort.',
@@ -868,12 +869,24 @@ function buildSystemPrompt() {
             'Eigene Begriffe des Users (die Spracherkennung verhört sie oft, z.B. als ähnlich klingende Alltagswörter). Wenn ein Wort ähnlich klingt und der Kontext passt, ersetze es durch den richtigen Begriff:',
             ...terms.map(t => `  * ${t.term}${t.hint ? ' – ' + t.hint : ''}`),
         ] : []),
-        '- dueDate: IMMER setzen, sobald irgendein Tag erkennbar ist ("heute", "morgen", "Dienstag", "am 3."), als YYYY-MM-DD. Bei type "event" Pflicht (ohne Tagesangabe: heute, bzw. morgen falls die Uhrzeit heute schon vorbei ist). Sonst null.',
+        '- dueDate: NUR setzen, wenn ein Zeitbezug genannt wird ("heute", "morgen", "übermorgen", "Dienstag", "am 3.", "in einer Woche", "in drei Wochen"), als YYYY-MM-DD.',
+        '  Unscharfe Angaben: "Anfang nächster Woche" = Montag, "Ende der Woche" = Freitag, "am Wochenende" = Samstag, "nächsten Monat" = der 1. des nächsten Monats, "Ende des Monats" = letzter Tag des Monats.',
+        '  "dringend", "unbedingt", "sofort", "heute noch" = heute.',
+        '  OHNE Zeitbezug: null. NIE selbst "heute" einsetzen – z.B. "merk dir …", "erinnere mich an …", "ich hab eine Idee …", "nicht vergessen …", Testeinträge = null.',
+        '  Ein Termin OHNE Uhrzeit ist type "task" mit dueDate (kein Kalendereintrag). Bei type "event" ist dueDate Pflicht (ohne Tagesangabe: heute, bzw. morgen falls die Uhrzeit heute schon vorbei ist).',
         '- notes: zusätzliche Details aus der Aussage, sonst leer.',
         '- comment: EIN kurzer, melancholisch-zynischer Satz von Marvin zur Aufgabe. Keine Höflichkeit, keine Fragen, keine Erklärungen.',
         '  Natürliches Deutsch (österreichisch verständlich). Keine wörtlich übersetzten englischen Witzmuster wie "Das tut mir leid. Nicht." – Ironie über die Wortwahl, nicht über ein angehängtes "Nicht.".',
         '  Beispiele für den Ton: "Ich habe ein Gehirn von der Größe eines Planeten. Und das hier." · "Umgeräumt. Wie Möbel auf der Titanic." · "Noch eine Sache weniger. Die Leere bleibt." · "Wenn Verschieben ein Sport wäre, hättest du Medaillen."',
     ].join('\n');
+}
+
+// Einordnung (27.11.2026): fällig in den nächsten `frist` Tagen (oder überfällig) = Hyperraum, sonst Planetenhirn.
+// Angehalten bleibt angehalten, Proviant bleibt Proviant.
+function statusFor(geminiStatus, due) {
+    if (geminiStatus === ON_HOLD || geminiStatus === PROVIANT) return geminiStatus;
+    const d = due ? daysSince(due) : null;
+    return d !== null && -d <= frist ? TODO : BACKLOG;
 }
 
 function buildSchema() {
@@ -978,7 +991,7 @@ async function handleInput(text, { fromQueue = false } = {}) {
         }
         const task = {
             title: parsed.title,
-            status: TARGET_STATUSES.includes(parsed.status) ? parsed.status : TODO,
+            status: statusFor(parsed.status, dueDate),
             category_id: catIdFromName(parsed.category),
             due_date: dueDate,
             notes: [parsed.notes, `Original: "${text}"`].filter(Boolean).join('\n'),
@@ -1056,11 +1069,11 @@ async function processInbox() {
             if (!task) continue;
             const changes = {
                 title: r.title || task.title,
-                status: [...TARGET_STATUSES, PROVIANT].includes(r.status) ? r.status : TODO,
                 category_id: catIdFromName(r.category) || task.category_id,
             };
-            if (changes.status === PROVIANT) changes.aisle_id = aisleFor(changes.title, r.aisle);
             if (/^\d{4}-\d{2}-\d{2}$/.test(r.dueDate || '') && !task.due_date) changes.due_date = r.dueDate;
+            changes.status = statusFor(r.status, changes.due_date || task.due_date);
+            if (changes.status === PROVIANT) changes.aisle_id = aisleFor(changes.title, r.aisle);
             items.push({ task, changes });
         }
         if (items.length) {
@@ -1341,6 +1354,12 @@ function rememberArtikel(name, aisleId) {
     enqueue('setShopItem', { name, aisle_id: aisleId });
 }
 
+// Planetenhirn -> Hyperraum, sobald das Datum in die Frist rutscht (Anhalter/Erledigt bleiben unberührt)
+function promoteDue() {
+    allTasks.filter(t => t.status === BACKLOG && t.due_date && statusFor(BACKLOG, t.due_date) === TODO)
+        .forEach(t => saveTask(t, { status: TODO }));
+}
+
 function saveTask(task, changes) {
     if ('status' in changes && changes.status !== task.status) changes = { ...changes, status_since: new Date().toISOString() };
     Object.assign(task, changes);
@@ -1500,8 +1519,8 @@ function setStatus(task, status, extra = {}) {
     // Hyperraum leer (keine offenen Aufgaben, keine Termine innerhalb der Frist) -> Extra Life
     const hyperspaceEmpty = !allTasks.some(t => t.status === TODO) && !allEvents.some(e => eventView(e) === TODO);
     if (status === DONE_STATUS && before.status === PROVIANT) {
-        say(pick(LINES.bought), { voice: true });
-        Face.react('done', { hyperspaceEmpty: false });
+        say(pick(LINES.bought));                         // im Geschäft: nur Text, keine Stimme
+        Face.react('done', { hyperspaceEmpty: false, quiet: true });
     } else if (status === DONE_STATUS) {
         say(pick(LINES.done), { voice: true });
         Face.react('done', { hyperspaceEmpty });

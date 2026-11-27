@@ -85,6 +85,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 | `terms` | Vokabular gegen Verhörer (`term`, `hint`) |
 | `settings` | `due_days`, `event_days`, `import_lists`, `locale` |
 
+*   **Einordnung (7-Tage-Regel, 4.9.0):** fällig innerhalb `due_days` = Hyperraum, sonst Planetenhirn (`statusFor` in `app.js`, Nachrutschen beim Laden: `promoteDue`). Datum nur bei genanntem Zeitbezug.
 *   **Status sind feste Schlüssel im Code** (Verhalten hängt daran), keine Tabelle. Anzeige-Namen nur in `STATUS_LABELS` (`app.js`): backlog = Planetenhirn, todo = Hyperraum, on_hold = Anhalter, shopping = Proviant, done = 42. `inbox` unsichtbar (Puffer). Gekaufter Proviant = `done` mit `aisle_id`, zählt nicht in „42“.
 *   **IDs statt Namen** in `tasks` (Kategorie/Abteilung umbenennen bricht nichts).
 *   **App liest alles in einem Aufruf** (`getAll`) und hält es im Speicher + localStorage-Cache (`CACHE_V`); Nachschlagen ID → Name passiert nur im Speicher.
@@ -101,7 +102,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 6. STATUS (Stand 27.11.2026: App 4.8.0, Backend 1.1.0)
+## 6. STATUS (Stand 27.11.2026: App 4.9.0, Backend 1.1.0)
 *   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`), Offline-Modus (Warteschlange `marvin.outbox`, `⟳ n`, Sprache ohne Netz, Zeitlimit 8 s).
 *   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
 *   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).

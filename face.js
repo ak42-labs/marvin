@@ -72,7 +72,9 @@ const Face = (() => {
     let left, lastR = '', lastP = '', lastIn = '';
     let roundEy = 0;
     let syncing = false, pendingSync = false;
-    let lastDone = '', lastDel = '';
+    let lastDone = '', lastDel = '', quietUntil = 0;
+    const recent = [];  // letzte zwei Gags/Tore beider Welten: kommen nicht gleich wieder
+    const pickFresh = (arr) => { const c = arr.filter(x => !recent.includes(x)); const g = (c.length ? c : arr)[Math.floor(Math.random() * (c.length ? c : arr).length)]; recent.push(g); if (recent.length > 2) recent.shift(); return g; };
     let tiltTimer = null, tiltRaf = false, tiltRest = null, tiltLast = null;
     let ps = {};                 // Pixel-Zustand
 
@@ -102,6 +104,7 @@ const Face = (() => {
     function beep(notes, step, type) {
         // nur wenn Marvin wirklich vorne und sichtbar ist (gesperrt, andere App, Hintergrund: still)
         if (!hooks.soundOn?.() || document.visibilityState !== 'visible' || !document.hasFocus()) return;
+        if (Date.now() < quietUntil || window.speechSynthesis?.speaking) return; // still: im Geschäft bzw. während Marvin spricht
         try {
             const A = window.AudioContext || window.webkitAudioContext;
             ac = ac || new A();
@@ -601,19 +604,19 @@ const Face = (() => {
         if (world === 'round') {
             if (left > 0) {
                 left--;
-                const g = pickOther(['curious', 'roll', 'blink', 'sleep', 'look'], lastR); lastR = g;
+                const g = pickFresh(['curious', 'roll', 'blink', 'sleep', 'look']);
                 begin(g, 'gag');
                 if (g === 'sleep') hooks.say?.(pick(LINES.sleep));
                 steps(SEQ[g](), () => { finish(); auto = true; at(gapBetween(), nextAuto); });
             } else {
-                const t = pickOther(['morph', 'rain', 'crt', 'snake'], lastIn); lastIn = t;
+                const t = pickFresh(['morph', 'rain', 'crt', 'snake']);
                 begin('gate-' + t, 'gate');
                 gate(t, () => { finish(); auto = true; left = rnd(2, 3); at(1200, nextAuto); });
             }
         } else {
             if (left > 0) {
                 left--;
-                const g = pickOther(['wave', 'snake', 'wink', 'bricks'], lastP); lastP = g;
+                const g = pickFresh(['wave', 'snake', 'wink', 'bricks']);
                 begin(g, 'gag');
                 if (g === 'wink') hooks.say?.(pick(LINES.wink));
                 px(g, () => { pixReset(); finish(); auto = true; at(gapBetween(), nextAuto); });
@@ -659,6 +662,7 @@ const Face = (() => {
     }
 
     function react(kind, opts = {}) {
+        if (opts.quiet) quietUntil = Date.now() + 8000;
         if (kind === 'done') {
             // Erfolg: abwechselnd La-Ola, Extra Life, Game Over (Hyperraum leer = immer Extra Life)
             const g = opts.hyperspaceEmpty ? 'hearts' : pickOther(['wave', 'hearts', 'over'], lastDone);
