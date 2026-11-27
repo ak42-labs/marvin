@@ -58,29 +58,30 @@
             <div id="edit-kind" class="edit-kind">AUFGABE · LISTE</div>
             <textarea id="edit-title" rows="2" placeholder="Titel"></textarea>
             <p id="edit-recurring" class="edit-hint" hidden>Serientermin – Umwandeln und Zeit bitte im Google Kalender ändern.</p>
-            <div class="edit-row">
-                <select id="edit-category" class="not-prov" aria-label="Kategorie"></select>
-                <select id="edit-aisle" class="only-prov" aria-label="Abteilung"></select>
-                <div class="field-x not-prov">
+            <select id="edit-category" class="not-prov full" aria-label="Kategorie"></select>
+            <select id="edit-aisle" class="only-prov full" aria-label="Abteilung"></select>
+            <!-- Datum · Zeit · Dauer in einer Zeile; Marvin schreibt den Wert selbst (kein Browser-Pfeil, passt auch am schmalen Handy) -->
+            <div class="dt-row not-prov">
+                <div class="dt-box">
                     <input type="date" id="edit-due" aria-label="Datum">
-                    <button type="button" class="x" id="edit-due-clear" aria-label="Datum leeren">×</button>
+                    <span class="dt-lbl" id="due-lbl">Datum</span>
+                    <button type="button" class="x" id="edit-due-clear" hidden>×</button>
                 </div>
-            </div>
-            <div class="edit-row not-prov">
-                <div class="field-x">
-                    <button type="button" id="edit-time-empty" class="placeholder">Uhrzeit –</button>
+                <div class="dt-box">
+                    <button type="button" id="edit-time-empty" class="dt-empty">Zeit</button>
                     <input type="time" id="edit-time" aria-label="Uhrzeit" hidden>
-                    <button type="button" class="x" id="edit-time-clear" aria-label="Uhrzeit entfernen" hidden>×</button>
+                    <span class="dt-lbl" id="time-lbl"></span>
+                    <button type="button" class="x" id="edit-time-clear" hidden>×</button>
                 </div>
                 <select id="edit-duration" aria-label="Dauer">
-                    <option value="">Dauer –</option>
+                    <option value="">∞</option>
                     <option value="15">15 min</option>
                     <option value="30">30 min</option>
                     <option value="60">1 h</option>
                     <option value="90">1,5 h</option>
                     <option value="120">2 h</option>
                     <option value="180">3 h</option>
-                    <option value="allday">ganztägig</option>
+                    <option value="allday">ganzer Tag</option>
                 </select>
             </div>
             <textarea id="edit-notes" rows="2" placeholder="Notizen"></textarea>

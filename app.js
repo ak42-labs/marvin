@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.4.2'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.5.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -1186,7 +1186,16 @@ function setTime(value) {
 }
 
 // Kopfzeile, Status-Knöpfe, Dauer live je nach Uhrzeit
+// Datum/Zeit selbst beschriften (Handy-Chrome schneidet sonst ab)
+function updateDtLabels() {
+    const d = $('edit-due').value, t = $('edit-time').value, dl = $('due-lbl'), tl = $('time-lbl');
+    dl.textContent = d ? d.split('-').reverse().join('.') : 'Datum';
+    dl.classList.toggle('empty', !d);
+    tl.textContent = t || '';
+    tl.hidden = !t;
+}
 function updateFormMode() {
+    updateDtLabels();
     if (editKind === 'prov') return;
     const isEvent = !!$('edit-time').value || $('edit-duration').value === 'allday';
     $('edit-kind').textContent = isEvent ? 'TERMIN · KALENDER' : 'AUFGABE · LISTE';
@@ -1362,7 +1371,9 @@ function initEditor() {
     document.querySelectorAll('#editor .status-buttons button').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('#editor .status-buttons button').forEach(x => x.classList.toggle('active', x === b));
     }));
-    $('edit-due-clear').addEventListener('click', () => { $('edit-due').value = ''; });
+    $('edit-due-clear').addEventListener('click', () => { $('edit-due').value = ''; updateDtLabels(); });
+    $('edit-due').addEventListener('change', updateDtLabels);
+    $('edit-due').addEventListener('input', updateDtLabels);
     // ohne eigenes Kalender-Symbol: Antippen irgendwo im Feld öffnet die Auswahl
     ['edit-due', 'edit-time'].forEach(id => $(id).addEventListener('click', (e) => { try { e.target.showPicker?.(); } catch {} }));
     $('edit-time-empty').addEventListener('click', () => { setTime(nextFullHour()); });

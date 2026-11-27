@@ -180,7 +180,6 @@ function assert(c, msg) { if (!c) throw new Error(msg); }
         await waitFor(async () => (await task(page, 't1')));
         srv.down = true;
         await page.evaluate(() => handleInput('Katze füttern'));
-        assert(await page.$eval('#marvin-text', e => e.textContent.length > 0), '');
         await waitFor(() => page.$eval('#marvin-text', e => e.textContent.includes('Gemerkt')), 4000) || (() => { throw new Error('kein „Gemerkt …“'); })();
         assert((await queueText(page)) === '⟳ 1', 'kein ⟳ 1');
         await page.reload();
