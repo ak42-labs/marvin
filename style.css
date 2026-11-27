@@ -318,7 +318,12 @@ dialog input[type="date"], dialog input[type="time"] { color-scheme: dark; }
 .edit-row > * { min-width: 0; }
 /* ux-v3.1 §7: × hat eigenen schmalen Platz rechts, Text + Kalender-Symbol nie darunter, Jahr bleibt sichtbar */
 #edit-due, #edit-time { padding-left: 10px; padding-right: 34px; }
-#edit-due::-webkit-calendar-picker-indicator, #edit-time::-webkit-calendar-picker-indicator { margin-left: 2px; margin-right: 0; padding: 0; }
+/* Handy-Chrome zeichnet statt Kalender-Symbol einen eigenen Pfeil, der mit dem × kollidiert:
+   eigenen Indikator weg, Antippen des Felds öffnet die Auswahl trotzdem. Das × ersetzt den Pfeil. */
+#edit-due, #edit-time { -webkit-appearance: none; appearance: none; min-height: 48px; text-align: left; }
+#edit-due::-webkit-calendar-picker-indicator, #edit-time::-webkit-calendar-picker-indicator { display: none; }
+#edit-due::-webkit-inner-spin-button, #edit-time::-webkit-inner-spin-button { display: none; }
+#edit-due::-webkit-date-and-time-value, #edit-time::-webkit-date-and-time-value { text-align: left; }
 #edit-due::-webkit-datetime-edit, #edit-time::-webkit-datetime-edit { padding: 0; }
 
 .status-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 6px 0 16px; }
