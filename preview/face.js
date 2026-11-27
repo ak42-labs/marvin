@@ -520,11 +520,11 @@ const Face = (() => {
                 // die volle Linie blendet ein, die Pixel aus – in der Mitte gleich hell
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
                 eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
-                eyes.style.transition = 'opacity .7s ease-in-out .4s'; eyes.style.opacity = '1';
+                eyes.style.transition = 'opacity .5s ease-out'; eyes.style.opacity = '1';            // Linie zuerst da
                 const rs = [...layers.blocks.querySelectorAll('.b')];
-                rs.forEach((r, i) => { r.style.transition = 'transform 1s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.75)`; });
-                pix.style.transition = 'opacity .7s ease-in-out .45s'; pix.style.opacity = 0;
-                at(1500, () => {
+                rs.forEach((r, i) => { r.style.transition = 'transform 1s cubic-bezier(.45,.05,.25,1) .45s'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.75)`; });
+                pix.style.transition = 'opacity .6s ease-in-out .8s'; pix.style.opacity = 0;
+                at(1700, () => {
                     eyes.style.transition = ''; eyes.style.opacity = ''; pix.style.transition = '';
                     world = 'round'; pixReset(); k();
                 });
