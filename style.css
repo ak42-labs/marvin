@@ -517,3 +517,6 @@ body.done-view #wheel { opacity: .2; filter: saturate(.2); transition: opacity .
 #undo-btn[hidden] { display: none; }
 #undo-btn .undo-ico { font-size: 26px; line-height: 1; font-family: var(--font-body); text-transform: none; }
 .pill.danger.armed { background: rgba(255,110,80,.22); border-color: rgba(255,120,90,.8); color: #FFD2C4; }
+#undo-btn { gap: 4px; }
+#undo-btn .undo-ico { font-size: 29px; display: flex; align-items: center; height: 2.3em; line-height: 1; transform: translateY(-1px); }
+#undo-btn .undo-ico { height: auto; }
