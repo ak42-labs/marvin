@@ -22,6 +22,9 @@ const Face = (() => {
     const mk = (arr, y) => [].concat(arr.map(q => [47 + q[0], y + q[1]]), arr.map(q => [123 + q[0], y + q[1]]));
     const PX_OPEN = mk(BASE, 28);
     const PX_FLAT = mk([[-24, 2], [-16, -3], [-8, -5], [0, -5], [8, -3], [16, 2]], 28);
+    // Block-Ecken so, dass die Block-Mitten genau auf der runden Linie liegen (runde Welt 4 px höher)
+    const curveY = x => { const t = (x + 23) / 46; return (1 - t) ** 2 * 8 + 2 * t * (1 - t) * -10 + t * t * 8; };
+    const PX_CURVE = [].concat(...[47, 123].map(cx => BASE.map(q => [cx + q[0], 32 - 4 + curveY(q[0] + 4) - 4])));
     const PX_ROW = Array.from({ length: 12 }, (_, i) => [13 + i * 12, 6]); // Ballspiel: eine Steinreihe oben
     const PX_X = mk([[-12, -10], [4, -10], [-4, -2], [-12, 6], [4, 6], [-4, -2]], 30);
     const PX_WINK = [].concat(PX_OPEN.slice(0, 6), [[-24, 2], [-16, 2], [-8, 2], [0, 2], [8, 2], [16, 2]].map(q => [123 + q[0], 28 + q[1]]));
@@ -252,8 +255,10 @@ const Face = (() => {
             `--rt:${(((i * 7) % 5) - 2) * 60}deg;transform:translate(${q[0]}px,${q[1]}px)`;
     }
     function drawBlocks() {
-        layers.blocks.innerHTML = (ps.hide ? [] : ps.pos).map((q, i) => ps.dead?.[i] ? '' :
-            `<rect class="b" x="0" y="0" width="8" height="8" fill="${C}" style="${blockStyle(q, i)}"/>`).join('');
+        const r = (ps.hide ? [] : ps.pos).map((q, i) => ps.dead?.[i] ? '' :
+            `<rect class="b" x="0" y="0" width="8" height="8" fill="${C}" style="${blockStyle(q, i)}"/>`);
+        const half = ps.pos.length / 2;
+        layers.blocks.innerHTML = `<g class="eyeL">${r.slice(0, half).join('')}</g><g class="eyeR">${r.slice(half).join('')}</g>`;
     }
     // vorhandene Blöcke in Stufen an neue Plätze schieben (Pixel-Art: ruckig gewollt)
     function moveBlocks(pos, ms = 450, n = 3) {
@@ -311,7 +316,7 @@ const Face = (() => {
             if (n === 'crt') {
                 beep([110, 220, 440, 880], .08, 'sawtooth'); setAnim(opts.thin ? 'crtIn' : 'crt'); scanEl.classList.add('on');
                 // heller Kathodenstrahl-Strich über die ganze Breite, solange das Bild noch ein Strich ist
-                layers.drops.innerHTML = `<rect x="20" y="26" width="130" height="12" fill="#FFF3E6"/>`;
+                layers.drops.innerHTML = `<rect x="23" y="26" width="48" height="12" fill="#FFF3E6"/><rect x="99" y="26" width="48" height="12" fill="#FFF3E6"/>`;
                 at(620, () => { layers.drops.innerHTML = ''; });
                 at(1300, () => { setText('PRESS START'); beep([392, 523, 659, 784, 1047], .06); at(380, () => beep([1047, 1568], .1)); });
                 at(4000, done);
@@ -332,10 +337,9 @@ const Face = (() => {
             if (n === 'over') {
                 scanEl.classList.add('on');
                 at(60, () => moveBlocks(PX_X, 220, 2));
-                at(300, () => { setAnim('jolt'); beep([98, 92], .12, 'sawtooth'); });
-                at(1100, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
-                at(1900, () => setText('GAME OVER'));
-                at(5800, done);
+                at(300, () => { setAnim('jolt'); setText('GAME OVER'); beep([98, 92], .12, 'sawtooth'); });
+                at(1300, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
+                at(5300, done);
             }
             if (n === 'wink') {
                 ps.pos = PX_WINK; drawBlocks(); beep([880, 1320], .05);
@@ -467,11 +471,18 @@ const Face = (() => {
     function gate(t, k) {
         if (world === 'round') {
             if (t === 'morph') {
-                // Variante B: Pixel entstehen in der flachen runden Form, dann steigen sie in den Pixel-Bogen
+                // Metamorphose: winzige Pixel sitzen genau auf der runden Linie, wachsen und wandern gleichzeitig
+                // in den Pixel-Bogen, während die Linie ausblendet
                 R({ s: 'OPEN', p: 0, ey: 0, d: .6 });
-                at(500, () => { pixReset(); ps.pos = PX_FLAT; drawBlocks(); setAnim('pop'); showWorld('pixel'); });
-                at(1800, () => { setAnim(''); drawBlocks(); at(30, () => moveBlocks(PX_OPEN, 500, 3)); });
-                at(2600, () => { world = 'pixel'; pixReset(); k(); });
+                at(400, () => {
+                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); showWorld('pixel'); eyes.classList.remove('off');
+                    const rs = [...layers.blocks.querySelectorAll('.b')];
+                    rs.forEach((r, i) => r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`);
+                    void pix.getBoundingClientRect();
+                    rs.forEach((r, i) => { r.style.transition = 'transform 1.3s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) scale(1)`; });
+                    eyes.style.transition = 'opacity 1.3s ease-in'; eyes.classList.add('off');
+                });
+                at(1900, () => { eyes.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
             if (t === 'rain') {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
@@ -517,14 +528,14 @@ const Face = (() => {
 
     // nach Game Over kurz rund auftauchen
     function popUp(k) {
-        setText(''); setAnim('crtOff'); beep([880, 440, 110], .05, 'sawtooth');
-        at(450, () => {
+        setText(''); beep([110, 440, 880], .05, 'sawtooth');
+        at(0, () => {
             pix.style.opacity = 0; pixReset(); world = 'round';
             R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
             eyes.style.transition = 'none'; eyes.classList.remove('off'); eyes.classList.add('tvon');
         });
-        at(1050, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .7 }); });
-        at(1900, k);
+        at(600, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
+        at(1300, k);
     }
 
     // ================= Ablaufsteuerung =================
