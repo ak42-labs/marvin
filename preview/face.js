@@ -516,15 +516,19 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                // Metamorphose rückwärts: Pixel schrumpfen auf Liniendicke und wandern auf die Linie,
-                // die volle Linie blendet ein, die Pixel aus – in der Mitte gleich hell
+                // Metamorphose rückwärts: Pixel werden rund (Perlen), schrumpfen unter Liniendicke und
+                // gleiten auf die Linie; die Linie blendet dabei ein und schluckt die Perlen
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
                 eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
-                eyes.style.transition = 'opacity .5s ease-out'; eyes.style.opacity = '1';            // Linie zuerst da
+                eyes.style.transition = 'opacity .6s ease-in-out .35s'; eyes.style.opacity = '1';
                 const rs = [...layers.blocks.querySelectorAll('.b')];
-                rs.forEach((r, i) => { r.style.transition = 'transform 1s cubic-bezier(.45,.05,.25,1) .45s'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.75)`; });
-                pix.style.transition = 'opacity .6s ease-in-out .8s'; pix.style.opacity = 0;
-                at(1700, () => {
+                rs.forEach((r, i) => {
+                    r.style.transition = 'transform .9s cubic-bezier(.45,.05,.25,1), rx .5s ease-out, ry .5s ease-out';
+                    r.style.rx = '4px'; r.style.ry = '4px';
+                    r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.6)`;
+                });
+                pix.style.transition = 'opacity .5s ease-in-out .75s'; pix.style.opacity = 0;
+                at(1400, () => {
                     eyes.style.transition = ''; eyes.style.opacity = ''; pix.style.transition = '';
                     world = 'round'; pixReset(); k();
                 });
