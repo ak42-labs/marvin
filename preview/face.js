@@ -25,6 +25,10 @@ const Face = (() => {
     // Block-Ecken so, dass die Block-Mitten genau auf der runden Linie liegen (runde Welt 4 px höher)
     const curveY = x => { const t = (x + 23) / 46; return (1 - t) ** 2 * 8 + 2 * t * (1 - t) * -10 + t * t * 8; };
     const PX_CURVE = [].concat(...[47, 123].map(cx => BASE.map(q => [cx + q[0], 32 - 4 + curveY(q[0] + 4) - 4])));
+    // Drehwinkel je Block = Steigung der runden Linie an seiner Mitte (Außenkanten liegen an der Linie an)
+    const curveAng = x => { const t = (x + 23) / 46; return Math.atan(36 * (2 * t - 1) / 46) * 180 / Math.PI; };
+    const PX_CURVE_ROT = [].concat(...[0, 1].map(() => BASE.map(q => curveAng(q[0] + 4))));
+    const onCurve = i => `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) rotate(${PX_CURVE_ROT[i].toFixed(1)}deg) scale(.875)`;
     const PX_ROW = Array.from({ length: 12 }, (_, i) => [13 + i * 12, 6]); // Ballspiel: eine Steinreihe oben
     const PX_X = mk([[-12, -10], [4, -10], [-4, -2], [-12, 6], [4, 6], [-4, -2]], 30);
     const PX_WINK = [].concat(PX_OPEN.slice(0, 6), [[-24, 2], [-16, 2], [-8, 2], [0, 2], [8, 2], [16, 2]].map(q => [123 + q[0], 28 + q[1]]));
@@ -479,9 +483,9 @@ const Face = (() => {
                     pix.style.transition = 'none'; pix.style.opacity = 0; void pix.getBoundingClientRect();
                     pix.style.transition = 'opacity .7s ease-out'; pix.style.opacity = 1;
                     const rs = [...layers.blocks.querySelectorAll('.b')];
-                    rs.forEach((r, i) => r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`);
+                    rs.forEach((r, i) => r.style.transform = onCurve(i));
                     void pix.getBoundingClientRect();
-                    rs.forEach((r, i) => { r.style.transition = 'transform 1.3s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) scale(1)`; });
+                    rs.forEach((r, i) => { r.style.transition = 'transform 1.3s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
                     eyes.style.transition = 'opacity .6s ease-in .55s'; eyes.classList.add('off');
                 });
                 at(1900, () => { eyes.style.transition = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
@@ -516,16 +520,17 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                // Metamorphose rückwärts: Pixel werden rund (Perlen), schrumpfen unter Liniendicke und
-                // gleiten auf die Linie; die Linie blendet dabei ein und schluckt die Perlen
+                // Metamorphose rückwärts: Pixel drehen sich an die Linie (Außenkanten anliegend) und gleiten darauf;
+                // die Linie blendet ein und übernimmt
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
                 eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
-                eyes.style.transition = 'opacity .6s ease-in-out .35s'; eyes.style.opacity = '1';
+                eyes.style.transition = 'opacity .5s ease-in-out .55s'; eyes.style.opacity = '1';
                 const rs = [...layers.blocks.querySelectorAll('.b')];
+                rs.forEach((r, i) => { r.style.transition = 'none'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
+                void pix.getBoundingClientRect();
                 rs.forEach((r, i) => {
-                    r.style.transition = 'transform .9s cubic-bezier(.45,.05,.25,1), rx .5s ease-out, ry .5s ease-out';
-                    r.style.rx = '4px'; r.style.ry = '4px';
-                    r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.6)`;
+                    r.style.transition = 'transform .9s cubic-bezier(.45,.05,.25,1)';
+                    r.style.transform = onCurve(i);
                 });
                 pix.style.transition = 'opacity .5s ease-in-out .75s'; pix.style.opacity = 0;
                 at(1400, () => {
