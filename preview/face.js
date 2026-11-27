@@ -310,6 +310,9 @@ const Face = (() => {
         at(40, () => {
             if (n === 'crt') {
                 beep([110, 220, 440, 880], .08, 'sawtooth'); setAnim(opts.thin ? 'crtIn' : 'crt'); scanEl.classList.add('on');
+                // heller Kathodenstrahl-Strich über die ganze Breite, solange das Bild noch ein Strich ist
+                layers.drops.innerHTML = `<rect x="20" y="26" width="130" height="12" fill="#FFF3E6"/>`;
+                at(620, () => { layers.drops.innerHTML = ''; });
                 at(1300, () => { setText('PRESS START'); beep([392, 523, 659, 784, 1047], .06); at(380, () => beep([1047, 1568], .1)); });
                 at(4000, done);
             }
@@ -328,7 +331,8 @@ const Face = (() => {
             if (n === 'snake') snakeRun(done, opts.preset);
             if (n === 'over') {
                 scanEl.classList.add('on');
-                at(60, () => moveBlocks(PX_X, 600, 4));
+                at(60, () => moveBlocks(PX_X, 220, 2));
+                at(300, () => { setAnim('jolt'); beep([98, 92], .12, 'sawtooth'); });
                 at(1100, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
                 at(1900, () => setText('GAME OVER'));
                 at(5800, done);
@@ -513,10 +517,14 @@ const Face = (() => {
 
     // nach Game Over kurz rund auftauchen
     function popUp(k) {
-        world = 'round'; showWorld('round');
-        R({ s: 'CLOSED', p: 0, ey: 0, d: .01, ed: .01 });
-        at(250, () => R({ s: 'OPEN', p: 0, ey: 0, d: .7 }));
-        at(1000, k);
+        setText(''); setAnim('crtOff'); beep([880, 440, 110], .05, 'sawtooth');
+        at(450, () => {
+            pix.style.opacity = 0; pixReset(); world = 'round';
+            R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
+            eyes.style.transition = 'none'; eyes.classList.remove('off'); eyes.classList.add('tvon');
+        });
+        at(1050, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .7 }); });
+        at(1900, k);
     }
 
     // ================= Ablaufsteuerung =================
@@ -772,6 +780,13 @@ const Face = (() => {
         flash() { react('move'); },
         _snakePath: snakePath, _PX_OPEN: PX_OPEN, // für Tests
         _state: () => ({ world, running: running && running.name, auto, left }),
+        // nur der Verwandlungs-Abschnitt: ruhige Ausgangspose, kurze Pause, dann Verwandlung
+        _morph(dir) {
+            clearAll(); fx.innerHTML = ''; auto = false; begin('morph-' + dir, 'gag');
+            if (dir === 'in') { world = 'round'; pixReset(); pix.style.opacity = 0; eyes.classList.remove('off'); R({ s: 'OPEN', p: 0, ey: 0, d: .01 }); }
+            else { world = 'pixel'; pixReset(); showWorld('pixel'); }
+            at(1200, () => gate('morph', () => { finish(); nextAt = Infinity; }));
+        },
         _play(name) {
             clearAll(); fx.innerHTML = ''; auto = false;
             const back = () => { finish(); scheduleFirst(); };
