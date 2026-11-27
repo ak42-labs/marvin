@@ -3,10 +3,12 @@
 Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein, was gerade passiert oder eben nicht.
 
 ## 1. Spracheingabe
+Status: umgesetzt in 4.2.0
 - Ende nach **1,5 s Stille** (bisher 2 s). 5 s bis zum ersten Wort bleiben.
 - **Tippen auf Marvin während des Zuhörens beendet sofort** und schickt ab.
 
 ## 2. Aktualisieren (Ziehen + beim Öffnen)
+Status: umgesetzt in 4.1.0
 - **Liste oben nach unten ziehen** (eigene Geste, da die installierte PWA keine hat): oben erscheint ein kleiner Amber-Ring, füllt sich mit dem Zug (Auslöse-Schwelle ~70 px), Loslassen startet den Abgleich. Augen schauen nach oben. Nur auslösen, wenn die Liste ganz oben steht.
 - **Alles in der Marvin-Zeile (Zeile über dem Marvin-Knopf), ein Ort, Deep-Thought-Thema:**
   - Während des Abgleichs: „Deep Thought rechnet …“ (Augen: Loading 42 %).
@@ -16,6 +18,7 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 - Beim Öffnen gleicher Ablauf automatisch (Cache sofort, dann Abgleich).
 
 ## 3. Schlechtes Netz abfedern
+Status: freigegeben
 - **Nie blockieren:** jede Aktion wirkt sofort lokal.
 - **Warteschlange:** Abhaken, Verschieben, Anlegen, Bearbeiten werden im Speicher gemerkt (`localStorage`) und gesendet, sobald Netz da ist; Wiederholung mit wachsendem Abstand.
 - **Zeitlimit:** Abgleich bricht nach ~8 s ohne Antwort ab → Fehlschlag-Anzeige (§2), letzter Stand bleibt.
@@ -24,10 +27,12 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 - Konflikte: beim Abgleich gewinnt die neuere Änderung (`updated_at`).
 
 ## 4. Weniger Gags (Vorführmodus aus)
+Status: umgesetzt in 4.2.0
 - Leerlauf-Gags: erster nach **8–12 s**, dann alle **15–25 s**.
 - Sprechregeln wieder nach `ux-v2.md` §6: **Verschieben nur Text, keine Stimme.** Stimme nur bei Anlegen, Löschen, Erledigt, Dauerverschieber.
 
 ## 5. Einstellungen neu ordnen (Mockup Seite „UX v3.1“ → „Einstellungen + Schlüssel“)
+Status: umgesetzt in 4.2.0 (Optik folgt, Plan Punkt 3)
 - Oben: **Marvin spricht** (an/aus) · **Spaß-Modus** (an/aus) · App-Version.
 - **Schlüssel** nicht mehr offen im Dialog, sondern hinter einem eigenen Knopf **„🔑 Schlüssel“** → eigener kleiner Dialog:
   - Gemini-Key und Backend-Token **maskiert** (`••••••3f9a`, nur letzte 4 Zeichen).
@@ -35,13 +40,16 @@ Ergänzt `docs/ux-v3.md`. Grundsatz: **Transparenz** – es muss immer klar sein
 - Debug-Modus ganz unten, klein.
 
 ## 6. Kategorien (im Sheet bereits erledigt, 26.11.)
+Status: umgesetzt (Sheet, 26.11.)
 - `categories` jetzt alphabetisch: Allerlei, Einkaufen, Finanzen, Gesundheit, Wohnung (`sort` 1–5).
 - `verschiedenes` → `allerlei`, `pv_klima` → `wohnung` in `tasks` umgehängt; beide Kategorien gelöscht.
 - Code: leere Zeilen in `categories` ignorieren; Gemini-Prompt nimmt die Liste aus dem Sheet (keine fest eingebauten Kategorien).
 
 ## 7. Bug
+Status: freigegeben
 - **Datumsfeld im Formular (Detailansicht):** Jahr abgeschnitten („…2“ statt „2026“). Ursache vermutlich: der ×-Knopf (Datum leeren) liegt über dem Text – Overflow/Containergröße. Platz ist da: Feld bekommt `padding-right` in Breite des ×-Knopfs, × absolut am rechten Rand, Text nie darunter.
 
 ## 8. Spaß-Modus = Gag-Schalter
+Status: umgesetzt in 4.2.0
 - **Spaß-Modus** = Gag-Schalter. **Aus:** keine Leerlauf-Gags, keine Spiele/Easter Eggs. **Bleibt:** Grundzustände (dösen, zuhören, grübeln, sprechen) und Reaktionen auf Aktionen (Erledigt-Sterne, Gelöscht-X, Schock/Böse) – die sind Rückmeldung, kein Gag.
 - **Marvin spricht** = nur die Stimme. Aus: Sprüche stehen weiter als Text in der Marvin-Zeile.
