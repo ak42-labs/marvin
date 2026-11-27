@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
     initOutbox();
     loadAll(); // zeigt sofort den letzten Stand, Begrüßung nach dem Sync (Text ja, Stimme nein)
-    document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
+    document.getElementById('app-version').textContent = 'Version ' + APP_VERSION;
     initServiceWorker();
 
     // App wieder im Vordergrund (z.B. aus dem Hintergrund geholt): Daten + Puffer frisch laden,
