@@ -129,6 +129,6 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 Aktuell nichts offen.
 
 **Danach / geparkt:**
-*   Arcade-Spiele gemeinsam designen: Arkanoid als Demo-Gag im Autopilot, spielbare Spiele per Doppeltipp (Space Invaders, evtl. Vollbild, Karten als Invaders; später Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist.
+*   Arcade-Spiele gemeinsam designen: eigene Spiele in Marvins Stil mit bekannten Mechaniken (Ball-und-Steine, Abwehr-Shooter, Landen mit Schub) – keine Nachbauten bestehender Spiele (Name, Figuren, Look). Spielbar per Doppeltipp, evtl. Vollbild, Karten als Gegner. Das bestehende Ball-und-Steine-Spiel bleibt bis dahin wie es ist.
 
 Erledigt: Einstellungen-Optik + Jahreszahl 4.4.0, Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
