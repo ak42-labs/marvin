@@ -293,7 +293,7 @@ const Face = (() => {
         // Neustart erzwingen, damit dieselbe Animation erneut läuft
         void g.getBoundingClientRect();
     }
-    function setText(t) { txtEl.textContent = t || ''; txtEl.classList.toggle('O', !!t); }
+    function setText(t) { txtEl.textContent = t || ''; txtEl.classList.remove('hold'); txtEl.classList.toggle('O', !!t); }
     function pixReset() {
         ps = { dead: null, pos: PX_OPEN, hide: false, pups: [], snake: [], hearts: [], bar: false, barW: 0, barTxt: '', drops: [], rr: null, ly: null };
         setAnim('');
@@ -337,7 +337,7 @@ const Face = (() => {
             if (n === 'over') {
                 scanEl.classList.add('on');
                 at(60, () => moveBlocks(PX_X, 220, 2));
-                at(300, () => { setAnim('jolt'); setText('GAME OVER'); beep([98, 92], .12, 'sawtooth'); });
+                at(300, () => { setAnim('jolt'); setText('GAME OVER'); txtEl.classList.add('hold'); beep([98, 92], .12, 'sawtooth'); });
                 at(1300, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
                 at(5300, done);
             }
@@ -480,7 +480,7 @@ const Face = (() => {
                     rs.forEach((r, i) => r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`);
                     void pix.getBoundingClientRect();
                     rs.forEach((r, i) => { r.style.transition = 'transform 1.3s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) scale(1)`; });
-                    eyes.style.transition = 'opacity 1.3s ease-in'; eyes.classList.add('off');
+                    eyes.style.transition = 'opacity .7s ease-out'; eyes.classList.add('off');
                 });
                 at(1900, () => { eyes.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
@@ -514,11 +514,23 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                // Variante B rückwärts: Blöcke sinken in die flache Form, dann übernimmt die runde Kurve
+                // Metamorphose rückwärts: dünne, schwache Linie erscheint hinter den Pixeln; die Pixel schrumpfen
+                // auf die Linie und verschwinden darin, dann wird die Linie voll
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
-                moveBlocks(PX_FLAT, 500, 3);
-                at(700, () => { setAnim('unpop'); eyes.classList.remove('off'); });
-                at(1600, () => { world = 'round'; pix.style.opacity = 0; setAnim(''); k(); });
+                lids.forEach(l => { l.style.transition = 'none'; l.style.strokeWidth = '1.5px'; });
+                eyes.style.transition = 'opacity .6s ease-out'; eyes.style.opacity = '.55'; eyes.classList.remove('off');
+                const rs = [...layers.blocks.querySelectorAll('.b')];
+                rs.forEach(r => r.style.transform = r.style.transform); void pix.getBoundingClientRect();
+                rs.forEach((r, i) => { r.style.transition = 'transform 1.2s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`; });
+                at(900, () => { pix.style.transition = 'opacity .4s ease-in'; pix.style.opacity = 0; });
+                at(1300, () => {
+                    lids.forEach(l => { l.style.transition = 'stroke-width .5s ease-out'; l.style.strokeWidth = ''; });
+                    eyes.style.transition = 'opacity .5s'; eyes.style.opacity = '';
+                });
+                at(1900, () => {
+                    lids.forEach(l => { l.style.transition = ''; }); eyes.style.transition = ''; pix.style.transition = '';
+                    world = 'round'; pixReset(); k();
+                });
             }
             if (t === 'over') {
                 px('over', () => { pixReset(); popUp(k); });
@@ -534,7 +546,7 @@ const Face = (() => {
             R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
             eyes.style.transition = 'none'; eyes.classList.remove('off'); eyes.classList.add('tvon');
         });
-        at(600, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
+        at(750, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
         at(1300, k);
     }
 

@@ -29,5 +29,13 @@ body.pv { margin: 0; min-height: 100vh; display: flex; flex-direction: column; p
 .A-crtOff .scr, .A-crtOff .L-score { animation: crtOff .45s cubic-bezier(.6,0,.9,.4) forwards; transform-box: view-box; transform-origin: 50% 50%; }
 @keyframes crtOff { 0% { transform: scale(1,1); } 45% { transform: scale(1,.04); filter: brightness(8); } 100% { transform: scale(0,.04); filter: brightness(8); } }
 /* runde Welt geht aus dem Punkt auf */
-#marvin-btn .eyes.tvon { animation: tvon .6s cubic-bezier(.2,.6,.4,1) both; transform-origin: 85px 32px; transform-box: view-box; }
+#marvin-btn .eyes.tvon { animation: tvonGlow .7s ease-out both; }
+#marvin-btn .eyes.tvon .lid { animation: tvonLid .7s cubic-bezier(.2,.6,.4,1) both; transform-box: fill-box; transform-origin: center; }
+@keyframes tvonGlow { 0%, 50% { filter: drop-shadow(0 0 9px #FFF3E6) brightness(4); } 100% { filter: drop-shadow(0 0 7px #FF9A3C) brightness(1); } }
+@keyframes tvonLid { 0% { transform: scale(0,.3); } 45% { transform: scale(1,.3); } 100% { transform: scale(1,1); } }
 @keyframes tvon { 0% { transform: scale(1,.25); opacity: 0; filter: drop-shadow(0 0 12px #FFF3E6) brightness(4); } 50% { transform: scale(1,.25); filter: drop-shadow(0 0 9px #FFF3E6) brightness(3); } 100% { transform: scale(1,1); filter: drop-shadow(0 0 7px #FF9A3C) brightness(1); } }
+
+/* GAME OVER: Pixel fallen vor der Schrift, Schrift bleibt stehen */
+#marvin-btn > .ptxt { z-index: 2; }
+.ptxt.O.hold { animation: blinkHold 5s steps(1) both; }
+@keyframes blinkHold { 0%,10%,20% { opacity: 1; } 5%,15% { opacity: 0; } 100% { opacity: 1; } }
