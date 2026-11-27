@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.3.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.4.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
     initOutbox();
     loadAll(); // zeigt sofort den letzten Stand, Begrüßung nach dem Sync (Text ja, Stimme nein)
-    document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
+    document.getElementById('app-version').textContent = 'Version ' + APP_VERSION;
     initServiceWorker();
 
     // App wieder im Vordergrund (z.B. aus dem Hintergrund geholt): Daten + Puffer frisch laden,

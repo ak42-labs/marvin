@@ -99,26 +99,35 @@
         </form>
     </dialog>
 
-    <dialog id="settings">
+    <dialog id="settings" class="set">
         <form method="dialog">
-            <h2>Einstellungen <span id="app-version" class="ver"></span></h2>
-            <label class="check"><input type="checkbox" id="voice-on"> Marvin spricht</label>
-            <label class="slider">Spaß <span id="gags-label" class="slider-val"></span>
+            <h2>EINSTELLUNGEN</h2>
+            <label class="set-row">
+                <span><span class="set-lbl">Marvin spricht</span><span class="set-sub">Stimme an/aus – Sprüche stehen immer als Text da</span></span>
+                <input type="checkbox" id="voice-on" class="tg" role="switch">
+            </label>
+            <label class="set-row set-col">
+                <span class="set-top"><span class="set-lbl">Spaß-Modus</span><span id="gags-label" class="set-val"></span></span>
                 <input type="range" id="gags" min="0" max="5" step="1">
                 <span class="slider-ends"><span>aus</span><span>Vorführmodus</span></span>
             </label>
-            <button type="button" id="open-keys" class="pill keys-btn">🔑 Schlüssel</button>
+            <button type="button" id="open-keys" class="set-row set-link">
+                <span><span class="set-lbl">🔑 Schlüssel</span><span class="set-sub">Gemini · Backend</span></span><span class="chev">›</span>
+            </button>
+            <div class="set-foot">
+                <span id="app-version"></span>
+                <label class="debug-tg">Debug <input type="checkbox" id="debug-on" class="tg tg-s" role="switch"></label>
+            </div>
             <div class="dialog-actions">
                 <button value="cancel" class="pill">Abbrechen</button>
                 <button value="save" id="settings-save" class="pill accent">Speichern</button>
             </div>
-            <label class="check small"><input type="checkbox" id="debug-on"> Debug-Modus</label>
-            <p class="hint">Wieder öffnen: Marvin-Knopf lange drücken.</p>
+            <p class="hint set-hint">Wieder öffnen: Marvin-Knopf lange drücken.</p>
         </form>
     </dialog>
-    <dialog id="keys">
+    <dialog id="keys" class="set">
         <form method="dialog">
-            <h2>Schlüssel</h2>
+            <h2>🔑 SCHLÜSSEL</h2>
             <div class="key-row" data-key="geminiKey">
                 <span class="key-name">Gemini-Key</span><span class="key-mask"></span>
                 <button type="button" class="pill key-change">Ändern</button>

@@ -32,7 +32,7 @@ Status: umgesetzt in 4.2.0
 - Sprechregeln wieder nach `ux-v2.md` §6: **Verschieben nur Text, keine Stimme.** Stimme nur bei Anlegen, Löschen, Erledigt, Dauerverschieber.
 
 ## 5. Einstellungen neu ordnen (Mockup Seite „UX v3.1“ → „Einstellungen + Schlüssel“)
-Status: umgesetzt in 4.2.0 (Optik folgt, Plan Punkt 3)
+Status: umgesetzt in 4.2.0, Optik in 4.4.0
 - Oben: **Marvin spricht** (an/aus) · **Spaß-Modus** (an/aus) · App-Version.
 - **Schlüssel** nicht mehr offen im Dialog, sondern hinter einem eigenen Knopf **„🔑 Schlüssel“** → eigener kleiner Dialog:
   - Gemini-Key und Backend-Token **maskiert** (`••••••3f9a`, nur letzte 4 Zeichen).
@@ -46,7 +46,7 @@ Status: umgesetzt (Sheet, 26.11.)
 - Code: leere Zeilen in `categories` ignorieren; Gemini-Prompt nimmt die Liste aus dem Sheet (keine fest eingebauten Kategorien).
 
 ## 7. Bug
-Status: freigegeben
+Status: umgesetzt in 4.4.0
 - **Datumsfeld im Formular (Detailansicht):** Jahr abgeschnitten („…2“ statt „2026“). Ursache vermutlich: der ×-Knopf (Datum leeren) liegt über dem Text – Overflow/Containergröße. Platz ist da: Feld bekommt `padding-right` in Breite des ×-Knopfs, × absolut am rechten Rand, Text nie darunter.
 
 ## 8. Spaß-Modus = Gag-Schalter

@@ -86,7 +86,7 @@ const Face = (() => {
     // 8-Bit-Piepser (WebAudio) – nur wenn "Marvin spricht" an ist
     let ac = null;
     function beep(notes, step, type) {
-        if (!hooks.soundOn?.()) return;
+        if (!hooks.soundOn?.() || document.hidden) return; // gesperrt/Hintergrund: still
         try {
             const A = window.AudioContext || window.webkitAudioContext;
             ac = ac || new A();
@@ -99,6 +99,12 @@ const Face = (() => {
             });
         } catch {}
     }
+
+    // Bildschirm aus / App im Hintergrund: Ton sofort stoppen (Browser lässt Timer sonst weiterlaufen)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) { try { ac?.suspend(); } catch {} }
+        else { try { ac?.resume(); } catch {} }
+    });
 
     // ================= Aufbau =================
 

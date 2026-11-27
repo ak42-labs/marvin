@@ -102,7 +102,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 6. STATUS (Stand 27.11.2026: App 4.3.0, Backend 1.1.0)
+## 6. STATUS (Stand 27.11.2026: App 4.4.0, Backend 1.1.0)
 *   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`), Offline-Modus (Warteschlange `marvin.outbox`, `⟳ n`, Sprache ohne Netz, Zeitlimit 8 s).
 *   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
 *   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).
@@ -126,10 +126,9 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 7. NÄCHSTE SCHRITTE
 **Plan 27.11.2026:**
-1.  **Jahreszahl im Datumsfeld** (ux-v3.1 §7).
-2.  **Einstellungsdialog optisch aufwerten** (Funktion steht seit 4.2.0).
+Aktuell nichts offen.
 
 **Danach / geparkt:**
 *   Arcade-Spiele gemeinsam designen: Arkanoid als Demo-Gag im Autopilot, spielbare Spiele per Doppeltipp (Space Invaders, evtl. Vollbild, Karten als Invaders; später Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist.
 
-Erledigt: Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
+Erledigt: Einstellungen-Optik + Jahreszahl 4.4.0, Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
