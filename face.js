@@ -84,27 +84,34 @@ const Face = (() => {
     const gapBetween = () => { const g = GAP[gagLevel()] || GAP[3]; return rnd(g[1][0], g[1][1]); };
 
     // 8-Bit-Piepser (WebAudio) – nur wenn "Marvin spricht" an ist
-    let ac = null;
+    let ac = null, acClose = null;
+    function closeAudio() { clearTimeout(acClose); try { ac?.close(); } catch {} ac = null; }
     function beep(notes, step, type) {
-        if (!hooks.soundOn?.() || document.hidden) return; // gesperrt/Hintergrund: still
+        // nur wenn Marvin wirklich vorne und sichtbar ist (gesperrt, andere App, Hintergrund: still)
+        if (!hooks.soundOn?.() || document.visibilityState !== 'visible' || !document.hasFocus()) return;
         try {
             const A = window.AudioContext || window.webkitAudioContext;
             ac = ac || new A();
             let t = ac.currentTime;
+            clearTimeout(acClose);
+            const end = t + notes.length * step;
             notes.forEach(f => {
                 const o = ac.createOscillator(), g = ac.createGain();
                 o.type = type || 'square'; o.frequency.value = f;
                 g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + step * .95);
                 o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + step); t += step;
             });
+            // Audio-Kanal nach dem Piepsen wieder schließen: sonst hält Android die Seite als „spielt Ton“ wach
+            acClose = setTimeout(closeAudio, (end - ac.currentTime) * 1000 + 300);
         } catch {}
     }
 
     // Bildschirm aus / App im Hintergrund: Ton sofort stoppen (Browser lässt Timer sonst weiterlaufen)
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) { try { ac?.suspend(); } catch {} }
-        else { try { ac?.resume(); } catch {} }
+        if (document.hidden) closeAudio();
     });
+    ['pagehide', 'blur', 'freeze'].forEach(ev => window.addEventListener(ev, closeAudio));
+    document.addEventListener('freeze', closeAudio);
 
     // ================= Aufbau =================
 

@@ -511,3 +511,9 @@ dialog .dt-box input, .dt-row select, .dt-box .dt-empty {
 .done-head { letter-spacing: .16em; text-transform: uppercase; }
 .done-sub { display: block; font-size: 11px; letter-spacing: .16em; margin-top: 4px; }
 body.done-view #wheel { opacity: .2; filter: saturate(.2); transition: opacity .3s, filter .3s; }
+
+/* 4.7.1: „↺ Doch nicht“ (Icon links, Text zweizeilig, ohne Rahmen) + Löschen-Bestätigung */
+#undo-btn { display: inline-flex; align-items: center; gap: 8px; border: none; text-align: left; padding: 4px 2px; }
+#undo-btn[hidden] { display: none; }
+#undo-btn .undo-ico { font-size: 26px; line-height: 1; font-family: var(--font-body); text-transform: none; }
+.pill.danger.armed { background: rgba(255,110,80,.22); border-color: rgba(255,120,90,.8); color: #FFD2C4; }

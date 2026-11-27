@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.7.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.7.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -1405,15 +1405,24 @@ function initEditor() {
     $('edit-time').addEventListener('change', () => setTime($('edit-time').value));
     $('edit-duration').addEventListener('change', updateFormMode);
 
-    $('edit-delete').addEventListener('click', async () => {
+    // Löschen ohne Browser-Meldung: 1. Tipp = „Wirklich?“, 2. Tipp (innerhalb 3 s) = löschen
+    let delArmed = null;
+    const delBtn = $('edit-delete');
+    const disarm = () => { clearTimeout(delArmed); delArmed = null; delBtn.textContent = 'Löschen'; delBtn.classList.remove('armed'); };
+    dialog.addEventListener('close', disarm);
+    delBtn.addEventListener('click', async () => {
         const item = editing;
+        if (!delArmed) {
+            delBtn.textContent = 'Wirklich?'; delBtn.classList.add('armed');
+            delArmed = setTimeout(disarm, 3000);
+            return;
+        }
+        disarm();
         if (editKind === 'event') {
-            if (!confirm(`Termin „${item.title}“ aus dem Kalender löschen?`)) return;
             dialog.close('delete');
             deleteEventNow(item, pick(LINES.deleted));
             return;
         }
-        if (!confirm(`„${item.title}“ endgültig löschen?`)) return;
         dialog.close('delete');
         deleteTaskNow(item, pick(LINES.deleted));
     });
@@ -1784,7 +1793,7 @@ function buildEventCard(ev, u) {
 // ---------- Gesten (UX v3 §1): Tippen = erledigt, lange drücken = bearbeiten, Wischen = Nachbar-Spalte ----------
 
 const EDGE = 24;        // Rand frei lassen (Android-Zurück-Geste)
-const SWIPE_SHARE = 0.4; // Verschieben erst ab 40 % der Kartenbreite (mind. 130 px) – sonst zählt es als Bereichswechsel-Versuch
+const SWIPE_SHARE = 0.6; // Verschieben erst ab 40 % der Kartenbreite (mind. 130 px) – sonst zählt es als Bereichswechsel-Versuch
 const LONG_PRESS = 450; // ms bis Bearbeiten
 const TAP_SLOP = 8;     // mehr Bewegung = kein Tipp (Scrollen)
 
