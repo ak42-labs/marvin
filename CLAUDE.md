@@ -111,6 +111,11 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   Claude Code committet direkt auf `main` (Single-Dev; Pages deployt automatisch). Riskante Umbauten: Branch + Rückfrage.
 *   **Ein Chat pro Thema**, Design + Umsetzung im selben Chat. Am Themenende: Stand hier + `docs/changelog.md` eintragen, committen, dann neuer Chat.
 *   Vorgaben in `docs/` gelten vor dieser Datei; Widersprüche melden und veraltete Stellen in `docs/` mit Verweis auf die gültige Stelle markieren.
+*   **Design-Chat ↔ Entwickler-Chat:** Beide starten mit `git pull`.
+    *   **Design** schreibt nur in `docs/` (neue Datei oder neues Kapitel), nie in diese Datei und nie Code.
+    *   Jedes Kapitel bekommt oben eine Zeile `Status: Entwurf` oder `Status: freigegeben` (nur Armin gibt frei). Ersetzt es Älteres, markiert Design die alte Stelle mit „veraltet → siehe …“.
+    *   **Entwicklung** setzt nur Kapitel mit `Status: freigegeben` um und meldet Widersprüche, statt sie selbst zu entscheiden. Danach setzt sie `Status: umgesetzt in <Version>` und trägt den Stand hier und in `docs/changelog.md` ein.
+    *   Übergabe durch Armin, ein Satz: „Pull, `docs/<datei>.md` §n ist freigegeben, bitte umsetzen.“
 *   Vor jedem Commit im simulierten Handy testen (Playwright), inkl. langsamem Netz; nichts als „fertig“ melden, was nicht geprüft ist.
 *   Antworten an Armin auf Deutsch, einfach erklärt.
 
