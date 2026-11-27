@@ -499,3 +499,10 @@ dialog .dt-box input, .dt-row select, .dt-box .dt-empty {
 .dt-row select:disabled { color: var(--muted); }
 #editor .dialog-actions .pill { font-size: 13px; padding-left: 4px; padding-right: 4px; }
 #editor:not(.prov-mode) .only-prov { display: none !important; }
+
+/* 4.6.1: Verschieben scharf geschaltet = Karte blasst aus; kein Text-Markieren bei langem Drücken */
+.card { transition: opacity .15s; }
+.card.armed { opacity: .35; }
+.card, .dt-box, .dt-row, #undo-btn, .wheel, #marvin-btn { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#editor.guard { pointer-events: none; }
+#editor.guard * { -webkit-user-select: none !important; user-select: none !important; }

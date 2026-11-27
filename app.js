@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.6.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.6.1'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -1379,11 +1379,12 @@ function initEditor() {
     dueBox.addEventListener('pointerdown', () => {
         dueTimer = setTimeout(() => {
             dueTimer = 'fired';
-            if (!$('edit-due').value || $('edit-time').value) return; // Termin braucht ein Datum
-            const before = $('edit-due').value;
-            $('edit-due').value = ''; updateDtLabels();
+            if (!$('edit-due').value) return;
+            const before = $('edit-due').value, beforeTime = $('edit-time').value, beforeDur = $('edit-duration').value;
+            if (beforeTime || beforeDur === 'allday') { $('edit-duration').value = ''; setTime(''); } // ohne Datum kein Termin -> wird Aufgabe
+            $('edit-due').value = ''; updateDtLabels(); updateFormMode();
             say('Zeitlos! Zeit ist ohnehin eine Illusion.');
-            setUndo(() => { $('edit-due').value = before; updateDtLabels(); });
+            setUndo(() => { $('edit-due').value = before; $('edit-duration').value = beforeDur; setTime(beforeTime); updateDtLabels(); });
         }, 500);
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => dueBox.addEventListener(ev, () => { if (dueTimer !== 'fired') clearTimeout(dueTimer); }));
@@ -1786,7 +1787,7 @@ function attachGestures(card, item, kind) {
 
     const reset = () => {
         clearTimeout(timer);
-        card.classList.remove('pressing', 'dragging');
+        card.classList.remove('pressing', 'dragging', 'armed');
         card.style.transform = '';
         active = false;
     };
@@ -1801,6 +1802,7 @@ function attachGestures(card, item, kind) {
             reset();
             if (navigator.vibrate) navigator.vibrate(30);
             openForm(item, kind === 'event' ? 'event' : kind === 'prov' ? 'prov' : 'task');
+            guardEditor();
         }, LONG_PRESS);
     });
 
@@ -1818,6 +1820,9 @@ function attachGestures(card, item, kind) {
             horizontal = true;
             card.classList.add('dragging');
             card.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`;
+            // ab der Verschiebe-Schwelle sichtbar „losgelöst“ (blasser) – loslassen = verschieben
+            const i = TASK_WHEEL.indexOf(viewOf(item)), canGo = dx < 0 ? i > 0 : i < TASK_WHEEL.length - 1;
+            card.classList.toggle('armed', canGo && Math.abs(dx) >= Math.max(130, card.offsetWidth * SWIPE_SHARE));
         }
     });
 
@@ -1836,6 +1841,17 @@ function attachGestures(card, item, kind) {
 
     ['pointercancel', 'pointerleave'].forEach(ev => card.addEventListener(ev, () => { if (active) reset(); }));
     card.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+// Finger hält nach langem Drücken noch: Dialog erst nach dem Loslassen bedienbar (sonst markiert Android Text darunter)
+function guardEditor() {
+    const dlg = document.getElementById('editor');
+    dlg.classList.add('guard');
+    document.activeElement?.blur?.();
+    const off = () => { setTimeout(() => dlg.classList.remove('guard'), 80); window.removeEventListener('pointerup', off, true); window.removeEventListener('pointercancel', off, true); };
+    window.addEventListener('pointerup', off, true);
+    window.addEventListener('pointercancel', off, true);
+    setTimeout(off, 1500);
 }
 
 // Kurz tippen = erledigt (Aufgabe -> 42, Proviant -> gekauft); Termine erledigen sich selbst
