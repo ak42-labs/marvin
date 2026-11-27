@@ -483,12 +483,12 @@ const Face = (() => {
                 at(400, () => {
                     pixReset(); ps.pos = PX_CURVE; drawBlocks(); eyes.classList.remove('off'); eyes.style.zIndex = 4;
                     pix.style.transition = 'none'; pix.style.opacity = 0; void pix.getBoundingClientRect();
-                    pix.style.transition = 'opacity .3s ease-out'; pix.style.opacity = 1;   // Quader-Linie liegt deckungsgleich
+                    pix.style.transition = 'none'; pix.style.opacity = 1;   // Quader-Linie liegt deckungsgleich unter der Linie
                     const rs = [...layers.blocks.querySelectorAll('.b')];
-                    rs.forEach((r, i) => r.style.transform = onCurve(i));
+                    rs.forEach((r, i) => { r.style.transition = 'none'; r.style.transform = onCurve(i); });
                     void pix.getBoundingClientRect();
                     rs.forEach((r, i) => { r.style.transition = 'transform 1.1s cubic-bezier(.45,.05,.25,1) .7s'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
-                    eyes.style.transition = 'opacity .3s ease-in .35s'; eyes.classList.add('off');   // Linie ist weg, bevor sich etwas dreht
+                    eyes.style.transition = 'opacity .25s ease-out .05s'; eyes.classList.add('off');   // Linie ist weg, bevor sich etwas dreht
                 });
                 at(2300, () => { eyes.style.transition = ''; eyes.style.zIndex = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
