@@ -264,9 +264,9 @@ const Face = (() => {
     function drawBar() {
         if (!ps.bar) { layers.bar.innerHTML = ''; barEl.textContent = ''; return; }
         let segs = '';
-        for (let x = 38; x + 5 <= 38 + ps.barW; x += 7) segs += `<rect x="${x}" y="25" width="5" height="8" fill="${C}"/>`;
-        layers.bar.innerHTML = `<rect x="35" y="22" width="100" height="14" fill="none" stroke="${C}" stroke-width="2"/>` +
-            `<text x="35" y="16" font-family="Press Start 2P" font-size="6" fill="#FFF3E6">LOADING...</text>` + segs;
+        for (let x = 38; x + 5 <= 38 + ps.barW; x += 7) segs += `<rect x="${x}" y="27" width="5" height="8" fill="${C}"/>`;
+        layers.bar.innerHTML = `<rect x="35" y="24" width="100" height="14" fill="none" stroke="${C}" stroke-width="2"/>` +
+            `<text x="85" y="17" text-anchor="middle" font-family="Press Start 2P" font-size="10" fill="#FFF3E6">LOADING...</text>` + segs;
         barEl.textContent = ps.barTxt || '';
     }
     function drawDrops() {
@@ -296,6 +296,7 @@ const Face = (() => {
     function px(n, done, opts = {}) {
         pixReset();
         if (n === 'crt') setAnim(opts.thin ? 'crtIn' : 'crt');
+        if (n === 'rain') { ps.hide = true; drawBlocks(); }
         at(40, () => {
             if (n === 'crt') {
                 beep([110, 220, 440, 880], .08, 'sawtooth'); setAnim(opts.thin ? 'crtIn' : 'crt'); scanEl.classList.add('on');
@@ -310,7 +311,7 @@ const Face = (() => {
             if (n === 'rain') {
                 ps.drops = [];
                 for (let k = 0; k < 45; k++) ps.drops.push(`--dx2:${Math.round(Math.random() * 165)}px;--d:${(Math.random() * 3.4).toFixed(2)}s;transform:translate(0,-80px)`);
-                ps.rr = PX_OPEN.map(() => (.3 + Math.random() * 1.6).toFixed(2));
+                ps.rr = PX_OPEN.map(() => (.3 + Math.random() * 1.6).toFixed(2)); ps.hide = false;
                 drawBlocks(); drawDrops(); setAnim('rain');
                 at(5000, done);
             }
@@ -367,12 +368,12 @@ const Face = (() => {
 
     // Ballspiel „Mauerwerk“: die Pixel-Augen sind die Steine (gleiches Raster wie Snake), Marvin spielt selbst
     function bricksRun(done) {
-        const W = 170, H = 64, bs = 4, padW = 24, padY = 58;
+        const W = 170, H = 64, bs = 6, padW = 32, padY = 60;
         ps.dead = PX_OPEN.map(() => false); drawBlocks();
         let bx, by, vx, vy, pxp = W / 2 - padW / 2, last = performance.now(), over = false, misses = 0;
         const serve = () => { const a = -Math.PI / 2 + (Math.random() - .5) * 1.2; bx = W / 2; by = padY - 8; vx = Math.cos(a) * 105; vy = Math.sin(a) * 105; };
         const draw = () => {
-            layers.drops.innerHTML = `<rect x="${Math.round(pxp)}" y="${padY}" width="${padW}" height="4" fill="${C}"/>` +
+            layers.drops.innerHTML = `<rect x="${Math.round(pxp)}" y="${padY}" width="${padW}" height="6" fill="${C}"/>` +
                 `<rect x="${Math.round(bx - bs / 2)}" y="${Math.round(by - bs / 2)}" width="${bs}" height="${bs}" fill="#FFF3E6"/>`;
         };
         const end = () => {
@@ -397,12 +398,12 @@ const Face = (() => {
                 const target = bx - padW / 2 + Math.sin(t / 700) * 10;
                 pxp += (target - pxp) * Math.min(1, dt * 5);
                 pxp = Math.max(0, Math.min(W - padW, pxp));
-                if (vy > 0 && by + bs / 2 >= padY && by + bs / 2 <= padY + 5 && bx >= pxp - 2 && bx <= pxp + padW + 2) {
+                if (vy > 0 && by + bs / 2 >= padY && by + bs / 2 <= padY + 7 && bx >= pxp - 2 && bx <= pxp + padW + 2) {
                     const off = (bx - (pxp + padW / 2)) / (padW / 2), sp = Math.min(150, Math.hypot(vx, vy) * 1.03), ang = -Math.PI / 2 + off;
                     vx = Math.cos(ang) * sp; vy = Math.sin(ang) * sp; by = padY - bs / 2;
                     beep([440], .03);
                 }
-                if (by > H + 4) { misses++; hooks.say?.(LINES.arkMiss[0]); beep([196, 147], .08); serve(); }
+                if (by > padY + 14) { misses++; hooks.say?.(LINES.arkMiss[0]); beep([196, 147], .08); serve(); }
                 for (let i = 0; i < PX_OPEN.length; i++) {
                     if (ps.dead[i]) continue;
                     const [x0, y0] = PX_OPEN[i];
@@ -458,7 +459,8 @@ const Face = (() => {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
                 at(500, () => R({ s: 'LID', p: 1, x: 0, y: -6, pd: .9 }));
                 at(1500, () => R({ s: 'OPEN', p: 0, x: 0, y: -6 }));
-                at(2000, () => { world = 'pixel'; showWorld('pixel'); px('rain', () => { pixReset(); k(); }); });
+                at(2000, () => { eyes.style.transition = 'opacity .8s ease'; eyes.classList.add('off'); });
+                at(2700, () => { eyes.style.transition = ''; world = 'pixel'; showWorld('pixel'); px('rain', () => { pixReset(); k(); }); });
             }
             if (t === 'crt') {
                 R({ s: 'HALF', p: 0 });

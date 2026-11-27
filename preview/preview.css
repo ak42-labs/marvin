@@ -11,3 +11,5 @@ body.pv { margin: 0; min-height: 100vh; display: flex; flex-direction: column; p
 .pv #say { min-height: 40px; font-size: 14px; color: #FFD08A; font-style: italic; }
 .pv #stat { font-size: 11px; opacity: .45; }
 .pv .spacer { flex: 1; }
+/* Vorschau: Prozent so groß wie LOADING, 4 px tiefer */
+#marvin-btn > .pbar { top: 62px; font-size: 10px; }
