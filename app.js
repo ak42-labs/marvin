@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.6.1'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.7.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -1681,7 +1681,13 @@ function renderTasks() {
     }
 
     const label = STATUS_LABELS[view];
-    document.getElementById('status-sub').textContent = label.sub;
+    const sub = document.getElementById('status-sub');
+    if (view === DONE_STATUS) { // „42“-Ansicht: eigene Überschrift, Drehrad gedimmt
+        sub.textContent = '';
+        const h = document.createElement('span'); h.className = 'done-head'; h.textContent = 'Abgehakt';
+        sub.append(h);
+    } else sub.textContent = label.sub;
+    document.body.classList.toggle('done-view', view === DONE_STATUS);
     document.getElementById('status-count').textContent = String(list.length);
 
     if (!list.length) {
@@ -1788,6 +1794,7 @@ function attachGestures(card, item, kind) {
     const reset = () => {
         clearTimeout(timer);
         card.classList.remove('pressing', 'dragging', 'armed');
+        card.style.opacity = '';
         card.style.transform = '';
         active = false;
     };
@@ -1822,7 +1829,10 @@ function attachGestures(card, item, kind) {
             card.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`;
             // ab der Verschiebe-Schwelle sichtbar „losgelöst“ (blasser) – loslassen = verschieben
             const i = TASK_WHEEL.indexOf(viewOf(item)), canGo = dx < 0 ? i > 0 : i < TASK_WHEEL.length - 1;
-            card.classList.toggle('armed', canGo && Math.abs(dx) >= Math.max(130, card.offsetWidth * SWIPE_SHARE));
+            const th = Math.max(130, card.offsetWidth * SWIPE_SHARE), p = Math.min(1, Math.abs(dx) / th);
+            card.style.opacity = canGo ? String(1 - 0.75 * p) : ''; // verblasst gleichmäßig bis 25 %
+            const armed = canGo && p >= 1;
+            card.classList.toggle('armed', armed);
         }
     });
 
