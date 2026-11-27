@@ -1,0 +1,13 @@
+/* Nur Vorschau */
+.A-crtIn .scr { animation: crtIn 1.6s steps(12) both; transform-box: view-box; transform-origin: 50% 50%; }
+@keyframes crtIn { 0% { transform: scale(.72,.02); filter: brightness(4); } 20% { transform: scale(1,.02); filter: brightness(4); } 40% { transform: scale(1,1.2); filter: brightness(1.6); } 52% { transform: scale(1,.9); } 62%,100% { transform: scale(1,1); filter: none; } }
+body.pv { margin: 0; min-height: 100vh; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; gap: 14px; }
+.pv h1 { font-family: var(--font-display, Michroma); font-size: 15px; color: var(--amber-soft, #FFD08A); margin: 4px 0 0; letter-spacing: .05em; }
+.pv p.hint { margin: 0; font-size: 13px; opacity: .7; }
+.pv .grp { display: flex; flex-wrap: wrap; gap: 8px; }
+.pv .grp b { width: 100%; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .6; font-weight: 400; }
+.pv .grp button { font: 13px Sora, sans-serif; color: #FFE7CC; background: rgba(255,255,255,.06); border: 1px solid rgba(255,200,150,.3); border-radius: 14px; padding: 9px 12px; }
+.pv .grp button.new { border-color: #FFB25C; }
+.pv #say { min-height: 40px; font-size: 14px; color: #FFD08A; font-style: italic; }
+.pv #stat { font-size: 11px; opacity: .45; }
+.pv .spacer { flex: 1; }
