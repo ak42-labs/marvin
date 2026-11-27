@@ -22,7 +22,7 @@
 
 /* Grundzustände der App (nur runde Welt, nur wenn kein Ablauf läuft) */
 .doze:not(.gagging) .eyes .eg-mood   { animation: doze 3.4s ease-in-out infinite; transform-box: view-box; }
-@keyframes doze { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes doze { 0%,100% { opacity: 1; } 50% { opacity: .55; } } /* beginnt hell: kein Aufblitzen nach Abläufen */
 .listen .eyes .eg-mood { animation: listen .45s ease-in-out infinite alternate; transform-box: view-box; }
 @keyframes listen { from { transform: translateY(0) scaleY(1); } to { transform: translateY(-4px) scaleY(1.25); } }
 .think:not(.gagging) .eyes .eg-mood { animation: think 1.2s ease-in-out infinite; transform-box: view-box; }
@@ -55,7 +55,7 @@
 @keyframes drop { 0% { opacity: 1; transform: translate(var(--dx2),-80px); } 100% { opacity: 1; transform: translate(var(--dx2),110px); } }
 /* Röhre an */
 .A-crt .scr { animation: crt 1.8s steps(12) both; transform-box: view-box; transform-origin: 50% 50%; }
-@keyframes crt { 0% { transform: scale(0,.02); filter: brightness(4); } 25% { transform: scale(1,.02); filter: brightness(4); } 45% { transform: scale(1,1.2); filter: brightness(1.6); } 55% { transform: scale(1,.9); } 65%,100% { transform: scale(1,1); filter: none; } }
+@keyframes crt { 0% { transform: scale(1,.04); filter: brightness(8) drop-shadow(0 0 4px #FFF3E6); } 25% { transform: scale(1,.04); filter: brightness(8) drop-shadow(0 0 4px #FFF3E6); } 45% { transform: scale(1,1.2); filter: brightness(1.6); } 55% { transform: scale(1,.9); } 65%,100% { transform: scale(1,1); filter: none; } }
 /* +42 */
 .score { font-family: 'Press Start 2P', monospace; font-size: 12px; fill: #FFF3E6; opacity: 0; }
 .S .score { animation: up 2s steps(10) forwards; }
@@ -81,14 +81,11 @@
   font-family: 'Press Start 2P', monospace; font-size: 16px; color: #FFF3E6; text-shadow: 0 0 8px #FF9A3C; opacity: 0; }
 .ptxt.O { animation: blinkt 2.6s steps(1) both; }
 @keyframes blinkt { 0%,25%,50%,75% { opacity: 1; } 12%,37%,62%,100% { opacity: 0; } }
-.pbar { position: absolute; left: 0; right: 0; top: 58px; z-index: 5; text-align: center; pointer-events: none;
-  font-family: 'Press Start 2P', monospace; font-size: 11px; color: #FFF3E6; }
+.pbar { position: absolute; left: 0; right: 0; top: 62px; z-index: 5; text-align: center; pointer-events: none;
+  font-family: 'Press Start 2P', monospace; font-size: 10px; color: #FFF3E6; }
 
-/* Arkanoid */
 #fx { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; border-radius: inherit; }
 #fx svg { position: absolute; }
-.brick { animation: brickIn .5s cubic-bezier(.2,1.4,.4,1) both; }
-@keyframes brickIn { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   #marvin-btn *, #fx * { animation: none !important; transition: none !important; }
@@ -97,5 +94,19 @@
 /* Overlays im Glas müssen absolut bleiben (style.css setzt Kinder von .glass sonst auf relative) */
 #marvin-btn > .scan, #marvin-btn > .ptxt, #marvin-btn > .pbar, #marvin-btn > #fx { position: absolute; }
 #marvin-btn > .scan, #marvin-btn > #fx { inset: 0; }
-#marvin-btn > .ptxt { left: 0; right: 0; bottom: 8px; }
-#marvin-btn > .pbar { left: 0; right: 0; top: 58px; }
+#marvin-btn > .ptxt { left: 0; right: 0; bottom: 8px; z-index: 2; } /* Pixel fallen vor der Schrift */
+#marvin-btn > .pbar { left: 0; right: 0; top: 62px; }
+
+/* ===== Finalisierung 4.8.0 ===== */
+/* Fernseher aus: Strich zieht sich zu einem hellen Punkt zusammen */
+#marvin-btn .eyes.tvoff { animation: tvoff .4s cubic-bezier(.6,0,.9,.4) forwards; transform-origin: 85px 32px; transform-box: view-box; }
+@keyframes tvoff { 0% { transform: scale(1,1); filter: drop-shadow(0 0 7px #FF9A3C) brightness(1); } 40% { transform: scale(1,.25); filter: drop-shadow(0 0 9px #FFF3E6) brightness(3); } 100% { transform: scale(0,.25); filter: drop-shadow(0 0 12px #FFF3E6) brightness(4); } }
+/* Game Over: Augen zittern unabhängig voneinander */
+.A-jolt .eyeL { animation: joltL 1s steps(1) both; }
+.A-jolt .eyeR { animation: joltR 1s steps(1) both; }
+@keyframes joltL { 0% { transform: translate(-3px,1px); } 14% { transform: translate(2px,-2px); } 27% { transform: translate(-4px,0); } 41% { transform: translate(3px,2px); } 55% { transform: translate(-1px,-1px); } 70% { transform: translate(2px,1px); } 85% { transform: translate(-2px,0); } 100% { transform: none; } }
+@keyframes joltR { 0% { transform: translate(2px,-1px); } 10% { transform: translate(-3px,2px); } 30% { transform: translate(4px,1px); } 38% { transform: translate(-2px,-2px); } 60% { transform: translate(1px,2px); } 66% { transform: translate(-3px,0); } 90% { transform: translate(2px,-1px); } 100% { transform: none; } }
+#marvin-btn .pix .eyeL, #marvin-btn .pix .eyeR { transform-box: view-box; }
+/* GAME OVER: Pixel fallen vor der Schrift, Schrift bleibt stehen */
+.ptxt.O.hold { animation: blinkHold 5s steps(1) both; }
+@keyframes blinkHold { 0%,10%,20% { opacity: 1; } 5%,15% { opacity: 0; } 100% { opacity: 1; } }

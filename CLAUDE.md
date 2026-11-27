@@ -46,12 +46,12 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 **Dateien im Repo (`ak42-labs/marvin`):**
 *   `index.html`: UX v2 (Basis v1): Drehrad (Planetenhirn | Hyperraum | Anhalter), Statuszeile, Kartenliste, Link „42 · n“, Marvin-Zeile (Schreibmaschine + „rückgängig“), Marvin-Knopf mit Augen (doze/listen/think/speak). Bearbeiten-`<dialog>` oben angedockt, Settings-`<dialog>` (Marvin-Knopf lange drücken / Rechtsklick).
 *   `style.css`: Layout/Material UX v2 – Amber-Glas nur für Drehrad + Marvin-Knopf, Karten = Rauchglas, Termine = Champagner, flacher Bearbeiten-Dialog; Neigungs-Glas über CSS-Variablen `--tx/--ty`. Fonts Michroma + Sora.
-*   `face.js` + `face.css`: Marvins Gesicht (UX v4): runde Welt (fließende Kurve) + Arcade-Welt (Pixel, Ton nur mit „Marvin spricht“), Autopilot mit Phasen/Toren, Ereignisse (Abgleich = Loading 42 %, Erledigt = La-Ola bzw. Extra Life bei leerem Hyperraum, Verschieben = Augenrollen, Löschen = Blinzeln), Arkanoid (2× tippen), Neigungs-Glas. Schnittstelle `Face.*`, von `app.js` angesteuert.
+*   `face.js` + `face.css`: Marvins Gesicht (UX v4): runde Welt (fließende Kurve) + Arcade-Welt (Pixel, Ton nur mit „Marvin spricht“), Autopilot mit Phasen/Toren, Ereignisse (Abgleich = Loading 42 %, Erledigt = La-Ola/Extra Life/Game Over, Verschieben = Augenrollen, Löschen = Blinzeln oder Game Over), Brick Breaker als Pixel-Gag, Metamorphose rund ↔ Pixel (ux-v4 Teil 4), Neigungs-Glas. Doppeltipp frei. Vorschau-Seite `preview/` (Abläufe einzeln auslösen). Schnittstelle `Face.*`, von `app.js` angesteuert.
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
 *   `tests/offline.test.js`: Offline-Test-Suite (Playwright, Handy, Backend/Gemini als Attrappe, Netz aus/langsam/hängend).
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
-*   `docs/ux-v4.md`: Augenwelten – Teil 1 runde Welt (fließende Abläufe), Teil 2 Arcade-Welt (Pixel, Ton, Scanlines), Teil 3 Ablauf beider Welten (Tore, Phasen, Ereignisse).
+*   `docs/ux-v4.md`: Augenwelten – Teil 1 runde Welt (fließende Abläufe), Teil 2 Arcade-Welt (Pixel, Ton, Scanlines), Teil 3 Ablauf beider Welten (Tore, Phasen, Ereignisse), Teil 4 Finalisierung (4.8.0).
 *   `docs/ux-v3.1.md`: Alltags-Feinschliff (Sprach-Ende, Aktualisieren, Netz-Warteschlange, Gags, Einstellungen).
 *   `docs/ux-v3.md`: Vorgabe UX v3 (Gestenregel, ein Formular, Proviant, Laden ohne Warten, Wischzone) – umgesetzt in 3.0.0.
 *   `docs/ux-v2.md`: Verbindliche Design-Vorgabe UX v2 (Raum, neutrale Karten, Termine Champagner, Dringlichkeit mit Deckel, flacher Bearbeiten-Dialog, Sprech-Regeln, Augen v2 inkl. Gags/Easter Eggs, Spaß-Modus). Ergänzt `ux-v1.md`.
@@ -101,7 +101,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 6. STATUS (Stand 27.11.2026: App 4.7.2, Backend 1.1.0)
+## 6. STATUS (Stand 27.11.2026: App 4.8.0, Backend 1.1.0)
 *   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`), Offline-Modus (Warteschlange `marvin.outbox`, `⟳ n`, Sprache ohne Netz, Zeitlimit 8 s).
 *   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
 *   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).
@@ -128,6 +128,6 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 Aktuell nichts offen.
 
 **Danach / geparkt:**
-*   Arcade-Spiele gemeinsam designen: eigene Spiele in Marvins Stil mit bekannten Mechaniken (Ball-und-Steine, Abwehr-Shooter, Landen mit Schub) – keine Nachbauten bestehender Spiele (Name, Figuren, Look). Spielbar per Doppeltipp, evtl. Vollbild, Karten als Gegner. Das bestehende Ball-und-Steine-Spiel bleibt bis dahin wie es ist.
+*   Arcade-Spiele gemeinsam designen: eigene Spiele in Marvins Stil mit bekannten Mechaniken (Ball-und-Steine, Abwehr-Shooter, Landen mit Schub) – keine Nachbauten bestehender Spiele (Name, Figuren, Look). Nächstes: eigener Abwehr-Shooter im Pixel-Stil (eigener Chat), per Doppeltipp, evtl. Vollbild, Karten als Gegner. Brick Breaker ist seit 4.8.0 Autopilot-Gag.
 
-Erledigt: Einstellungen-Optik + Jahreszahl 4.4.0, Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
+Erledigt: Gesichter finalisiert 4.8.0, Einstellungen-Optik + Jahreszahl 4.4.0, Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.

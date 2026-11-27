@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.7.2'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.8.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -751,15 +751,11 @@ function initMarvinButton() {
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => btn.addEventListener(ev, () => clearTimeout(pressTimer)));
     btn.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!moved) { longPressed = true; openOnce(); } });
 
-    let tapTimer = null;
     btn.addEventListener('click', () => {
         if (longPressed) { longPressed = false; return; }
         if (moved) { moved = false; return; }                   // war eine Wisch-/Zitterbewegung, kein Tipp
-        if (Face.isGame()) { Face.abort(); return; }           // Antippen beendet Arkanoid
         if (recognition) { stopListening ? stopListening() : recognition.stop(); return; }
-        // Doppeltipp = Arkanoid; einfacher Tipp wartet kurz, ob ein zweiter kommt
-        if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; Face.arkanoid(); return; }
-        tapTimer = setTimeout(() => { tapTimer = null; onMarvinTap(); }, 260);
+        onMarvinTap();                                          // Doppeltipp ist frei (kommt später: eigenes Spiel)
     });
 }
 

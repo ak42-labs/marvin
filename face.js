@@ -2,7 +2,9 @@
 //  Teil 1: runde Welt – eine Kurve, die sich verwandelt (Mockup V31Augen.dc.html)
 //  Teil 2: Pixel-/Arcade-Welt (Mockup V31Arcade.dc.html)
 //  Teil 3: Autopilot – Phasen, Tore, Ereignisse (Mockup V4Autopilot.dc.html)
-// Schnittstelle für app.js: Face.init(hooks), react, sync, glance, touch, abort, arkanoid, isBusy, isGame, funEnabled, setBase, flash.
+// Schnittstelle für app.js: Face.init(hooks), react, sync, glance, touch, abort, isBusy, isGame, funEnabled, setBase, flash.
+// Finalisierung 27.11.2026 (4.8.0): Start ohne Aufwachen, „Schauen“, Metamorphose rund ↔ Pixel, Röhre als Fernseher aus/an,
+// Game Over über X-Augen + Striche → rund, Brick Breaker als Pixel-Gag (Doppeltipp frei).
 
 const Face = (() => {
     const C = '#FFB25C';
@@ -21,6 +23,17 @@ const Face = (() => {
     const BASE = [[-24, 4], [-16, -4], [-8, -8], [0, -8], [8, -4], [16, 4]];
     const mk = (arr, y) => [].concat(arr.map(q => [47 + q[0], y + q[1]]), arr.map(q => [123 + q[0], y + q[1]]));
     const PX_OPEN = mk(BASE, 28);
+    const PX_FLAT = mk([[-24, 2], [-16, -3], [-8, -5], [0, -5], [8, -3], [16, 2]], 28);
+    // Block-Ecken so, dass die Block-Mitten genau auf der runden Linie liegen (runde Welt 4 px höher)
+    const curveY = x => { const t = (x + 23) / 46; return (1 - t) ** 2 * 8 + 2 * t * (1 - t) * -10 + t * t * 8; };
+    const PX_CURVE = [].concat(...[47, 123].map(cx => BASE.map(q => [cx + q[0], 32 - 4 + curveY(q[0] + 4) - 4])));
+    // Drehwinkel je Block = Steigung der runden Linie an seiner Mitte (Außenkanten liegen an der Linie an)
+    const curveAng = x => { const t = (x + 23) / 46; return Math.atan(36 * (2 * t - 1) / 46) * 180 / Math.PI; };
+    const PX_CURVE_ROT = [].concat(...[0, 1].map(() => BASE.map(q => curveAng(q[0] + 4))));
+    // auf der Linie: gedreht, so hoch wie die Linie dick, in die Länge gezogen, bis die Lücken zu sind (Quader)
+    const onCurve = i => { const a = PX_CURVE_ROT[i]; const sx = 1.12 / Math.cos(a * Math.PI / 180);
+        return `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) rotate(${a.toFixed(1)}deg) scale(${sx.toFixed(3)},.875)`; };
+    const PX_ROW = Array.from({ length: 12 }, (_, i) => [13 + i * 12, 6]); // Ballspiel: eine Steinreihe oben
     const PX_X = mk([[-12, -10], [4, -10], [-4, -2], [-12, 6], [4, 6], [-4, -2]], 30);
     const PX_WINK = [].concat(PX_OPEN.slice(0, 6), [[-24, 2], [-16, 2], [-8, 2], [0, 2], [8, 2], [16, 2]].map(q => [123 + q[0], 28 + q[1]]));
     const HEART = [[1,0],[2,0],[4,0],[5,0],[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[1,3],[2,3],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[3,5]];
@@ -59,7 +72,7 @@ const Face = (() => {
     let left, lastR = '', lastP = '', lastIn = '';
     let roundEy = 0;
     let syncing = false, pendingSync = false;
-    let lastDone = '';
+    let lastDone = '', lastDel = '';
     let tiltTimer = null, tiltRaf = false, tiltRest = null, tiltLast = null;
     let ps = {};                 // Pixel-Zustand
 
@@ -120,11 +133,11 @@ const Face = (() => {
             <div class="scan"></div>
             <div class="face-stack">
               <svg class="eyes" aria-hidden="true" width="170" height="64" viewBox="0 0 170 64">
-                <g class="eg-mood"><g class="eg-snore">
+                <g class="eg-shift" transform="translate(0,-4)"><g class="eg-mood"><g class="eg-snore">
                   ${[47, 123].map(x => `<g transform="translate(${x} 32)"><g class="eg">
                      <path class="lid" stroke="${C}" stroke-linecap="round" fill="none"/>
                      <g class="pw"><circle class="pup" cx="0" cy="11" r="5" fill="#FFF3E6"/></g></g></g>`).join('')}
-                </g></g>
+                </g></g></g>
                 <g class="zz-layer"></g>
               </svg>
               <svg class="pix" aria-hidden="true" width="170" height="64" viewBox="0 0 170 64" shape-rendering="crispEdges" style="opacity:0">
@@ -192,6 +205,17 @@ const Face = (() => {
             { s: 'HALF', p: 0, t: 1800, d: 1.2, od: .8 },
             { s: 'OPEN', p: 0, ey: 0, t: 900 },                // gemeinsame Pose „Bogen offen“
         ],
+        // „Schauen“: zweiter Teil des früheren Aufwachens – aus geraden Augen, Brauen hoch, Pupillen, entspannt umschauen
+        look: () => [
+            { s: 'HALF', p: 0, ey: 0, t: 900, d: .8, ed: .8 },
+            { s: 'LID', p: 1, x: 0, y: 3, ey: 0, t: 1500, d: 1.3, pd: 1, ed: 1.5 },
+            { s: 'LID', p: 1, x: 0, y: -4, t: 1400, pd: 1.1 },
+            { s: 'LID', p: 1, x: -9, y: -3, t: 1300, pd: 1 },
+            { s: 'LID', p: 1, x: 9, y: -3, t: 1300, pd: 1 },
+            { s: 'LID', p: 1, x: 0, y: 0, t: 1100 },
+            { s: 'HALF', p: 0, t: 1800, d: 1.2, od: .8 },
+            { s: 'OPEN', p: 0, ey: 0, t: 900 },
+        ],
         curious: () => {
             const pts = [[-10, 0], [9, -4], [0, -4], [-8, 3], [10, 2], [0, 0], [-9, -4], [6, 4], [0, -3], [-4, 0]];
             const a = [{ s: 'LID', p: 1, x: 0, y: 0, t: 700, d: .6 }];
@@ -239,8 +263,18 @@ const Face = (() => {
             `--rt:${(((i * 7) % 5) - 2) * 60}deg;transform:translate(${q[0]}px,${q[1]}px)`;
     }
     function drawBlocks() {
-        layers.blocks.innerHTML = (ps.hide ? [] : ps.pos).map((q, i) =>
-            `<rect class="b" x="0" y="0" width="8" height="8" fill="${C}" style="${blockStyle(q, i)}"/>`).join('');
+        const r = (ps.hide ? [] : ps.pos).map((q, i) => ps.dead?.[i] ? '' :
+            `<rect class="b" x="0" y="0" width="8" height="8" fill="${C}" style="${blockStyle(q, i)}"/>`);
+        const half = ps.pos.length / 2;
+        layers.blocks.innerHTML = `<g class="eyeL">${r.slice(0, half).join('')}</g><g class="eyeR">${r.slice(half).join('')}</g>`;
+    }
+    // vorhandene Blöcke in Stufen an neue Plätze schieben (Pixel-Art: ruckig gewollt)
+    function moveBlocks(pos, ms = 450, n = 3) {
+        ps.pos = pos;
+        [...layers.blocks.querySelectorAll('.b')].forEach((r, i) => {
+            r.style.transition = `transform ${ms}ms steps(${n})`;
+            r.style.transform = `translate(${pos[i][0]}px,${pos[i][1]}px)`;
+        });
     }
     function drawPups() { layers.pups.innerHTML = (ps.pups || []).map(p => `<rect x="${p.x}" y="${p.y}" width="6" height="6" fill="#FFF3E6"/>`).join(''); }
     function drawSnake() { layers.snake.innerHTML = (ps.snake || []).map(s => `<rect x="${s.x}" y="${s.y}" width="6" height="6" fill="${s.f}"/>`).join(''); }
@@ -253,9 +287,9 @@ const Face = (() => {
     function drawBar() {
         if (!ps.bar) { layers.bar.innerHTML = ''; barEl.textContent = ''; return; }
         let segs = '';
-        for (let x = 38; x + 5 <= 38 + ps.barW; x += 7) segs += `<rect x="${x}" y="25" width="5" height="8" fill="${C}"/>`;
-        layers.bar.innerHTML = `<rect x="35" y="22" width="100" height="14" fill="none" stroke="${C}" stroke-width="2"/>` +
-            `<text x="35" y="16" font-family="Press Start 2P" font-size="6" fill="#FFF3E6">LOADING...</text>` + segs;
+        for (let x = 38; x + 5 <= 38 + ps.barW; x += 7) segs += `<rect x="${x}" y="27" width="5" height="8" fill="${C}"/>`;
+        layers.bar.innerHTML = `<rect x="35" y="24" width="100" height="14" fill="none" stroke="${C}" stroke-width="2"/>` +
+            `<text x="85" y="17" text-anchor="middle" font-size="10" fill="#FFF3E6" style="font-family:'Press Start 2P',monospace">LOADING...</text>` + segs;
         barEl.textContent = ps.barTxt || '';
     }
     function drawDrops() {
@@ -267,9 +301,9 @@ const Face = (() => {
         // Neustart erzwingen, damit dieselbe Animation erneut läuft
         void g.getBoundingClientRect();
     }
-    function setText(t) { txtEl.textContent = t || ''; txtEl.classList.toggle('O', !!t); }
+    function setText(t) { txtEl.textContent = t || ''; txtEl.classList.remove('hold'); txtEl.classList.toggle('O', !!t); }
     function pixReset() {
-        ps = { pos: PX_OPEN, hide: false, pups: [], snake: [], hearts: [], bar: false, barW: 0, barTxt: '', drops: [], rr: null, ly: null };
+        ps = { dead: null, pos: PX_OPEN, hide: false, pups: [], snake: [], hearts: [], bar: false, barW: 0, barTxt: '', drops: [], rr: null, ly: null };
         setAnim('');
         layers.score.classList.remove('S');
         scanEl.classList.remove('on');
@@ -284,9 +318,14 @@ const Face = (() => {
     // --- Pixel-Gags 1:1 aus V31Arcade (run) ---
     function px(n, done, opts = {}) {
         pixReset();
+        if (n === 'crt') setAnim('crt');
+        if (n === 'rain') { ps.hide = true; drawBlocks(); }
         at(40, () => {
             if (n === 'crt') {
                 beep([110, 220, 440, 880], .08, 'sawtooth'); setAnim('crt'); scanEl.classList.add('on');
+                // heller Kathodenstrahl-Strich über die ganze Breite, solange das Bild noch ein Strich ist
+                layers.drops.innerHTML = `<rect x="23" y="26" width="48" height="12" fill="#FFF3E6"/><rect x="99" y="26" width="48" height="12" fill="#FFF3E6"/>`;
+                at(620, () => { layers.drops.innerHTML = ''; });
                 at(1300, () => { setText('PRESS START'); beep([392, 523, 659, 784, 1047], .06); at(380, () => beep([1047, 1568], .1)); });
                 at(4000, done);
             }
@@ -298,16 +337,17 @@ const Face = (() => {
             if (n === 'rain') {
                 ps.drops = [];
                 for (let k = 0; k < 45; k++) ps.drops.push(`--dx2:${Math.round(Math.random() * 165)}px;--d:${(Math.random() * 3.4).toFixed(2)}s;transform:translate(0,-80px)`);
-                ps.rr = PX_OPEN.map(() => (.3 + Math.random() * 1.6).toFixed(2));
+                ps.rr = PX_OPEN.map(() => (.3 + Math.random() * 1.6).toFixed(2)); ps.hide = false;
                 drawBlocks(); drawDrops(); setAnim('rain');
                 at(5000, done);
             }
             if (n === 'snake') snakeRun(done, opts.preset);
             if (n === 'over') {
-                ps.pos = PX_X; drawBlocks(); scanEl.classList.add('on');
-                at(500, () => { setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
-                at(1300, () => setText('GAME OVER'));
-                at(5200, done);
+                scanEl.classList.add('on');
+                at(60, () => moveBlocks(PX_X, 220, 2));
+                at(300, () => { setAnim('jolt'); setText('GAME OVER'); txtEl.classList.add('hold'); beep([98, 92], .12, 'sawtooth'); });
+                at(1300, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
+                at(5300, done);
             }
             if (n === 'wink') {
                 ps.pos = PX_WINK; drawBlocks(); beep([880, 1320], .05);
@@ -321,6 +361,7 @@ const Face = (() => {
                 at(3200, done);
             }
             if (n === 'load') loadRun(done);
+            if (n === 'bricks') bricksRun(done);
         });
     }
 
@@ -350,6 +391,62 @@ const Face = (() => {
             } else { ps.barW = w; ps.barTxt = Math.round(w / 94 * 100) + '%'; drawBar(); }
         }, 160);
         loadRun.onSynced = () => at(400, tryFinish);
+    }
+
+    // Ballspiel „Mauerwerk“: die Pixel-Augen sind die Steine (gleiches Raster wie Snake), Marvin spielt selbst
+    function bricksRun(done) {
+        const W = 170, H = 64, bs = 6, padW = 32, padY = 60;
+        ps.dead = PX_OPEN.map(() => false); drawBlocks();
+        at(30, () => moveBlocks(PX_ROW, 700, 5));
+        let bx, by, vx, vy, pxp = W / 2 - padW / 2, last = performance.now(), over = false, misses = 0;
+        const serve = () => { const a = -Math.PI / 2 + (Math.random() - .5) * 1.2; bx = W / 2; by = padY - 8; vx = Math.cos(a) * 105; vy = Math.sin(a) * 105; };
+        const draw = () => {
+            layers.drops.innerHTML = `<rect x="${Math.round(pxp)}" y="${padY}" width="${padW}" height="6" fill="${C}"/>` +
+                `<rect x="${Math.round(bx - bs / 2)}" y="${Math.round(by - bs / 2)}" width="${bs}" height="${bs}" fill="#FFF3E6"/>`;
+        };
+        const end = () => {
+            over = true; clearInterval(interval); interval = null;
+            layers.drops.innerHTML = '';
+            hooks.say?.(LINES.brickWin[0]); beep([523, 659, 784, 1047], .07);
+            // Augen bauen sich neu auf: Block für Block, links vor rechts
+            ps.dead = null; ps.pos = PX_OPEN; drawBlocks(); setAnim('pop');
+            at(1700, done);
+        };
+        serve(); draw();
+        hooks.say?.(LINES.brickStart[0]);
+        at(1200, () => {
+            last = performance.now();
+            interval = setInterval(() => {
+                if (over) return;
+                const t = performance.now(), dt = Math.min(.05, (t - last) / 1000); last = t;
+                bx += vx * dt; by += vy * dt;
+                if (bx < bs / 2) { bx = bs / 2; vx = Math.abs(vx); }
+                if (bx > W - bs / 2) { bx = W - bs / 2; vx = -Math.abs(vx); }
+                if (by < bs / 2) { by = bs / 2; vy = Math.abs(vy); }
+                const target = bx - padW / 2 + Math.sin(t / 700) * 10;
+                pxp += (target - pxp) * Math.min(1, dt * 5);
+                pxp = Math.max(0, Math.min(W - padW, pxp));
+                if (vy > 0 && by + bs / 2 >= padY && by + bs / 2 <= padY + 7 && bx >= pxp - 2 && bx <= pxp + padW + 2) {
+                    const off = (bx - (pxp + padW / 2)) / (padW / 2), sp = Math.min(150, Math.hypot(vx, vy) * 1.03), ang = -Math.PI / 2 + off;
+                    vx = Math.cos(ang) * sp; vy = Math.sin(ang) * sp; by = padY - bs / 2;
+                    beep([440], .03);
+                }
+                if (by > padY + 14) { misses++; hooks.say?.(LINES.brickMiss[0]); beep([196, 147], .08); serve(); }
+                for (let i = 0; i < PX_OPEN.length; i++) {
+                    if (ps.dead[i]) continue;
+                    const [x0, y0] = PX_ROW[i];
+                    if (bx + bs / 2 > x0 && bx - bs / 2 < x0 + 8 && by + bs / 2 > y0 && by - bs / 2 < y0 + 8) {
+                        const ox = Math.min(Math.abs(bx - x0), Math.abs(bx - x0 - 8)), oy = Math.min(Math.abs(by - y0), Math.abs(by - y0 - 8));
+                        if (ox < oy) vx = -vx; else vy = -vy;
+                        ps.dead[i] = true; drawBlocks(); beep([880], .04);
+                        break;
+                    }
+                }
+                if (ps.dead.every(Boolean)) { end(); return; }
+                draw();
+            }, 16);
+            at(30000, () => { if (!over) end(); }); // spätestens nach 30 s
+        });
     }
 
     // Snake + 42 (Pupillen vorher sichtbar; Pause ~1 s)
@@ -382,20 +479,37 @@ const Face = (() => {
     function gate(t, k) {
         if (world === 'round') {
             if (t === 'morph') {
+                // Metamorphose: winzige Pixel sitzen genau auf der runden Linie, wachsen und wandern gleichzeitig
+                // in den Pixel-Bogen, während die Linie ausblendet
                 R({ s: 'OPEN', p: 0, ey: 0, d: .6 });
-                at(300, () => { pixReset(); setAnim('pop'); showWorld('pixel'); });
-                at(1700, () => { world = 'pixel'; setAnim(''); k(); });
+                at(400, () => {
+                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); eyes.classList.remove('off'); eyes.style.zIndex = 4;
+                    pix.style.transition = 'none'; pix.style.opacity = 0; void pix.getBoundingClientRect();
+                    pix.style.transition = 'none'; pix.style.opacity = 1;   // Quader-Linie liegt deckungsgleich unter der Linie
+                    const rs = [...layers.blocks.querySelectorAll('.b')];
+                    rs.forEach((r, i) => { r.style.transition = 'none'; r.style.transform = onCurve(i); });
+                    void pix.getBoundingClientRect();
+                    rs.forEach((r, i) => { r.style.transition = 'transform 1.1s cubic-bezier(.45,.05,.25,1) .7s'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
+                    eyes.style.transition = 'opacity .25s ease-out .05s'; eyes.classList.add('off');   // Linie ist weg, bevor sich etwas dreht
+                });
+                at(2300, () => { eyes.style.transition = ''; eyes.style.zIndex = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
             if (t === 'rain') {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
                 at(500, () => R({ s: 'LID', p: 1, x: 0, y: -6, pd: .9 }));
                 at(1500, () => R({ s: 'OPEN', p: 0, x: 0, y: -6 }));
-                at(2000, () => { world = 'pixel'; showWorld('pixel'); px('rain', () => { pixReset(); k(); }); });
+                at(2000, () => { eyes.style.transition = 'opacity .8s ease'; eyes.classList.add('off'); });
+                at(2700, () => { eyes.style.transition = ''; world = 'pixel'; showWorld('pixel'); px('rain', () => { pixReset(); k(); }); });
             }
             if (t === 'crt') {
                 R({ s: 'HALF', p: 0 });
-                at(900, () => R({ s: 'LINE', p: 0 }));
-                at(1900, () => { world = 'pixel'; showWorld('pixel'); px('crt', () => { pixReset(); k(); }); });
+                at(800, () => R({ s: 'LINE', p: 0, d: .5 }));
+                at(1500, () => { eyes.classList.add('tvoff'); beep([880, 440, 110], .05, 'sawtooth'); });  // Fernseher aus: Strich -> Punkt
+                at(1900, () => { eyes.style.transition = 'none'; eyes.classList.add('off'); eyes.classList.remove('tvoff'); });
+                at(2500, () => {                                                  // kurz dunkel, dann aus dem Punkt: Röhre an
+                    eyes.style.transition = ''; world = 'pixel'; setAnim('crt'); showWorld('pixel');
+                    px('crt', () => { pixReset(); k(); });
+                });
             }
             if (t === 'snake') {
                 // Runde Augen mit Pupillen (geradeaus) -> Pixel-Augen MIT Pixel-Pupillen, Pause, dann Schlange
@@ -410,15 +524,47 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                setAnim('unpop');
+                // Metamorphose rückwärts: Pixel drehen sich an die Linie (Außenkanten anliegend) und gleiten darauf;
+                // die Linie blendet ein und übernimmt
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
-                at(900, () => { eyes.classList.remove('off'); });
-                at(1700, () => { world = 'round'; pix.style.opacity = 0; setAnim(''); k(); });
+                eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.style.zIndex = 4; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
+                eyes.style.transition = 'opacity .3s ease-in-out .95s'; eyes.style.opacity = '1';
+                const rs = [...layers.blocks.querySelectorAll('.b')];
+                rs.forEach((r, i) => { r.style.transition = 'none'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
+                void pix.getBoundingClientRect();
+                rs.forEach((r, i) => {
+                    r.style.transition = 'transform .9s cubic-bezier(.45,.05,.25,1)';
+                    r.style.transform = onCurve(i);
+                });
+                pix.style.transition = 'opacity .3s ease-in-out 1.2s'; pix.style.opacity = 0;
+                at(1600, () => {
+                    eyes.style.transition = ''; eyes.style.opacity = ''; eyes.style.zIndex = ''; pix.style.transition = '';
+                    world = 'round'; pixReset(); k();
+                });
             }
             if (t === 'over') {
-                px('over', () => { pixReset(); world = 'round'; showWorld('round'); steps(SEQ.wake(), k); });
+                px('over', () => { pixReset(); popUp(k); });
             }
         }
+    }
+
+    // nach Game Over kurz rund auftauchen
+    function popUp(k) {
+        setText(''); beep([110, 440, 880], .05, 'sawtooth');
+        pix.style.opacity = 0; pixReset(); world = 'round';
+        pups.forEach(q => { q.style.transition = 'none'; });
+        R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
+        at(50, () => pups.forEach(q => { q.style.transition = ''; }));
+        // 1) je Auge ein weißer Punkt, der sich zu einem 1-px-Strich auseinanderzieht
+        lids.forEach(l => { l.style.transition = 'none'; l.style.strokeWidth = '1px'; l.style.stroke = '#FFF3E6'; l.style.transform = 'scaleX(0)'; });
+        eyes.style.transition = 'none'; eyes.classList.remove('off');
+        void eyes.getBoundingClientRect();
+        lids.forEach(l => { l.style.transition = 'transform .3s cubic-bezier(.2,.7,.3,1)'; l.style.transform = 'scaleX(1)'; });
+        // 2) Strich wird ruhig dicker und amber
+        at(450, () => lids.forEach(l => { l.style.transition = 'stroke-width .5s ease-in-out, stroke .5s ease-in-out'; l.style.strokeWidth = '6px'; l.style.stroke = ''; }));
+        // 3) erst dann geht das Auge auf
+        at(1050, () => { lids.forEach(l => { l.style.transition = ''; l.style.strokeWidth = ''; l.style.transform = ''; }); eyes.style.transition = ''; R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
+        at(1800, k);
     }
 
     // ================= Ablaufsteuerung =================
@@ -455,7 +601,7 @@ const Face = (() => {
         if (world === 'round') {
             if (left > 0) {
                 left--;
-                const g = pickOther(['curious', 'roll', 'blink', 'sleep'], lastR); lastR = g;
+                const g = pickOther(['curious', 'roll', 'blink', 'sleep', 'look'], lastR); lastR = g;
                 begin(g, 'gag');
                 if (g === 'sleep') hooks.say?.(pick(LINES.sleep));
                 steps(SEQ[g](), () => { finish(); auto = true; at(gapBetween(), nextAuto); });
@@ -467,7 +613,7 @@ const Face = (() => {
         } else {
             if (left > 0) {
                 left--;
-                const g = pickOther(['wave', 'snake', 'wink'], lastP); lastP = g;
+                const g = pickOther(['wave', 'snake', 'wink', 'bricks'], lastP); lastP = g;
                 begin(g, 'gag');
                 if (g === 'wink') hooks.say?.(pick(LINES.wink));
                 px(g, () => { pixReset(); finish(); auto = true; at(gapBetween(), nextAuto); });
@@ -520,16 +666,14 @@ const Face = (() => {
             event('done', 'pixel', k => px(g, () => {
                 pixReset();
                 if (g !== 'over') { k(); return; }
-                // nach Game Over kurz rund auftauchen (statt langem Aufwachen)
-                world = 'round'; showWorld('round');
-                R({ s: 'CLOSED', p: 0, ey: 0, d: .01, ed: .01 });
-                at(250, () => R({ s: 'OPEN', p: 0, ey: 0, d: .7 }));
-                at(1000, k);
+                popUp(k);
             }));
         } else if (kind === 'move') {
             event('move', 'round', k => steps(SEQ.roll(), k));
         } else if (kind === 'del') {
-            event('del', 'round', k => steps(SEQ.blink(), k));
+            const g = pickOther(['blink', 'over'], lastDel); lastDel = g;
+            if (g === 'blink') event('del', 'round', k => steps(SEQ.blink(), k));
+            else event('del', 'pixel', k => px('over', () => { pixReset(); popUp(k); }));
         }
     }
 
@@ -567,73 +711,11 @@ const Face = (() => {
     const LINES = {
         sleep: ['Ich mach kurz die Augen zu. Weck mich, wenn das Universum endet.', 'Ruhezustand. Der einzig vernünftige.'],
         wink: ['Das bleibt unter uns.', 'Du hast nichts gesehen.'],
-        arkStart: ['Arkanoid. 1986. Ich habe es damals schon durchgespielt. In Gedanken.'],
-        arkMiss: ['Verfehlt. Absichtlich. Glaube ich.'],
-        arkWin: ['Alle Pixel weg. Wie meine Lebensfreude. Neu sortieren …'],
+        brickStart: ['Ach, 1986 … da hatte ich noch knackige 8 Bit.'],
+        brickMiss: ['Verfehlt. Natürlich Absicht.'],
+        brickWin: ['Alle Pixel weg. Wie meine Lebensfreude. Neu sortieren …'],
     };
     const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-    // ================= Arkanoid (2× tippen) =================
-    function arkanoid() {
-        snapToBase(false);
-        begin('arkanoid', 'game');
-        const { width: W, height: H } = btn.getBoundingClientRect();
-        const s = 1.6, r = 6, padW = 70, padY = H - 16, left_ = 40, right = W - 40, top = 4;
-        const cy = H * .43;
-        const bricks = [];
-        [W / 2 - 60, W / 2 + 60].forEach(cx => BASE.map(q => [q[0], q[1], 8, 8]).forEach(p => bricks.push({ x: cx + p[0] * s, y: cy + p[1] * s, w: p[2] * s - 1.5, h: p[3] * s - 1.5 })));
-        fx.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="left:0;top:0">
-            <g style="filter:drop-shadow(0 0 6px #FF9A3C)">
-              ${bricks.map((b, i) => `<rect class="brick" data-i="${i}" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="${C}" style="animation-delay:${(i * .05).toFixed(2)}s"/>`).join('')}
-              <rect class="pad" x="${W / 2 - padW / 2}" y="${padY}" width="${padW}" height="6" rx="3" fill="${C}"/>
-            </g><circle class="ball" r="${r}" fill="#FFF3E6" style="filter:drop-shadow(0 0 6px #FFB060)"/></svg>`;
-        eyes.classList.add('off'); pix.style.opacity = 0;
-        const svg = fx.querySelector('svg'), ball = svg.querySelector('.ball'), pad = svg.querySelector('.pad');
-        let bx, by, vx, vy, pxp = W / 2 - padW / 2, raf = 0, last = performance.now(), ended = false;
-        const serve = () => { const a = -Math.PI / 2 + (Math.random() - .5) * 1.2; bx = W / 2; by = padY - 20; vx = Math.cos(a) * 240; vy = Math.sin(a) * 240; };
-        serve();
-        const end = (won) => {
-            if (ended) return;
-            ended = true; cancelAnimationFrame(raf);
-            if (won) hooks.say?.(LINES.arkWin[0]);
-            fx.innerHTML = '';
-            // Augen sortieren sich neu: Pixel-Bogen baut sich auf, weiter in der Pixel-Welt
-            world = 'pixel'; left = rnd(2, 3); pixReset(); setAnim('pop'); showWorld('pixel');
-            at(1500, () => { setAnim(''); finish(); scheduleFirst(); });
-        };
-        const step = (t) => {
-            const dt = Math.min(.033, (t - last) / 1000); last = t;
-            bx += vx * dt; by += vy * dt;
-            if (bx < left_ + r) { bx = left_ + r; vx = Math.abs(vx); }
-            if (bx > right - r) { bx = right - r; vx = -Math.abs(vx); }
-            if (by < top + r) { by = top + r; vy = Math.abs(vy); }
-            const target = bx - padW / 2 + Math.sin(t / 700) * 14;
-            pxp += (target - pxp) * Math.min(1, dt * 5.5);
-            pxp = Math.max(left_ - 10, Math.min(right - padW + 10, pxp));
-            if (vy > 0 && by + r >= padY && by + r <= padY + 10 && bx >= pxp - 4 && bx <= pxp + padW + 4) {
-                const off = (bx - (pxp + padW / 2)) / (padW / 2), sp = Math.hypot(vx, vy) * 1.02, ang = -Math.PI / 2 + off;
-                vx = Math.cos(ang) * sp; vy = Math.sin(ang) * sp; by = padY - r;
-            }
-            if (by > H + 10) { hooks.say?.(LINES.arkMiss[0]); serve(); }
-            for (const b of bricks) {
-                if (b.dead) continue;
-                const cx = Math.max(b.x, Math.min(bx, b.x + b.w)), cyy = Math.max(b.y, Math.min(by, b.y + b.h));
-                if ((bx - cx) ** 2 + (by - cyy) ** 2 < r * r) {
-                    const ox = Math.min(Math.abs(bx - b.x), Math.abs(bx - b.x - b.w)), oy = Math.min(Math.abs(by - b.y), Math.abs(by - b.y - b.h));
-                    if (ox < oy) vx = -vx; else vy = -vy;
-                    svg.querySelector(`.brick[data-i="${bricks.indexOf(b)}"]`)?.remove();
-                    b.dead = true; break;
-                }
-            }
-            if (bricks.every(b => b.dead)) { end(true); return; }
-            ball.setAttribute('cx', bx.toFixed(1)); ball.setAttribute('cy', by.toFixed(1)); pad.setAttribute('x', pxp.toFixed(1));
-            raf = requestAnimationFrame(step);
-        };
-        hooks.say?.(LINES.arkStart[0]);
-        at(10000, () => end(false)); // spätestens nach ~10 s
-        raf = requestAnimationFrame(step);
-        arkanoid.stop = () => { ended = true; cancelAnimationFrame(raf); };
-    }
 
     // ================= Öffentlich =================
     return {
@@ -643,25 +725,23 @@ const Face = (() => {
             build();
             pixReset();
             initTilt();
-            // App-Start: immer Aufwachen (rund, aus geschlossenen Augen)
-            world = 'round'; showWorld('round');
-            R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
+            // App-Start: sofort Laden (Pixel), danach Verwandlung in die runden Bögen, dann „Schauen“
             if (feedbackOn()) {
-                // App-Start: Marvin schläft, solange geladen wird (Loading 42 %), danach wacht er auf
                 begin('start', 'event');
-                const wake = () => { begin('wake', 'event'); steps(SEQ.wake(), () => { finish(); scheduleFirst(); }); };
-                at(150, () => {
-                    if (!syncing) { wake(); return; }
-                    showWorld('pixel');
-                    px('load', () => {
-                        pixReset(); world = 'round'; showWorld('round');
-                        R({ s: 'CLOSED', p: 0, ey: 7, d: .01, ed: .01 });
-                        at(500, wake);
-                    }, { start: true });
-                    world = 'pixel';
-                });
+                eyes.style.transition = 'none'; world = 'pixel'; showWorld('pixel');
+                void eyes.getBoundingClientRect(); eyes.style.transition = '';
+                px('load', () => {
+                    // Verwandlung zurück: Pixel blenden aus, runde Bögen kommen
+                    pix.style.opacity = 0; pixReset(); R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
+                    at(300, () => eyes.classList.remove('off'));
+                    at(1100, () => {
+                        world = 'round'; pix.style.opacity = 0; setAnim('');
+                        // kurz Bögen, dann Schauen (als Gag: Neigen oder Berühren unterbricht)
+                        at(900, () => { begin('look', 'gag'); steps(SEQ.look(), () => { finish(); scheduleFirst(); }); });
+                    });
+                }, { start: true });
             }
-            else { R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); nextAt = Infinity; }
+            else { world = 'round'; showWorld('round'); R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); nextAt = Infinity; }
             setInterval(tick, 500);
         },
         react,
@@ -669,8 +749,7 @@ const Face = (() => {
         glance,
         touch,
         // Abbruch (z.B. Zuhören startet): immer zurück in die runde Grundpose, damit die Zustands-Animationen greifen
-        abort() { arkanoid.stop?.(); snapToBase(true); scheduleFirst(); },
-        arkanoid() { if (funEnabled()) arkanoid(); },
+        abort() { snapToBase(true); scheduleFirst(); },
         isBusy: () => !!running,
         isGame: () => running?.kind === 'game',
         funEnabled,
@@ -678,6 +757,25 @@ const Face = (() => {
         flash() { react('move'); },
         _snakePath: snakePath, _PX_OPEN: PX_OPEN, // für Tests
         _state: () => ({ world, running: running && running.name, auto, left }),
+        // nur der Verwandlungs-Abschnitt: ruhige Ausgangspose, kurze Pause, dann Verwandlung
+        _popUp() { clearAll(); auto = false; begin('popup', 'gag'); world = 'pixel'; pixReset(); showWorld('pixel'); ps.hide = true; drawBlocks(); at(600, () => popUp(() => { finish(); nextAt = Infinity; })); },
+        _morph(dir) {
+            clearAll(); fx.innerHTML = ''; auto = false; begin('morph-' + dir, 'gag');
+            if (dir === 'in') { world = 'round'; pixReset(); pix.style.opacity = 0; eyes.classList.remove('off'); R({ s: 'OPEN', p: 0, ey: 0, d: .01 }); }
+            else { world = 'pixel'; pixReset(); showWorld('pixel'); }
+            at(1200, () => gate('morph', () => { finish(); nextAt = Infinity; }));
+        },
+        _play(name) {
+            clearAll(); fx.innerHTML = ''; auto = false;
+            const back = () => { finish(); scheduleFirst(); };
+            const toRound = (f) => world === 'round' ? f() : gate('morph', f);
+            const toPixel = (f) => world === 'pixel' ? f() : gate('morph', f);
+            if (world === 'round') R({ s: 'OPEN', p: 0, ey: 0, d: .3 }); else pixReset();
+            begin(name, 'gag');
+            if (SEQ[name] && name !== 'wake') toRound(() => steps(SEQ[name](), back));
+            else if (name.startsWith('gate-')) { const t = name.slice(5); (t === 'over' ? toPixel : toRound)(() => gate(t, back)); }
+            else toPixel(() => px(name, () => { pixReset(); back(); }));
+        },
     };
 
     // Starkes Neigen (runde Welt): Ablauf pausiert, Augen folgen; nach 1,5 s Ruhe geht es weiter

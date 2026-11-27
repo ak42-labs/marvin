@@ -18,8 +18,8 @@ Jedes Auge = **ein Pfad mit fester Struktur** `M-23 a Q0 b 23 a` + **eine Pupill
 Transitions: Lid `d .9s cubic-bezier(.45,.05,.25,1)` (je Schritt überschreibbar), Pupille `transform .9s` + `opacity .5s`, Augen-Gruppe `transform 1.2s`. Pupille beim Blick nach unten `scale(1.15)` (wirkt wie „Augen aufreißen“).
 
 ## Abläufe
-- **Aufwachen (App-Start):** Start sofort in CLOSED, Augen 7 px tiefer → HALF + heben sich (1,5 s) → LID, Pupille erscheint, Blick unten → oben → links oben → rechts oben → geradeaus (je ~1,3 s) → Pupille weg → HALF (Schlafzimmerblick) bzw. OPEN.
-- **Neugier:** spontane Blicksprünge (Pupille 0,2 s schnell), dazwischen zufällige Pausen 0,3–1,6 s, 8 Ziele aus {links, rechts, oben, links/rechts oben, links/rechts unten, Mitte}, nie zweimal dasselbe hintereinander, 25 % „zweiter Blick“ (kurz halb zurück). Jedes Mal neu zufällig. Später optional: Blick folgt der Neigung.
+- **Aufwachen (App-Start):** veraltet → siehe Teil 4 (Start = Laden → Bögen → „Schauen“). Ursprünglich: Start sofort in CLOSED, Augen 7 px tiefer → HALF + heben sich (1,5 s) → LID, Pupille erscheint, Blick unten → oben → links oben → rechts oben → geradeaus (je ~1,3 s) → Pupille weg → HALF (Schlafzimmerblick) bzw. OPEN.
+- **Neugier:** spontane Blicksprünge (Pupille 0,2 s schnell), dazwischen zufällige Pausen 0,3–1,6 s, 8 Ziele aus {links, rechts, oben, links/rechts oben, links/rechts unten, Mitte}, nie zweimal dasselbe hintereinander, 25 % „zweiter Blick“ (kurz halb zurück). Jedes Mal neu zufällig. Blick folgt der Neigung: umgesetzt (4.0.1, starkes Neigen unterbricht Gags).
 - **Augenrollen:** LID → ANNOY (Lider senken sich genervt), Pupille links oben → **Halbbogen über oben** nach rechts (10 Schritte à 110 ms, Radius 8 × 3,5) → Mitte → „Seufzer“: HALF, Augen 2 px tiefer → OPEN.
 - **Blinzeln (einmal):** LID mit Pupille → SHUT (0,13 s, Pupille blendet in 0,08 s aus) → LID (0,16 s, Pupille wieder da).
 - **Einschlafen:** OPEN → HALF, Augen sinken 3 px (1,6–1,8 s) → CLOSED, Augen 7 px tiefer, Schnarchen: Augen atmen ±2,5 px (2,6 s), drei Z (10/13/16) steigen zwischen den Augen auf.
@@ -68,4 +68,22 @@ Referenz: Mockup-Karte „Autopilot: beide Welten“ (`V4Autopilot.dc.html`). Do
   - Verschoben → Augenrollen (rund).
 
 ## Später
-Space Invaders (evtl. ganzer Bildschirm, Karten als Invaders), Lunar Lander, Defender.
+Eigene Spiele mit bekannten Mechaniken (keine Nachbauten): Abwehr-Shooter im Pixel-Stil (eigener Chat, per Doppeltipp), evtl. Landen mit Schub.
+
+# Teil 4 – Finalisierung (27.11.2026)
+Status: umgesetzt in 4.8.0 (gemeinsam mit Armin in der Vorschau `preview/` erarbeitet; ersetzt Abweichendes in Teil 1–3)
+
+- **Start:** sofort Laden (Pixel), kein Durchblitzen; danach runde Bögen, dann „Schauen“. Laden immer, auch ohne Netz.
+- **Schauen:** zweiter Teil des früheren Aufwachens (gerade Augen → Brauen hoch → Pupillen → entspannt umschauen). Beim Start und als runder Gag; Neigen/Berühren unterbricht wie bei jedem Gag.
+- **Schlafen** bleibt (ein- und aufwachen in einem Ablauf).
+- **Runde Welt 4 px höher:** Endpunkte der runden Bögen auf Höhe der äußeren Pixel-Blöcke.
+- **Verwandlung rund ↔ Pixel (Metamorphose):** Pixel-Blöcke liegen gedreht und zu Quadern gestreckt deckungsgleich auf der runden Linie (keine Lücken). Hin: Linie aus → Quader drehen sich gerade und steigen in den Pixel-Bogen. Zurück: genau umgekehrt, die Linie blendet erst ein, wenn die Quader geschlossen anliegen.
+- **Röhre an:** runde Augen → Strich → Fernseher aus (Strich zieht sich zum hellen Punkt) → kurz dunkel → zwei helle Striche (je Auge) → Pixel-Röhre geht auf.
+- **Blockregen:** runde Augen blenden weich aus, dann Regen (kein Durchblitzen).
+- **Game Over:** Pixel-Augen springen ruckig zu X, „GAME OVER“ sofort, X zittern unabhängig, dann fallen die Pixel **vor** der Schrift; Schrift bleibt stehen. Danach **Striche → rund**: je Auge weißer Punkt → 1-px-Strich → wird dicker + amber → Auge geht auf (statt langem Aufwachen).
+- **Löschen:** Blinzeln oder Game Over (abwechselnd).
+- **Brick Breaker** (Pixel-Gag im Autopilot, Marvin spielt selbst): Augen steigen hoch und werden eine Steinreihe, Ball 6 px, Brett in Blockhöhe; einfache Spiele-Physik; am Ende bauen sich die Augen links vor rechts neu auf. Sprüche: „Ach, 1986 … da hatte ich noch knackige 8 Bit.“ / „Verfehlt. Natürlich Absicht.“
+- **Doppeltipp** ist frei (Arkanoid entfernt), reserviert für das eigene Spiel.
+- **Ladebalken:** „LOADING...“ und Prozent in derselben Pixel-Schrift und Größe, Block mittig.
+- **Dösen** beginnt bei voller Helligkeit (kein Aufblitzen nach Abläufen).
+- Baustein für später: „Augen aus dem Nichts“ (Striche → rund) z. B. nach Schlafen nutzbar.
