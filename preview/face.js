@@ -481,16 +481,16 @@ const Face = (() => {
                 // in den Pixel-Bogen, während die Linie ausblendet
                 R({ s: 'OPEN', p: 0, ey: 0, d: .6 });
                 at(400, () => {
-                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); eyes.classList.remove('off');
+                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); eyes.classList.remove('off'); eyes.style.zIndex = 4;
                     pix.style.transition = 'none'; pix.style.opacity = 0; void pix.getBoundingClientRect();
                     pix.style.transition = 'opacity .3s ease-out'; pix.style.opacity = 1;   // Quader-Linie liegt deckungsgleich
                     const rs = [...layers.blocks.querySelectorAll('.b')];
                     rs.forEach((r, i) => r.style.transform = onCurve(i));
                     void pix.getBoundingClientRect();
                     rs.forEach((r, i) => { r.style.transition = 'transform 1.1s cubic-bezier(.45,.05,.25,1) .7s'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
-                    eyes.style.transition = 'opacity .3s ease-in .25s'; eyes.classList.add('off');   // Linie ist weg, bevor sich etwas dreht
+                    eyes.style.transition = 'opacity .3s ease-in .35s'; eyes.classList.add('off');   // Linie ist weg, bevor sich etwas dreht
                 });
-                at(2300, () => { eyes.style.transition = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
+                at(2300, () => { eyes.style.transition = ''; eyes.style.zIndex = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
             if (t === 'rain') {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
@@ -525,7 +525,7 @@ const Face = (() => {
                 // Metamorphose rückwärts: Pixel drehen sich an die Linie (Außenkanten anliegend) und gleiten darauf;
                 // die Linie blendet ein und übernimmt
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
-                eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
+                eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.style.zIndex = 4; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
                 eyes.style.transition = 'opacity .3s ease-in-out .95s'; eyes.style.opacity = '1';
                 const rs = [...layers.blocks.querySelectorAll('.b')];
                 rs.forEach((r, i) => { r.style.transition = 'none'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) rotate(0deg) scale(1)`; });
@@ -536,7 +536,7 @@ const Face = (() => {
                 });
                 pix.style.transition = 'opacity .3s ease-in-out 1.2s'; pix.style.opacity = 0;
                 at(1600, () => {
-                    eyes.style.transition = ''; eyes.style.opacity = ''; pix.style.transition = '';
+                    eyes.style.transition = ''; eyes.style.opacity = ''; eyes.style.zIndex = ''; pix.style.transition = '';
                     world = 'round'; pixReset(); k();
                 });
             }

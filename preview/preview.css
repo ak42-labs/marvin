@@ -39,3 +39,5 @@ body.pv { margin: 0; min-height: 100vh; display: flex; flex-direction: column; p
 #marvin-btn > .ptxt { z-index: 2; }
 .ptxt.O.hold { animation: blinkHold 5s steps(1) both; }
 @keyframes blinkHold { 0%,10%,20% { opacity: 1; } 5%,15% { opacity: 0; } 100% { opacity: 1; } }
+/* Dösen beginnt bei voller Helligkeit (kein Aufblitzen nach einem Ablauf) */
+@keyframes doze { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
