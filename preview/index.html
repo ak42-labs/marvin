@@ -34,6 +34,7 @@
   <button data-p="gate-rain">Blockregen</button>
   <button data-p="gate-snake">Snake-Tor</button>
   <button class="new" data-p="gate-over">Game Over → rund</button>
+  <button class="new" data-u>Nur Striche → rund</button>
 </div>
 <div class="grp"><b>Pixel-Welt</b>
   <button class="new" data-p="bricks">Brick Breaker</button>
@@ -71,6 +72,7 @@ setTimeout(() => Face.sync(false), Number(q.get('load') || 2500));
 document.querySelectorAll('[data-start]').forEach(b => b.onclick = () => { q.set('load', b.dataset.start); q.delete('auto'); location.search = q; });
 document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => Face._play(b.dataset.p));
 document.querySelectorAll('[data-m]').forEach(b => b.onclick = () => Face._morph(b.dataset.m));
+document.querySelector('[data-u]').onclick = () => Face._popUp();
 document.querySelectorAll('[data-r]').forEach(b => b.onclick = () => Face.react(b.dataset.r, { hyperspaceEmpty: false }));
 document.querySelector('[data-auto]').onclick = () => { q.set('auto', '1'); location.search = q; };
 setInterval(() => { const s = Face._state(); document.getElementById('stat').textContent = `${s.world} · ${s.running || '—'}`; }, 300);

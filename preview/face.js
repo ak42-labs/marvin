@@ -475,14 +475,16 @@ const Face = (() => {
                 // in den Pixel-Bogen, während die Linie ausblendet
                 R({ s: 'OPEN', p: 0, ey: 0, d: .6 });
                 at(400, () => {
-                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); showWorld('pixel'); eyes.classList.remove('off');
+                    pixReset(); ps.pos = PX_CURVE; drawBlocks(); eyes.classList.remove('off');
+                    pix.style.transition = 'none'; pix.style.opacity = 0; void pix.getBoundingClientRect();
+                    pix.style.transition = 'opacity .7s ease-out'; pix.style.opacity = 1;
                     const rs = [...layers.blocks.querySelectorAll('.b')];
                     rs.forEach((r, i) => r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`);
                     void pix.getBoundingClientRect();
                     rs.forEach((r, i) => { r.style.transition = 'transform 1.3s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_OPEN[i][0]}px,${PX_OPEN[i][1]}px) scale(1)`; });
-                    eyes.style.transition = 'opacity .7s ease-out'; eyes.classList.add('off');
+                    eyes.style.transition = 'opacity .6s ease-in .55s'; eyes.classList.add('off');
                 });
-                at(1900, () => { eyes.style.transition = ''; world = 'pixel'; pixReset(); k(); });
+                at(1900, () => { eyes.style.transition = ''; pix.style.transition = ''; world = 'pixel'; pixReset(); k(); });
             }
             if (t === 'rain') {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
@@ -514,21 +516,16 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                // Metamorphose rückwärts: dünne, schwache Linie erscheint hinter den Pixeln; die Pixel schrumpfen
-                // auf die Linie und verschwinden darin, dann wird die Linie voll
+                // Metamorphose rückwärts: Pixel schrumpfen auf Liniendicke und wandern auf die Linie,
+                // die volle Linie blendet ein, die Pixel aus – in der Mitte gleich hell
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
-                lids.forEach(l => { l.style.transition = 'none'; l.style.strokeWidth = '1.5px'; });
-                eyes.style.transition = 'opacity .6s ease-out'; eyes.style.opacity = '.55'; eyes.classList.remove('off');
+                eyes.style.transition = 'none'; eyes.style.opacity = '0'; eyes.classList.remove('off'); void eyes.getBoundingClientRect();
+                eyes.style.transition = 'opacity .7s ease-in-out .4s'; eyes.style.opacity = '1';
                 const rs = [...layers.blocks.querySelectorAll('.b')];
-                rs.forEach(r => r.style.transform = r.style.transform); void pix.getBoundingClientRect();
-                rs.forEach((r, i) => { r.style.transition = 'transform 1.2s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.25)`; });
-                at(900, () => { pix.style.transition = 'opacity .4s ease-in'; pix.style.opacity = 0; });
-                at(1300, () => {
-                    lids.forEach(l => { l.style.transition = 'stroke-width .5s ease-out'; l.style.strokeWidth = ''; });
-                    eyes.style.transition = 'opacity .5s'; eyes.style.opacity = '';
-                });
-                at(1900, () => {
-                    lids.forEach(l => { l.style.transition = ''; }); eyes.style.transition = ''; pix.style.transition = '';
+                rs.forEach((r, i) => { r.style.transition = 'transform 1s cubic-bezier(.45,.05,.25,1)'; r.style.transform = `translate(${PX_CURVE[i][0]}px,${PX_CURVE[i][1]}px) scale(.75)`; });
+                pix.style.transition = 'opacity .7s ease-in-out .45s'; pix.style.opacity = 0;
+                at(1500, () => {
+                    eyes.style.transition = ''; eyes.style.opacity = ''; pix.style.transition = '';
                     world = 'round'; pixReset(); k();
                 });
             }
@@ -541,13 +538,20 @@ const Face = (() => {
     // nach Game Over kurz rund auftauchen
     function popUp(k) {
         setText(''); beep([110, 440, 880], .05, 'sawtooth');
-        at(0, () => {
-            pix.style.opacity = 0; pixReset(); world = 'round';
-            R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
-            eyes.style.transition = 'none'; eyes.classList.remove('off'); eyes.classList.add('tvon');
-        });
-        at(750, () => { eyes.style.transition = ''; eyes.classList.remove('tvon'); R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
-        at(1300, k);
+        pix.style.opacity = 0; pixReset(); world = 'round';
+        pups.forEach(q => { q.style.transition = 'none'; });
+        R({ s: 'LINE', p: 0, ey: 0, d: .01, ed: .01 });
+        at(50, () => pups.forEach(q => { q.style.transition = ''; }));
+        // 1) je Auge ein weißer Punkt, der sich zu einem 1-px-Strich auseinanderzieht
+        lids.forEach(l => { l.style.transition = 'none'; l.style.strokeWidth = '1px'; l.style.stroke = '#FFF3E6'; l.style.transform = 'scaleX(0)'; });
+        eyes.style.transition = 'none'; eyes.classList.remove('off');
+        void eyes.getBoundingClientRect();
+        lids.forEach(l => { l.style.transition = 'transform .3s cubic-bezier(.2,.7,.3,1)'; l.style.transform = 'scaleX(1)'; });
+        // 2) Strich wird ruhig dicker und amber
+        at(450, () => lids.forEach(l => { l.style.transition = 'stroke-width .5s ease-in-out, stroke .5s ease-in-out'; l.style.strokeWidth = '6px'; l.style.stroke = ''; }));
+        // 3) erst dann geht das Auge auf
+        at(1050, () => { lids.forEach(l => { l.style.transition = ''; l.style.strokeWidth = ''; l.style.transform = ''; }); eyes.style.transition = ''; R({ s: 'OPEN', p: 0, ey: 0, d: .6 }); });
+        at(1800, k);
     }
 
     // ================= Ablaufsteuerung =================
@@ -804,6 +808,7 @@ const Face = (() => {
         _snakePath: snakePath, _PX_OPEN: PX_OPEN, // für Tests
         _state: () => ({ world, running: running && running.name, auto, left }),
         // nur der Verwandlungs-Abschnitt: ruhige Ausgangspose, kurze Pause, dann Verwandlung
+        _popUp() { clearAll(); auto = false; begin('popup', 'gag'); world = 'pixel'; pixReset(); showWorld('pixel'); ps.hide = true; drawBlocks(); at(600, () => popUp(() => { finish(); nextAt = Infinity; })); },
         _morph(dir) {
             clearAll(); fx.innerHTML = ''; auto = false; begin('morph-' + dir, 'gag');
             if (dir === 'in') { world = 'round'; pixReset(); pix.style.opacity = 0; eyes.classList.remove('off'); R({ s: 'OPEN', p: 0, ey: 0, d: .01 }); }
