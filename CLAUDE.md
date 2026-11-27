@@ -49,6 +49,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   `face.js` + `face.css`: Marvins Gesicht (UX v4): runde Welt (fließende Kurve) + Arcade-Welt (Pixel, Ton nur mit „Marvin spricht“), Autopilot mit Phasen/Toren, Ereignisse (Abgleich = Loading 42 %, Erledigt = La-Ola bzw. Extra Life bei leerem Hyperraum, Verschieben = Augenrollen, Löschen = Blinzeln), Arkanoid (2× tippen), Neigungs-Glas. Schnittstelle `Face.*`, von `app.js` angesteuert.
 *   `app.js`: Frontend-Logik. Tab-Switching, `callBackend()` (sendet `action` + `token`), Rendering (nur `textContent`, kein `innerHTML` mit Daten), Settings im `localStorage` (`marvin.geminiKey`, `marvin.backendToken`), Spracheingabe (Web Speech API, `de-AT`), Gemini-Call (`GEMINI_MODELS`: `-latest`-Aliase mit Fallback, kein manuelles Modell-Update nötig; `responseSchema` mit Kategorien aus `getConfig`), `addTask` mit optimistischer Anzeige, Toast für Marvins Kommentar.
 *   `manifest.json`, `sw.js`, `icons/`: PWA-Installierbarkeit. Service Worker cached nur die App-Hülle (Netz zuerst); Backend/Gemini laufen nie über den Cache.
+*   `tests/offline.test.js`: Offline-Test-Suite (Playwright, Handy, Backend/Gemini als Attrappe, Netz aus/langsam/hängend).
 *   `docs/ux-v1.md`: Verbindliche UX-/Design-Vorgabe (Namen, Layout, Amber-Glas-CSS, Drehrad, Karten, Gesten, Marvin-Augen) inkl. Link zum klickbaren Mockup.
 *   `docs/ux-v4.md`: Augenwelten – Teil 1 runde Welt (fließende Abläufe), Teil 2 Arcade-Welt (Pixel, Ton, Scanlines), Teil 3 Ablauf beider Welten (Tore, Phasen, Ereignisse).
 *   `docs/ux-v3.1.md`: Alltags-Feinschliff (Sprach-Ende, Aktualisieren, Netz-Warteschlange, Gags, Einstellungen).
@@ -101,8 +102,8 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 6. STATUS (Stand 26.11.2026: App 4.2.0, Backend 1.1.0)
-*   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`).
+## 6. STATUS (Stand 27.11.2026: App 4.3.0, Backend 1.1.0)
+*   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`), Offline-Modus (Warteschlange `marvin.outbox`, `⟳ n`, Sprache ohne Netz, Zeitlimit 8 s).
 *   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
 *   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).
 *   Releases: `APP_VERSION` (`app.js`) + `CACHE` (`sw.js`) erhöhen; Backend: `BACKEND_VERSION` erhöhen und Armin die Deploy-Schritte nennen (`apps-script/README.md`).
@@ -125,11 +126,10 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ## 7. NÄCHSTE SCHRITTE
 **Plan 27.11.2026:**
-1.  **Offline-Modus** = `docs/ux-v3.1.md` §3: Warteschlange (Abhaken, Verschieben, Anlegen, Bearbeiten) inkl. Sprache ohne Netz (Text merken, später an Gemini), Zeitlimit 8 s, `⟳ n`. Dabei **Wettlauf-Bug** beheben (Laden überschreibt laufende Änderung, z.B. „Mutter anrufen“ kurz weg/wieder da). Eigene **Offline-Test-Suite**.
-2.  **Jahreszahl im Datumsfeld** (ux-v3.1 §7).
-3.  **Einstellungsdialog optisch aufwerten** (Funktion steht seit 4.2.0).
+1.  **Jahreszahl im Datumsfeld** (ux-v3.1 §7).
+2.  **Einstellungsdialog optisch aufwerten** (Funktion steht seit 4.2.0).
 
 **Danach / geparkt:**
 *   Arcade-Spiele gemeinsam designen: Arkanoid als Demo-Gag im Autopilot, spielbare Spiele per Doppeltipp (Space Invaders, evtl. Vollbild, Karten als Invaders; später Lunar Lander / Defender). Bis dahin bleibt Arkanoid wie es ist.
 
-Erledigt: Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.
+Erledigt: Offline-Modus 4.3.0 (Tests: `node tests/offline.test.js`), Schema v1, Kategorien aufgeräumt, Gemini-Skill „Marvin-Eingang“ (`docs/skill-marvin.md`, geprüft 26.11.), UX v4, ux-v3.1 §1/§2/§4/§5/§8. Business Case verworfen.

@@ -18,7 +18,7 @@ Status: umgesetzt in 4.1.0
 - Beim Öffnen gleicher Ablauf automatisch (Cache sofort, dann Abgleich).
 
 ## 3. Schlechtes Netz abfedern
-Status: freigegeben
+Status: umgesetzt in 4.3.0
 - **Nie blockieren:** jede Aktion wirkt sofort lokal.
 - **Warteschlange:** Abhaken, Verschieben, Anlegen, Bearbeiten werden im Speicher gemerkt (`localStorage`) und gesendet, sobald Netz da ist; Wiederholung mit wachsendem Abstand.
 - **Zeitlimit:** Abgleich bricht nach ~8 s ohne Antwort ab → Fehlschlag-Anzeige (§2), letzter Stand bleibt.

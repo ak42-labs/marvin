@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.2.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.3.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scrolling = true;
         clearTimeout(scrollTimer); scrollTimer = setTimeout(() => { scrolling = false; }, 400);
     }, { passive: true });
+    initOutbox();
     loadAll(); // zeigt sofort den letzten Stand, Begrüßung nach dem Sync (Text ja, Stimme nein)
     document.getElementById('app-version').textContent = 'App ' + APP_VERSION;
     initServiceWorker();
@@ -269,20 +270,28 @@ function initSettings() {
 // ---------- Backend ----------
 
 // fetch mit verständlicher Meldung ohne Netz statt „Failed to fetch“
-async function netFetch(url, opts) {
-    try { return await fetch(url, opts); }
-    catch (err) { const e = new Error('Kein Netz. Wie erwartet.'); e.offline = true; throw e; }
+// Zeitlimit: hängt die Anfrage (schlechtes Netz), zählt sie wie „kein Netz“
+async function netFetch(url, opts = {}, timeout = 0) {
+    const ctrl = timeout ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeout) : null;
+    try { return await fetch(url, ctrl ? { ...opts, signal: ctrl.signal } : opts); }
+    catch (err) {
+        const e = new Error(ctrl?.signal.aborted ? 'Zeitlimit. Das Netz schläft.' : 'Kein Netz. Wie erwartet.');
+        e.offline = true; throw e;
+    } finally { clearTimeout(timer); }
 }
 
-async function callBackend(action, payload = {}) {
+async function callBackend(action, payload = {}, { timeout = WRITE_TIMEOUT } = {}) {
     const started = Date.now();
     const response = await netFetch(SCRIPT_URL, {
         method: 'POST',
         // text/plain umgeht den CORS-Preflight von Apps Script
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action, token: getSetting('token'), ...payload }),
-    });
-    const result = await response.json();
+    }, timeout);
+    let result;
+    try { result = await response.json(); }
+    catch { const e = new Error('Antwort unlesbar (Netz?)'); e.offline = true; throw e; }
     debugLog(`Backend ${action} · ${Date.now() - started} ms gesamt`, result.status === 'success'
         ? { info: result.info, data: Array.isArray(result.data) ? `${result.data.length} Einträge` : result.data }
         : result.message);
@@ -294,6 +303,207 @@ async function callBackend(action, payload = {}) {
         throw new Error(msg);
     }
     return result.data;
+}
+
+// ---------- Warteschlange (ux-v3.1 §3: schlechtes Netz abfedern) ----------
+// Jede Änderung wirkt sofort lokal und landet hier (localStorage). Gesendet wird der Reihe nach,
+// bei Netzfehler später nochmal mit wachsendem Abstand. Nichts geht verloren, auch nicht beim Neuladen.
+const OUTBOX_KEY = 'marvin.outbox';
+const VOICE_KEY = 'marvin.voiceQueue';
+const SYNC_TIMEOUT = 8000;   // Abgleich (getAll) bricht nach 8 s ab
+const WRITE_TIMEOUT = 20000; // Schreiben darf etwas länger dauern (sonst doppelte Einträge bei Wiederholung)
+let outbox = [];
+let outboxBusy = false;
+let outboxTimer = null;
+let outboxDelay = 0;
+let recentDone = []; // gerade gesendete Aktionen – damit ein laufender Abgleich sie nicht überschreibt
+let idMap = {};      // pending-… -> echte ID, sobald angelegt (gespeichert, falls die App dazwischen neu startet)
+let saidWaiting = false;
+
+function loadOutbox() {
+    try { outbox = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); } catch { outbox = []; }
+    if (!Array.isArray(outbox)) outbox = [];
+    try { idMap = JSON.parse(localStorage.getItem(OUTBOX_KEY + '.ids') || '{}') || {}; } catch { idMap = {}; }
+}
+function saveOutbox() {
+    try {
+        localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox));
+        if (!outbox.length) idMap = {};
+        localStorage.setItem(OUTBOX_KEY + '.ids', JSON.stringify(idMap));
+    } catch {}
+    renderQueue();
+}
+function voiceQueue() {
+    try { const q = JSON.parse(localStorage.getItem(VOICE_KEY) || '[]'); return Array.isArray(q) ? q : []; } catch { return []; }
+}
+function setVoiceQueue(q) {
+    try { localStorage.setItem(VOICE_KEY, JSON.stringify(q)); } catch {}
+    renderQueue();
+}
+function queueCount() { return outbox.length + voiceQueue().length; }
+function renderQueue() {
+    const el = document.getElementById('status-queue');
+    if (!el) return;
+    const n = queueCount();
+    el.textContent = n ? '⟳ ' + n : '';
+    el.hidden = !n;
+}
+
+// Aktion merken und (sobald möglich) senden. op = { action, payload, local? }
+function enqueue(action, payload, extra = {}) {
+    const op = { qid: Date.now() + '-' + Math.random().toString(36).slice(2, 7), at: Date.now(), action, payload, ...extra };
+    outbox.push(op);
+    saveOutbox();
+    flushOutbox();
+    return op;
+}
+
+// Löschen eines Eintrags, der noch gar nicht angelegt ist: einfach beides vergessen
+function cancelPendingAdd(id) {
+    const i = outbox.findIndex((o, k) => (k > 0 || !outboxBusy) && o.action === 'addTask' && o.local?.id === id);
+    if (i < 0) return false;
+    outbox = outbox.filter((o, k) => k === i ? false : !(o.payload?.id === id));
+    saveOutbox();
+    return true;
+}
+
+const mapId = (id) => idMap[id] || id;
+function resolveIds(op) {
+    const p = { ...op.payload };
+    if (p.id) p.id = mapId(p.id);
+    if (Array.isArray(p.items)) p.items = p.items.map(i => ({ ...i, id: mapId(i.id) }));
+    return p;
+}
+
+function scheduleFlush() {
+    clearTimeout(outboxTimer);
+    outboxDelay = Math.min(outboxDelay ? outboxDelay * 2 : 2000, 60000); // 2 s, 4 s, 8 s … max 1 min
+    outboxTimer = setTimeout(flushOutbox, outboxDelay);
+}
+
+async function flushOutbox() {
+    if (outboxBusy) return;
+    clearTimeout(outboxTimer);
+    outboxBusy = true;
+    let failedNet = false;
+    try {
+        while (outbox.length) {
+            const op = outbox[0];
+            if (String(op.payload?.id || '').startsWith('pending-') && !idMap[op.payload.id]) {
+                // Bezug auf etwas, das nie angelegt wurde (z.B. Anlegen schlug endgültig fehl) -> verwerfen
+                if (!outbox.some(o => o.action === 'addTask' && o.local?.id === op.payload.id)) { outbox.shift(); saveOutbox(); continue; }
+            }
+            let result;
+            try {
+                result = await callBackend(op.action, resolveIds(op), { timeout: WRITE_TIMEOUT });
+            } catch (err) {
+                if (err.offline) { failedNet = true; break; }
+                // Echter Fehler vom Backend (z.B. Zeile gibt's nicht mehr): nicht ewig wiederholen
+                debugLog(`Warteschlange: ${op.action} verworfen`, err.message);
+                showToast('Eine Änderung kam nicht an: ' + err.message);
+                if (op.action === 'addTask' && op.local) { allTasks = allTasks.filter(t => t.id !== op.local.id); renderTasks(); }
+                if (op.action === 'addEvent' && op.local) { allEvents = allEvents.filter(e => e.id !== op.local.id); renderTasks(); }
+                outbox.shift(); saveOutbox();
+                continue;
+            }
+            onSent(op, result);
+            outbox.shift();
+            recentDone.push({ ...op, doneAt: Date.now() });
+            saveOutbox();
+        }
+    } finally {
+        outboxBusy = false;
+    }
+    if (failedNet) {
+        // Erstes Mal, dass etwas aufs Netz wartet -> einmal sagen
+        if (!saidWaiting) { saidWaiting = true; say('Und wieder mal warten …'); }
+        scheduleFlush();
+    } else {
+        saidWaiting = false;
+        outboxDelay = 0;
+        processVoiceQueue();
+    }
+}
+
+// Antwort einer gesendeten Aktion einarbeiten: echte IDs übernehmen
+function onSent(op, result) {
+    if (op.action === 'addTask' && op.local && result?.id) {
+        idMap[op.local.id] = result.id;
+        const t = allTasks.find(x => x.id === op.local.id);
+        if (t) t.id = result.id;
+    }
+    if (op.action === 'addEvent' && op.local && result) {
+        if (result.id) idMap[op.local.id] = result.id;
+        const e = allEvents.find(x => x.id === op.local.id);
+        if (e) Object.assign(e, result);
+    }
+    if (op.action === 'updateEvent' && result) {
+        const e = allEvents.find(x => x.id === mapId(op.payload.id));
+        if (e) Object.assign(e, result);
+    }
+    renderTasks();
+    saveCache();
+}
+
+// Wartende Änderungen über frisch geladene Daten legen (behebt den Wettlauf: Laden überschreibt nichts mehr).
+// sinceMs: auch Aktionen berücksichtigen, die erst während des Ladens fertig wurden.
+function overlayOutbox(tasks, events, sinceMs = 0) {
+    recentDone = recentDone.filter(o => o.doneAt > Date.now() - 120000);
+    const ops = [...recentDone.filter(o => o.doneAt >= sinceMs), ...outbox];
+    const stale = new Set();
+    for (const op of ops) {
+        const p = op.payload || {};
+        const id = mapId(p.id);
+        if (op.action === 'addTask' && op.local) {
+            const real = idMap[op.local.id];
+            if (!tasks.some(t => t.id === op.local.id || (real && t.id === real))) tasks.unshift({ ...op.local, id: real || op.local.id });
+        } else if (op.action === 'updateTask') {
+            const t = tasks.find(x => x.id === id);
+            if (!t) continue;
+            // Konflikt: neuere Änderung gewinnt (updated_at im Sheet vs. Zeitpunkt der lokalen Änderung)
+            const serverAt = Date.parse(t.updated_at || '') || 0;
+            if (outbox.includes(op) && serverAt > op.at + 1000) { stale.add(op); continue; }
+            Object.assign(t, p.changes, op.since ? { status_since: op.since } : {});
+        } else if (op.action === 'updateTasks') {
+            (p.items || []).forEach(i => { const t = tasks.find(x => x.id === mapId(i.id)); if (t) Object.assign(t, i.changes); });
+        } else if (op.action === 'deleteTask') {
+            const i = tasks.findIndex(x => x.id === id);
+            if (i >= 0) tasks.splice(i, 1);
+        } else if (op.action === 'addEvent' && op.local) {
+            const real = idMap[op.local.id];
+            if (!events.some(e => e.id === op.local.id || (real && e.id === real))) events.push({ ...op.local, id: real || op.local.id });
+        } else if (op.action === 'updateEvent') {
+            const e = events.find(x => x.id === id);
+            if (e) Object.assign(e, p.changes);
+        } else if (op.action === 'deleteEvent') {
+            const i = events.findIndex(x => x.id === id);
+            if (i >= 0) events.splice(i, 1);
+        }
+    }
+    if (stale.size) {
+        outbox = outbox.filter(o => !stale.has(o));
+        saveOutbox();
+        debugLog('Warteschlange', `${stale.size} ältere Änderung(en) verworfen – im Sheet ist Neueres`);
+    }
+}
+
+// Sprache ohne Netz: Text gemerkt, bei Netz an Gemini
+async function processVoiceQueue() {
+    if (busy || !navigator.onLine) return;
+    const q = voiceQueue();
+    if (!q.length) return;
+    const [text, ...rest] = q;
+    setVoiceQueue(rest);
+    const ok = await handleInput(text, { fromQueue: true });
+    if (ok === 'offline') { setVoiceQueue([text, ...voiceQueue()]); scheduleFlush(); return; }
+    if (voiceQueue().length) processVoiceQueue();
+}
+
+function initOutbox() {
+    loadOutbox();
+    renderQueue();
+    window.addEventListener('online', () => { outboxDelay = 0; flushOutbox(); });
+    if (outbox.length) flushOutbox();
 }
 
 // ---------- Laden ohne Warten (UX v3 §5) ----------
@@ -318,6 +528,7 @@ function loadCache() {
         if (!c || c.v !== CACHE_V || !Array.isArray(c.tasks)) return false;
         allTasks = c.tasks;
         allEvents = Array.isArray(c.events) ? c.events : [];
+        overlayOutbox(allTasks, allEvents);
         applyConfig(c.config || {});
         return true;
     } catch { return false; }
@@ -426,19 +637,23 @@ async function loadAll({ forceImport = false } = {}) {
     Face.sync(true); // Pixel-Welt: Loading … 42 %
 
     // EIN Aufruf für alles (Google Sheets ist pro Anfrage langsam, nicht pro Datenmenge)
-    const [allR] = await Promise.allSettled([callBackend('getAll')]);
+    const loadStarted = Date.now();
+    const [allR] = await Promise.allSettled([callBackend('getAll', {}, { timeout: SYNC_TIMEOUT })]);
     const cfgR = allR, tasksR = allR.status === 'fulfilled' ? { status: 'fulfilled', value: allR.value.tasks } : allR;
     const evR = allR.status === 'fulfilled'
         ? (allR.value.events_error ? { status: 'rejected', reason: new Error(allR.value.events_error) } : { status: 'fulfilled', value: allR.value.events })
         : allR;
     if (cfgR.status === 'fulfilled') applyConfig(cfgR.value);
+    // Wartende + gerade gesendete Änderungen gewinnen über den geladenen Stand (Wettlauf-Bug)
     if (tasksR.status === 'fulfilled') {
-        const pending = allTasks.filter(t => String(t.id).startsWith('pending-'));
-        allTasks = [...pending, ...tasksR.value];
+        const tasks = tasksR.value;
+        overlayOutbox(tasks, [], loadStarted);
+        allTasks = tasks;
     }
     if (evR.status === 'fulfilled') {
-        const pending = allEvents.filter(e => String(e.id).startsWith('pending-'));
-        allEvents = [...pending, ...evR.value];
+        const events = evR.value;
+        overlayOutbox([], events, loadStarted);
+        allEvents = events;
     } else {
         debugLog('Termine nicht geladen', evR.reason?.message);
     }
@@ -471,6 +686,7 @@ async function loadAll({ forceImport = false } = {}) {
     saveCache();
     processInbox();
     importInBackground(forceImport);
+    flushOutbox();
 }
 
 // ---------- Spracheingabe ----------
@@ -741,11 +957,20 @@ async function parseWithGemini(text, { system = buildSystemPrompt(), schema = bu
 
 // ---------- Ablauf: Text -> Task ----------
 
-async function handleInput(text) {
+async function handleInput(text, { fromQueue = false } = {}) {
     busy = true;
     setButtonState('thinking');
     try {
-        const parsed = await parseWithGemini(text);
+        let parsed;
+        try { parsed = await parseWithGemini(text); }
+        catch (err) {
+            if (!err.offline) throw err;
+            // Sprache ohne Netz (ux-v3.1 §3): Text merken, später an Gemini
+            if (fromQueue) return 'offline';
+            setVoiceQueue([...voiceQueue(), text]);
+            say('Gemerkt. Ich kümmere mich, wenn die Welt wieder online ist.', { voice: true });
+            return 'offline';
+        }
         const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(parsed.dueDate || '') ? parsed.dueDate : '';
         if (parsed.type === 'event' && dueDate && /^\d{1,2}:\d{2}$/.test(parsed.time || '')) {
             await createEvent(parsed, dueDate, text);
@@ -770,17 +995,9 @@ async function handleInput(text) {
         switchTab(task.status);
         const comment = parsed.comment || 'Notiert. Als ob es etwas ändern würde.';
         say(comment, { voice: true });
-
-        try {
-            const saved = await callBackend('addTask', { task });
-            local.id = saved.id;
-            renderTasks();
-            setUndo(() => deleteTaskNow(local, pick(LINES.undo)));
-        } catch (err) {
-            allTasks = allTasks.filter(t => t !== local);
-            renderTasks();
-            showToast('Speichern fehlgeschlagen: ' + err.message);
-        }
+        enqueue('addTask', { task }, { local: { ...local } });
+        saveCache();
+        setUndo(() => deleteTaskNow(local, pick(LINES.undo)));
     } catch (err) {
         showToast('Marvin versteht nicht. ' + err.message);
     } finally {
@@ -808,17 +1025,10 @@ async function addShopping(items, comment, originalText) {
     allTasks.unshift(...locals);
     switchTab(PROVIANT);
     say(comment || 'Proviant notiert. Die Galaxis zittert vor Hunger.', { voice: true });
-    try {
-        const saved = await callBackend('addTasks', { tasks });
-        saved.forEach((r, k) => { locals[k].id = r.id; });
-        renderTasks();
-        saveCache();
-        setUndo(() => locals.forEach(l => deleteTaskNow(l, null, { quiet: true })));
-    } catch (err) {
-        allTasks = allTasks.filter(t => !locals.includes(t));
-        renderTasks();
-        say('Speichern fehlgeschlagen: ' + err.message);
-    }
+    // je Artikel ein Eintrag in der Warteschlange (einzeln rückgängig/bearbeitbar, auch offline)
+    tasks.forEach((task, k) => enqueue('addTask', { task }, { local: { ...locals[k] } }));
+    saveCache();
+    setUndo(() => locals.forEach(l => deleteTaskNow(l, null, { quiet: true })));
 }
 
 // ---------- Puffer: Rohe Einträge (z.B. Google Home) einsortieren ----------
@@ -858,9 +1068,10 @@ async function processInbox() {
             items.push({ task, changes });
         }
         if (items.length) {
-            await callBackend('updateTasks', { items: items.map(i => ({ id: i.task.id, changes: i.changes })) });
             const now = new Date().toISOString();
             items.forEach(i => Object.assign(i.task, i.changes, { status_since: now }));
+            enqueue('updateTasks', { items: items.map(i => ({ id: i.task.id, changes: i.changes })) });
+            saveCache();
             say(`${items.length} ${items.length === 1 ? 'Eintrag' : 'Einträge'} aus dem Puffer einsortiert. Niemand hat sich bedankt.`);
         }
     } catch (err) {
@@ -894,30 +1105,14 @@ async function createEvent(parsed, dueDate, originalText) {
     allEvents.push(local);
     switchTab(eventView(local));
     say(parsed.comment || 'Ein Termin. Wie aufregend. Für jemanden.', { voice: true });
-    try {
-        const saved = await callBackend('addEvent', { event });
-        Object.assign(local, saved);
-        renderTasks();
-        setUndo(() => deleteEventNow(local, pick(LINES.undo)));
-    } catch (err) {
-        allEvents = allEvents.filter(e => e !== local);
-        renderTasks();
-        say('Termin nicht gespeichert: ' + err.message);
-    }
+    enqueue('addEvent', { event }, { local: { ...local } });
+    setUndo(() => deleteEventNow(local, pick(LINES.undo)));
 }
 
-async function saveEvent(ev, changes) {
-    const before = { ...ev };
+function saveEvent(ev, changes) {
     Object.assign(ev, changes);
     renderTasks();
-    try {
-        Object.assign(ev, await callBackend('updateEvent', { id: ev.id, changes }));
-        renderTasks();
-    } catch (err) {
-        Object.assign(ev, before);
-        renderTasks();
-        say('Termin nicht geändert: ' + err.message);
-    }
+    enqueue('updateEvent', { id: ev.id, changes });
 }
 
 async function deleteEventNow(ev, message) {
@@ -928,13 +1123,9 @@ async function deleteEventNow(ev, message) {
     setUndo(null);
     if (message) say(message, { voice: true });
     Face.react('del');
-    try {
-        await callBackend('deleteEvent', { id: ev.id });
-    } catch (err) {
-        allEvents.splice(index, 0, ev);
-        renderTasks();
-        say('Termin nicht gelöscht: ' + err.message);
-    }
+    const pendingAdd = outbox.findIndex((o, k) => (k > 0 || !outboxBusy) && o.action === 'addEvent' && o.local?.id === ev.id);
+    if (pendingAdd >= 0) { outbox = outbox.filter((o, k) => k !== pendingAdd && o.payload?.id !== ev.id); saveOutbox(); return; }
+    enqueue('deleteEvent', { id: ev.id });
 }
 
 // Klartext statt Zahl: "heute 14:00", "morgen 14:00", "Di 14:00", ganztägig ohne Uhrzeit
@@ -1142,23 +1333,20 @@ async function convertEventToTask(ev, v) {
 // Abteilung eines Artikels merken (Config "Artikel"), künftig vor Gemini angewendet
 function rememberArtikel(name, aisleId) {
     shopItems[String(name).trim().toLowerCase()] = aisleId;
-    callBackend('setShopItem', { name, aisle_id: aisleId }).catch(err => debugLog('Artikel nicht gemerkt', err.message));
+    enqueue('setShopItem', { name, aisle_id: aisleId });
 }
 
-async function saveTask(task, changes) {
-    const before = { ...task };
-    if ('Status' in changes && changes.status !== task.status) changes = { ...changes, status_since: new Date().toISOString() };
+function saveTask(task, changes) {
+    if ('status' in changes && changes.status !== task.status) changes = { ...changes, status_since: new Date().toISOString() };
     Object.assign(task, changes);
+    const { status_since, ...sent } = changes; // setzt das Backend selbst
+    const op = enqueue('updateTask', { id: task.id, changes: sent }, status_since ? { since: status_since } : {});
+    // noch nicht angelegt? Änderung gleich ins Anlegen einarbeiten (Anzeige nach Neuladen stimmt)
+    const add = outbox.find(o => o.action === 'addTask' && o.local?.id === task.id);
+    if (add) { Object.assign(add.local, changes); saveOutbox(); }
     renderTasks();
     saveCache();
-    try {
-        const { status_since, ...sent } = changes; // setzt das Backend selbst
-        await callBackend('updateTask', { id: task.id, changes: sent });
-    } catch (err) {
-        Object.assign(task, before);
-        renderTasks();
-        showToast('Speichern fehlgeschlagen: ' + err.message);
-    }
+    return op;
 }
 
 function nextFullHour() {
@@ -1300,13 +1488,8 @@ async function deleteTaskNow(task, message, { quiet = false } = {}) {
     if (message) say(message, { voice: true });
     if (!quiet) Face.react('del');
     if (!quiet) setUndo(null);
-    try {
-        await callBackend('deleteTask', { id: task.id });
-    } catch (err) {
-        allTasks.splice(index, 0, task);
-        renderTasks();
-        say('Löschen fehlgeschlagen: ' + err.message);
-    }
+    if (cancelPendingAdd(task.id)) return;
+    enqueue('deleteTask', { id: task.id });
 }
 
 // ---------- UI: Drehrad ----------
