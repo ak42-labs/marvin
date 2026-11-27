@@ -21,6 +21,8 @@ const Face = (() => {
     const BASE = [[-24, 4], [-16, -4], [-8, -8], [0, -8], [8, -4], [16, 4]];
     const mk = (arr, y) => [].concat(arr.map(q => [47 + q[0], y + q[1]]), arr.map(q => [123 + q[0], y + q[1]]));
     const PX_OPEN = mk(BASE, 28);
+    const PX_FLAT = mk([[-24, 2], [-16, -3], [-8, -5], [0, -5], [8, -3], [16, 2]], 28);
+    const PX_ROW = Array.from({ length: 12 }, (_, i) => [13 + i * 12, 6]); // Ballspiel: eine Steinreihe oben
     const PX_X = mk([[-12, -10], [4, -10], [-4, -2], [-12, 6], [4, 6], [-4, -2]], 30);
     const PX_WINK = [].concat(PX_OPEN.slice(0, 6), [[-24, 2], [-16, 2], [-8, 2], [0, 2], [8, 2], [16, 2]].map(q => [123 + q[0], 28 + q[1]]));
     const HEART = [[1,0],[2,0],[4,0],[5,0],[0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[0,2],[1,2],[2,2],[3,2],[4,2],[5,2],[6,2],[1,3],[2,3],[3,3],[4,3],[5,3],[2,4],[3,4],[4,4],[3,5]];
@@ -120,11 +122,11 @@ const Face = (() => {
             <div class="scan"></div>
             <div class="face-stack">
               <svg class="eyes" aria-hidden="true" width="170" height="64" viewBox="0 0 170 64">
-                <g class="eg-mood"><g class="eg-snore">
+                <g class="eg-shift" transform="translate(0,-4)"><g class="eg-mood"><g class="eg-snore">
                   ${[47, 123].map(x => `<g transform="translate(${x} 32)"><g class="eg">
                      <path class="lid" stroke="${C}" stroke-linecap="round" fill="none"/>
                      <g class="pw"><circle class="pup" cx="0" cy="11" r="5" fill="#FFF3E6"/></g></g></g>`).join('')}
-                </g></g>
+                </g></g></g>
                 <g class="zz-layer"></g>
               </svg>
               <svg class="pix" aria-hidden="true" width="170" height="64" viewBox="0 0 170 64" shape-rendering="crispEdges" style="opacity:0">
@@ -253,6 +255,14 @@ const Face = (() => {
         layers.blocks.innerHTML = (ps.hide ? [] : ps.pos).map((q, i) => ps.dead?.[i] ? '' :
             `<rect class="b" x="0" y="0" width="8" height="8" fill="${C}" style="${blockStyle(q, i)}"/>`).join('');
     }
+    // vorhandene Blöcke in Stufen an neue Plätze schieben (Pixel-Art: ruckig gewollt)
+    function moveBlocks(pos, ms = 450, n = 3) {
+        ps.pos = pos;
+        [...layers.blocks.querySelectorAll('.b')].forEach((r, i) => {
+            r.style.transition = `transform ${ms}ms steps(${n})`;
+            r.style.transform = `translate(${pos[i][0]}px,${pos[i][1]}px)`;
+        });
+    }
     function drawPups() { layers.pups.innerHTML = (ps.pups || []).map(p => `<rect x="${p.x}" y="${p.y}" width="6" height="6" fill="#FFF3E6"/>`).join(''); }
     function drawSnake() { layers.snake.innerHTML = (ps.snake || []).map(s => `<rect x="${s.x}" y="${s.y}" width="6" height="6" fill="${s.f}"/>`).join(''); }
     function drawHearts() {
@@ -266,7 +276,7 @@ const Face = (() => {
         let segs = '';
         for (let x = 38; x + 5 <= 38 + ps.barW; x += 7) segs += `<rect x="${x}" y="27" width="5" height="8" fill="${C}"/>`;
         layers.bar.innerHTML = `<rect x="35" y="24" width="100" height="14" fill="none" stroke="${C}" stroke-width="2"/>` +
-            `<text x="85" y="17" text-anchor="middle" font-family="Press Start 2P" font-size="10" fill="#FFF3E6">LOADING...</text>` + segs;
+            `<text x="85" y="17" text-anchor="middle" font-size="10" fill="#FFF3E6" style="font-family:'Press Start 2P',monospace">LOADING...</text>` + segs;
         barEl.textContent = ps.barTxt || '';
     }
     function drawDrops() {
@@ -317,10 +327,11 @@ const Face = (() => {
             }
             if (n === 'snake') snakeRun(done, opts.preset);
             if (n === 'over') {
-                ps.pos = PX_X; drawBlocks(); scanEl.classList.add('on');
-                at(500, () => { setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
-                at(1300, () => setText('GAME OVER'));
-                at(5200, done);
+                scanEl.classList.add('on');
+                at(60, () => moveBlocks(PX_X, 600, 4));
+                at(1100, () => { drawBlocks(); setAnim('fall'); beep([523, 494, 466, 440, 415, 392, 370, 349, 330, 311, 294], .16, 'square'); });
+                at(1900, () => setText('GAME OVER'));
+                at(5800, done);
             }
             if (n === 'wink') {
                 ps.pos = PX_WINK; drawBlocks(); beep([880, 1320], .05);
@@ -370,6 +381,7 @@ const Face = (() => {
     function bricksRun(done) {
         const W = 170, H = 64, bs = 6, padW = 32, padY = 60;
         ps.dead = PX_OPEN.map(() => false); drawBlocks();
+        at(30, () => moveBlocks(PX_ROW, 700, 5));
         let bx, by, vx, vy, pxp = W / 2 - padW / 2, last = performance.now(), over = false, misses = 0;
         const serve = () => { const a = -Math.PI / 2 + (Math.random() - .5) * 1.2; bx = W / 2; by = padY - 8; vx = Math.cos(a) * 105; vy = Math.sin(a) * 105; };
         const draw = () => {
@@ -381,7 +393,7 @@ const Face = (() => {
             layers.drops.innerHTML = '';
             hooks.say?.(LINES.arkWin[0]); beep([523, 659, 784, 1047], .07);
             // Augen bauen sich neu auf: Block für Block, links vor rechts
-            ps.dead = null; drawBlocks(); setAnim('pop');
+            ps.dead = null; ps.pos = PX_OPEN; drawBlocks(); setAnim('pop');
             at(1700, done);
         };
         serve(); draw();
@@ -406,7 +418,7 @@ const Face = (() => {
                 if (by > padY + 14) { misses++; hooks.say?.(LINES.arkMiss[0]); beep([196, 147], .08); serve(); }
                 for (let i = 0; i < PX_OPEN.length; i++) {
                     if (ps.dead[i]) continue;
-                    const [x0, y0] = PX_OPEN[i];
+                    const [x0, y0] = PX_ROW[i];
                     if (bx + bs / 2 > x0 && bx - bs / 2 < x0 + 8 && by + bs / 2 > y0 && by - bs / 2 < y0 + 8) {
                         const ox = Math.min(Math.abs(bx - x0), Math.abs(bx - x0 - 8)), oy = Math.min(Math.abs(by - y0), Math.abs(by - y0 - 8));
                         if (ox < oy) vx = -vx; else vy = -vy;
@@ -451,9 +463,11 @@ const Face = (() => {
     function gate(t, k) {
         if (world === 'round') {
             if (t === 'morph') {
+                // Variante B: Pixel entstehen in der flachen runden Form, dann steigen sie in den Pixel-Bogen
                 R({ s: 'OPEN', p: 0, ey: 0, d: .6 });
-                at(300, () => { pixReset(); setAnim('pop'); showWorld('pixel'); });
-                at(1700, () => { world = 'pixel'; setAnim(''); k(); });
+                at(500, () => { pixReset(); ps.pos = PX_FLAT; drawBlocks(); setAnim('pop'); showWorld('pixel'); });
+                at(1800, () => { setAnim(''); drawBlocks(); at(30, () => moveBlocks(PX_OPEN, 500, 3)); });
+                at(2600, () => { world = 'pixel'; pixReset(); k(); });
             }
             if (t === 'rain') {
                 R({ s: 'LID', p: 1, x: 0, y: 0 });
@@ -464,12 +478,12 @@ const Face = (() => {
             }
             if (t === 'crt') {
                 R({ s: 'HALF', p: 0 });
-                at(900, () => R({ s: 'LINE', p: 0, ey: -4 }));            // Strich auf Bildmitte
-                at(1800, () => lids.forEach(l => { l.style.transition = 'stroke-width .5s steps(5)'; l.setAttribute('stroke-width', 1); l.style.strokeWidth = '1px'; }));
-                at(2400, () => {
-                    world = 'pixel'; showWorld('pixel');
-                    lids.forEach(l => { l.style.transition = ''; l.style.strokeWidth = ''; });
-                    px('crt', () => { pixReset(); k(); }, { thin: true });
+                at(800, () => R({ s: 'LINE', p: 0, d: .5 }));
+                at(1500, () => { eyes.classList.add('tvoff'); beep([880, 440, 110], .05, 'sawtooth'); });  // Fernseher aus: Strich -> Punkt
+                at(1900, () => { eyes.style.transition = 'none'; eyes.classList.add('off'); eyes.classList.remove('tvoff'); });
+                at(2500, () => {                                                  // kurz dunkel, dann aus dem Punkt: Röhre an
+                    eyes.style.transition = ''; world = 'pixel'; setAnim('crt'); showWorld('pixel');
+                    px('crt', () => { pixReset(); k(); });
                 });
             }
             if (t === 'snake') {
@@ -485,10 +499,11 @@ const Face = (() => {
             }
         } else {
             if (t === 'morph') {
-                setAnim('unpop');
+                // Variante B rückwärts: Blöcke sinken in die flache Form, dann übernimmt die runde Kurve
                 R({ s: 'OPEN', p: 0, ey: 0, d: .01 });
-                at(900, () => { eyes.classList.remove('off'); });
-                at(1700, () => { world = 'round'; pix.style.opacity = 0; setAnim(''); k(); });
+                moveBlocks(PX_FLAT, 500, 3);
+                at(700, () => { setAnim('unpop'); eyes.classList.remove('off'); });
+                at(1600, () => { world = 'round'; pix.style.opacity = 0; setAnim(''); k(); });
             }
             if (t === 'over') {
                 px('over', () => { pixReset(); popUp(k); });
