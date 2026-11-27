@@ -239,7 +239,8 @@ main {
 #undo-btn {
     flex-shrink: 0; white-space: nowrap;
     background: none; border: 1px solid rgba(255,200,150,.35); border-radius: 14px;
-    color: var(--amber-soft); font-style: normal; font-size: 15px; font-weight: 300; padding: 9px 12px;
+    color: var(--amber-soft); font-style: normal; font-size: 12px; line-height: 1.15; font-weight: 400; padding: 5px 10px;
+    letter-spacing: .04em; text-transform: uppercase; font-family: var(--font-display);
 }
 #undo-btn[hidden] { display: none; }
 

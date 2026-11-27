@@ -38,7 +38,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   *System-Status (bereits im Code):* "Leer. Marvin ist fast beeindruckt."
 *   *Lade-Status:* "Marvin holt die Daten..."
 *   *Fehler-Status:* "Marvin ist offline (Netzwerkfehler)."
-*   [OFFEN] Detaillierte Konversations-Prompts für die Gemini-Rückmeldungen müssen noch final im System-Prompt definiert werden.
+*   Gemini-Rückmeldungen: Ton im System-Prompt (`buildSystemPrompt` in `app.js`) + `docs/skill-marvin.md`.
 
 ---
 
@@ -88,7 +88,6 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 *   **Status sind feste Schlüssel im Code** (Verhalten hängt daran), keine Tabelle. Anzeige-Namen nur in `STATUS_LABELS` (`app.js`): backlog = Planetenhirn, todo = Hyperraum, on_hold = Anhalter, shopping = Proviant, done = 42. `inbox` unsichtbar (Puffer). Gekaufter Proviant = `done` mit `aisle_id`, zählt nicht in „42“.
 *   **IDs statt Namen** in `tasks` (Kategorie/Abteilung umbenennen bricht nichts).
 *   **App liest alles in einem Aufruf** (`getAll`) und hält es im Speicher + localStorage-Cache (`CACHE_V`); Nachschlagen ID → Name passiert nur im Speicher.
-*   Alte Blätter `Tasks_alt` / `Config_alt` nach der Umstellung nur als Sicherung; löschen, sobald alles passt.
 *   Eingang über Gemini (Einkauf, Aufgaben, Termine): `docs/skill-marvin.md`.
 
 ---
@@ -102,7 +101,7 @@ Marvin darf NIEMALS ausschweifende Prosa, höfliche Floskeln ("Wie kann ich helf
 
 ---
 
-## 6. STATUS (Stand 27.11.2026: App 4.5.0, Backend 1.1.0)
+## 6. STATUS (Stand 27.11.2026: App 4.6.0, Backend 1.1.0)
 *   Läuft live: Drehrad + Karten, Sprache -> Gemini -> Sheet/Kalender, Proviant, Google-Tasks-Import (Hintergrund, 1×/h), Augen UX v4 (runde + Arcade-Welt, Autopilot, Spaß-Regler), Deep-Thought-Zeile + Datenalter, Ziehen zum Aktualisieren, Einstellungen + Schlüssel-Dialog, Debug-Modus mit Zeitmessung (`info.ms`), Offline-Modus (Warteschlange `marvin.outbox`, `⟳ n`, Sprache ohne Netz, Zeitlimit 8 s).
 *   Ladezeit ~2,5–3,5 s (Backend ~1 s, Rest Netz/Kaltstart Google).
 *   **Versionsgeschichte:** `docs/changelog.md` (bei jedem Release dort eintragen, nicht hier).

@@ -2,7 +2,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzpc1pni5JmggYzBtUiZ
 // "-latest"-Aliase zeigen automatisch auf das neueste Modell (Google kündigt Wechsel 2 Wochen vorher an).
 // Reihenfolge = Präferenz; ist ein Alias nicht verfügbar, wird der nächste probiert.
 const GEMINI_MODELS = ['gemini-flash-lite-latest', 'gemini-flash-latest'];
-const APP_VERSION = '4.5.0'; // sichtbar in den Einstellungen
+const APP_VERSION = '4.6.0'; // sichtbar in den Einstellungen
 const STORAGE = { geminiKey: 'marvin.geminiKey', token: 'marvin.backendToken', voice: 'marvin.voice', debug: 'marvin.debug', fun: 'marvin.fun', gags: 'marvin.gags' };
 // Status-Schlüssel = Werte im Sheet (Schema v1, apps-script/Code.gs). Anzeige-Namen nur hier.
 const INBOX_STATUS = 'inbox';   // Eingangspuffer, kein sichtbarer Tab
@@ -1373,10 +1373,33 @@ function initEditor() {
     }));
     $('edit-due-clear').addEventListener('click', () => { $('edit-due').value = ''; updateDtLabels(); });
     $('edit-due').addEventListener('change', updateDtLabels);
+    // Datum entfernen: lange drücken (Gestenregel: lange drücken = mehr Optionen)
+    let dueTimer = null;
+    const dueBox = $('edit-due').parentElement;
+    dueBox.addEventListener('pointerdown', () => {
+        dueTimer = setTimeout(() => {
+            dueTimer = 'fired';
+            if (!$('edit-due').value || $('edit-time').value) return; // Termin braucht ein Datum
+            const before = $('edit-due').value;
+            $('edit-due').value = ''; updateDtLabels();
+            say('Zeitlos! Zeit ist ohnehin eine Illusion.');
+            setUndo(() => { $('edit-due').value = before; updateDtLabels(); });
+        }, 500);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => dueBox.addEventListener(ev, () => { if (dueTimer !== 'fired') clearTimeout(dueTimer); }));
+    $('edit-due').addEventListener('click', (e) => { if (dueTimer === 'fired') { e.preventDefault(); dueTimer = null; } }, true);
+    $('edit-due').addEventListener('contextmenu', (e) => e.preventDefault());
     $('edit-due').addEventListener('input', updateDtLabels);
     // ohne eigenes Kalender-Symbol: Antippen irgendwo im Feld öffnet die Auswahl
     ['edit-due', 'edit-time'].forEach(id => $(id).addEventListener('click', (e) => { try { e.target.showPicker?.(); } catch {} }));
-    $('edit-time-empty').addEventListener('click', () => { setTime(nextFullHour()); });
+    // Zeit leer: Tipp öffnet sofort die Uhr (Vorschlag = nächste volle Stunde)
+    $('edit-time-empty').addEventListener('click', () => {
+        const t = $('edit-time');
+        t.hidden = false; $('edit-time-empty').hidden = true;
+        try { t.showPicker(); } catch { setTime(nextFullHour()); }
+    });
+    // Uhr abgebrochen: wieder „Zeit“ zeigen
+    $('edit-time').addEventListener('blur', () => { if (!$('edit-time').value) setTime(''); });
     $('edit-time-clear').addEventListener('click', () => { setTime(''); });
     $('edit-time').addEventListener('change', () => setTime($('edit-time').value));
     $('edit-duration').addEventListener('change', updateFormMode);
@@ -1754,7 +1777,7 @@ function buildEventCard(ev, u) {
 // ---------- Gesten (UX v3 §1): Tippen = erledigt, lange drücken = bearbeiten, Wischen = Nachbar-Spalte ----------
 
 const EDGE = 24;        // Rand frei lassen (Android-Zurück-Geste)
-const SWIPE = 70;       // px bis zum Verschieben
+const SWIPE_SHARE = 0.4; // Verschieben erst ab 40 % der Kartenbreite (mind. 130 px) – sonst zählt es als Bereichswechsel-Versuch
 const LONG_PRESS = 450; // ms bis Bearbeiten
 const TAP_SLOP = 8;     // mehr Bewegung = kein Tipp (Scrollen)
 
@@ -1806,6 +1829,7 @@ function attachGestures(card, item, kind) {
         if (!wasMoved) { onCardTap(card, item, kind); return; }
         if (kind !== 'task' || !horizontal) return;
         const i = TASK_WHEEL.indexOf(viewOf(item));
+        const SWIPE = Math.max(130, card.offsetWidth * SWIPE_SHARE);
         const target = d <= -SWIPE ? TASK_WHEEL[i - 1] : d >= SWIPE ? TASK_WHEEL[i + 1] : null;
         if (target) setStatus(item, target);
     });
